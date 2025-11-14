@@ -377,3 +377,16 @@ struct FSkeletalMeshData
         return Ar;
     }
 };
+
+struct FRawAnimSequenceTrack
+{
+    TArray<FVector> PositionKeys;
+    TArray<FQuat>   RotationKeys;
+    TArray<FVector> ScaleKeys;
+};
+
+struct FBoneAnimationTrack
+{
+    FString BoneName;
+    FRawAnimSequenceTrack Track;
+};
