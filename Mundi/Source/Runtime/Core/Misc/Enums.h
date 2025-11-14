@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "UEContainer.h"
 #include <d3d11.h>
 
@@ -52,8 +52,6 @@ enum class EResourceType : uint8
     Texture,
     Material,
     Sound,
-    Animation,
-
 
     End
 };
