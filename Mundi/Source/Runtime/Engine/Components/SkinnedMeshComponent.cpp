@@ -544,7 +544,6 @@ void USkinnedMeshComponent::UpdateBoneMatrixBuffer()
       if (FAILED(hr))
       {
          // Map 실패 시 GPU 리소스가 유효하지 않으므로 GPU 모드 비활성화
-         UE_LOG("[error] UpdateBoneMatrixBuffer: Failed to map bone matrix buffer (HRESULT: 0x%X). Disabling GPU skinning.", hr);
          bUseGPUSkinning = false;
          ReleaseGPUSkinningResources();
          return;
@@ -562,7 +561,6 @@ void USkinnedMeshComponent::UpdateBoneMatrixBuffer()
    __except (EXCEPTION_EXECUTE_HANDLER)
    {
       // 예외 발생 시 GPU 모드 비활성화 및 리소스 해제
-      UE_LOG("[error] UpdateBoneMatrixBuffer: Exception occurred during buffer mapping. Disabling GPU skinning.");
       bUseGPUSkinning = false;
       ReleaseGPUSkinningResources();
    }
