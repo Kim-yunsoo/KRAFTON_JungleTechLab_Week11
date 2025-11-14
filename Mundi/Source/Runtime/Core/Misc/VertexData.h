@@ -380,13 +380,32 @@ struct FSkeletalMeshData
 
 struct FRawAnimSequenceTrack
 {
-    TArray<FVector> PositionKeys;
-    TArray<FQuat>   RotationKeys;
-    TArray<FVector> ScaleKeys;
+    TArray<FVector> PosKeys;    // 위치 키프레임
+    TArray<FQuat>   RotKeys;    // 회전 키프레임
+    TArray<FVector> ScaleKeys;  // 스케일 키프레임
+
+    int32 GetNumKeys() const
+    {
+        const int32 NumPosKeys = static_cast<int32>(PosKeys.size());
+        const int32 NumRotKeys = static_cast<int32>(RotKeys.size());
+        const int32 NumScaleKeys = static_cast<int32>(ScaleKeys.size());
+        return std::max({ NumPosKeys, NumRotKeys, NumScaleKeys });
+    }
+
+    bool HasAnyKeys() const
+    {
+        return PosKeys.empty() == false || RotKeys.empty() == false || ScaleKeys.empty() == false;
+    }
 };
 
 struct FBoneAnimationTrack
 {
     FString BoneName;
-    FRawAnimSequenceTrack Track;
+    int32 BoneIndex = -1;
+    FRawAnimSequenceTrack InternalTrack; // 실제 애니메이션 데이터
+
+    bool IsValid() const
+    {
+        return BoneIndex >= 0 && InternalTrack.HasAnyKeys();
+    }
 };
