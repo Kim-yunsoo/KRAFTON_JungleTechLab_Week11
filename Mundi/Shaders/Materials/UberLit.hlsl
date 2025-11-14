@@ -79,7 +79,7 @@ cbuffer FLightShadowmBufferType : register(b5)
 #ifdef GPU_SKINNING
 cbuffer BonesBuffer : register(b6)
 {
-    row_major float4x4 BoneMatrices[128];  // 최대 128개 본 지원
+    row_major float4x4 BoneMatrices[256];  // 최대 256개 본 지원
 };
 #endif
 

@@ -44,15 +44,41 @@ void USkinnedMeshComponent::DuplicateSubObjects()
 {
    Super::DuplicateSubObjects();
    SkeletalMesh->CreateVertexBuffer(&VertexBuffer);
+
+   // GPU 스키닝 모드였다면 GPU 리소스도 복제
+   if (bUseGPUSkinning)
+   {
+      CreateGPUSkinningResources();
+
+      // GPU 리소스 생성 실패 시 CPU 모드로 폴백
+      if (!BoneMatrixConstantBuffer || !GPUSkinnedVertexBuffer)
+      {
+         UE_LOG("[error] DuplicateSubObjects: Failed to create GPU resources. Falling back to CPU skinning.");
+         bUseGPUSkinning = false;
+      }
+   }
 }
 
 void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMeshBatchElements, const FSceneView* View)
 {
     if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshData()) { return; }
 
+   // IndexBuffer 유효성 검사 (PIE 중지 시 이미 해제되었을 수 있음)
+   if (!SkeletalMesh->GetIndexBuffer())
+   {
+      return;
+   }
+
    // CPU 스키닝 모드: 버텍스 버퍼 업데이트
    if (!bUseGPUSkinning)
    {
+      // CPU 모드용 VertexBuffer 유효성 검사
+      if (!VertexBuffer)
+      {
+         UE_LOG("[error] CollectMeshBatches: VertexBuffer is null in CPU mode.");
+         return;
+      }
+
       if (bSkinningMatricesDirty)
       {
          bSkinningMatricesDirty = false;
@@ -69,6 +95,13 @@ void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMes
          bUseGPUSkinning = false;
          bSkinningMatricesDirty = true;
          PerformSkinning();
+
+         // CPU 모드용 VertexBuffer 유효성 재검사
+         if (!VertexBuffer)
+         {
+            UE_LOG("[error] CollectMeshBatches: VertexBuffer is null after fallback to CPU mode.");
+            return;
+         }
 
          if (bSkinningMatricesDirty)
          {
@@ -442,7 +475,7 @@ void USkinnedMeshComponent::CreateGPUSkinningResources()
    }
 
    // 2. Bone Matrix Constant Buffer 생성 (register b6)
-   const uint32 MaxBones = 128;
+   const uint32 MaxBones = 256;
    const uint32 BoneBufferSize = MaxBones * sizeof(FMatrix);  // 128 bones * 64 bytes = 8192 bytes
 
    D3D11_BUFFER_DESC ConstantBufferDesc = {};
@@ -518,7 +551,7 @@ void USkinnedMeshComponent::UpdateBoneMatrixBuffer()
       }
 
       const uint32 NumBones = FinalSkinningMatrices.Num();
-      const uint32 MaxBones = 128;
+      const uint32 MaxBones = 256;
       const uint32 BonesToCopy = (NumBones < MaxBones) ? NumBones : MaxBones;
 
       // 본 매트릭스 복사
