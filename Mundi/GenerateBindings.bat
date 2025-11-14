@@ -23,6 +23,32 @@ if exist "BuildTools\Python\python.exe" (
     set PYTHON_CMD=BuildTools\Python\python.exe
     echo [INFO] Using embedded Python: BuildTools\Python\python.exe
     echo.
+
+    REM Auto-setup pip for embedded Python if not already done
+    if not exist "BuildTools\Python\Lib\site-packages\pip" (
+        echo [INFO] Setting up pip for embedded Python...
+
+        REM Enable site-packages by uncommenting import site in ._pth file
+        for %%f in (BuildTools\Python\python*._pth) do (
+            findstr /C:"import site" "%%f" >nul
+            if errorlevel 1 (
+                echo import site>> "%%f"
+                echo [OK] Enabled site-packages in %%f
+            )
+        )
+
+        REM Download and install pip
+        if not exist "BuildTools\Python\get-pip.py" (
+            echo [INFO] Downloading get-pip.py...
+            powershell -Command "Invoke-WebRequest -Uri https://bootstrap.pypa.io/get-pip.py -OutFile BuildTools\Python\get-pip.py"
+        )
+
+        if exist "BuildTools\Python\get-pip.py" (
+            echo [INFO] Installing pip...
+            %PYTHON_CMD% BuildTools\Python\get-pip.py --no-warn-script-location
+            echo.
+        )
+    )
 ) else (
     REM Check if system Python is available
     python --version >nul 2>&1
@@ -45,18 +71,26 @@ REM Verify Python version
 %PYTHON_CMD% --version
 echo.
 
-REM Check if jinja2 is installed
-%PYTHON_CMD% -c "import jinja2" >nul 2>&1
-if errorlevel 1 (
-    echo [WARNING] jinja2 is not installed!
-    echo Installing jinja2...
-    %PYTHON_CMD% -m pip install jinja2
+REM Auto-install required packages from requirements.txt
+if exist "BuildTools\requirements.txt" (
+    echo [INFO] Installing Python dependencies from requirements.txt...
+    %PYTHON_CMD% -m pip install --quiet --upgrade -r BuildTools\requirements.txt
     if errorlevel 1 (
-        echo [ERROR] Failed to install jinja2!
-        echo If using embedded Python, see BuildTools\PYTHON_SETUP.md for pip setup
-        pause
-        exit /b 1
+        echo [WARNING] Failed to install some packages. Trying without --quiet...
+        %PYTHON_CMD% -m pip install --upgrade -r BuildTools\requirements.txt
+        if errorlevel 1 (
+            echo [ERROR] Failed to install required packages!
+            echo Please check your Python and pip installation.
+            pause
+            exit /b 1
+        )
     )
+    echo [OK] All dependencies installed
+    echo.
+) else (
+    echo [WARNING] BuildTools\requirements.txt not found!
+    echo [INFO] Trying to install jinja2 directly...
+    %PYTHON_CMD% -m pip install jinja2
     echo.
 )
 
