@@ -1421,10 +1421,33 @@ void FSceneRenderer::DrawMeshBatches(TArray<FMeshBatchElement>& InMeshBatches, b
 		if (Batch.BoneMatrixConstantBuffer)
 		{
 			RHIDevice->GetDeviceContext()->VSSetConstantBuffers(6, 1, &Batch.BoneMatrixConstantBuffer);
+
+			// GPU 스키닝 성능 측정: Query 시작
+			if (Batch.OwnerComponent)
+			{
+				//UE_LOG("[info] SceneRenderer: Calling BeginGPUQuery for component %p", Batch.OwnerComponent);
+				Batch.OwnerComponent->BeginGPUQuery();
+			}
+			else
+			{
+				//UE_LOG("[error] SceneRenderer: BoneMatrixConstantBuffer exists but OwnerComponent is null!");
+			}
 		}
 
 		// 5. 드로우 콜 실행
 		RHIDevice->GetDeviceContext()->DrawIndexed(Batch.IndexCount, Batch.StartIndex, Batch.BaseVertexIndex);
+
+		// GPU 스키닝 성능 측정: Query 종료
+		if (Batch.BoneMatrixConstantBuffer && Batch.OwnerComponent)
+		{
+			//UE_LOG("[info] SceneRenderer: Calling EndGPUQuery for component %p", Batch.OwnerComponent);
+			Batch.OwnerComponent->EndGPUQuery();
+		}
+		else
+		{
+			/*UE_LOG("[debug] SceneRenderer: NOT calling EndGPUQuery (BoneMatrixCB=%p, OwnerComponent=%p)",
+				Batch.BoneMatrixConstantBuffer, Batch.OwnerComponent);*/
+		}
 	}
 
 	// 루프 종료 후 리스트 비우기 (옵션)
