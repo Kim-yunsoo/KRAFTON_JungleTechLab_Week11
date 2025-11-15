@@ -410,9 +410,15 @@ struct FRawAnimSequenceTrack
     TArray<FVector> PosKeys;    // 위치 키프레임
     TArray<FQuat>   RotKeys;    // 회전 키프레임
     TArray<FVector> ScaleKeys;  // 스케일 키프레임
+    TArray<float>   KeyTimes;   // 키 타임(초). 불규칙한 타이밍을 그대로 보관.
 
     int32 GetNumKeys() const
     {
+        if (KeyTimes.empty() == false)
+        {
+            return static_cast<int32>(KeyTimes.size());
+        }
+
         const int32 NumPosKeys = static_cast<int32>(PosKeys.size());
         const int32 NumRotKeys = static_cast<int32>(RotKeys.size());
         const int32 NumScaleKeys = static_cast<int32>(ScaleKeys.size());
@@ -421,7 +427,7 @@ struct FRawAnimSequenceTrack
 
     bool HasAnyKeys() const
     {
-        return PosKeys.empty() == false || RotKeys.empty() == false || ScaleKeys.empty() == false;
+        return !PosKeys.empty() || !RotKeys.empty() || !ScaleKeys.empty() || !KeyTimes.empty();
     }
 };
 

@@ -237,7 +237,7 @@ bool UShader::CompileVariantInternal(ID3D11Device* InDevice, const FString& InSh
 		{
 			Hr = InDevice->CreateVertexShader(OutVariant.VSBlob->GetBufferPointer(), OutVariant.VSBlob->GetBufferSize(), nullptr, &OutVariant.VertexShader);
 			assert(SUCCEEDED(Hr));
-			CreateInputLayout(InDevice, InShaderPath, OutVariant); // OutVariant 전달
+			CreateInputLayout(InDevice, InShaderPath, InMacros, OutVariant); // InMacros 전달
 		}
 	}
 	else if (EndsWith(InShaderPath, "_PS.hlsl"))
@@ -258,7 +258,7 @@ bool UShader::CompileVariantInternal(ID3D11Device* InDevice, const FString& InSh
 		{
 			Hr = InDevice->CreateVertexShader(OutVariant.VSBlob->GetBufferPointer(), OutVariant.VSBlob->GetBufferSize(), nullptr, &OutVariant.VertexShader);
 			assert(SUCCEEDED(Hr));
-			CreateInputLayout(InDevice, InShaderPath, OutVariant);
+			CreateInputLayout(InDevice, InShaderPath, InMacros, OutVariant);
 		}
 		if (bPsCompiled)
 		{
@@ -310,9 +310,27 @@ ID3D11PixelShader* UShader::GetPixelShader(const TArray<FShaderMacro>& InMacros)
 	return nullptr;
 }
 
-void UShader::CreateInputLayout(ID3D11Device* Device, const FString& InShaderPath, FShaderVariant& InOutVariant)
+void UShader::CreateInputLayout(ID3D11Device* Device, const FString& InShaderPath, const TArray<FShaderMacro>& InMacros, FShaderVariant& InOutVariant)
 {
-	TArray<D3D11_INPUT_ELEMENT_DESC> descArray = UResourceManager::GetInstance().GetProperInputLayout(InShaderPath);
+	// GPU_SKINNING 매크로가 정의되어 있는지 확인
+	bool bHasGPUSkinning = false;
+	for (const FShaderMacro& Macro : InMacros)
+	{
+		if (Macro.Name == "GPU_SKINNING")
+		{
+			bHasGPUSkinning = true;
+			break;
+		}
+	}
+
+	// GPU 스키닝 모드일 때는 별도의 Input Layout 사용
+	FString InputLayoutKey = InShaderPath;
+	if (bHasGPUSkinning && InShaderPath == "Shaders/Materials/UberLit.hlsl")
+	{
+		InputLayoutKey = "Shaders/Materials/UberLit.hlsl_GPU_SKINNING";
+	}
+
+	TArray<D3D11_INPUT_ELEMENT_DESC> descArray = UResourceManager::GetInstance().GetProperInputLayout(InputLayoutKey);
 	const D3D11_INPUT_ELEMENT_DESC* layout = descArray.data();
 	uint32 layoutCount = static_cast<uint32>(descArray.size());
 

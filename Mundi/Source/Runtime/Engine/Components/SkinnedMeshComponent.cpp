@@ -15,6 +15,13 @@ USkinnedMeshComponent::~USkinnedMeshComponent()
       VertexBuffer->Release();
       VertexBuffer = nullptr;
    }
+
+   // GPU 리소스를 소유한 컴포넌트(원본)만 해제
+   // PIE 복제본은 원본의 GPU 리소스를 공유하므로 해제하지 않음
+   if (bOwnsGPUResources)
+   {
+      ReleaseGPUSkinningResources();
+   }
 }
 
 void USkinnedMeshComponent::BeginPlay()
@@ -42,16 +49,61 @@ void USkinnedMeshComponent::DuplicateSubObjects()
 {
    Super::DuplicateSubObjects();
    SkeletalMesh->CreateVertexBuffer(&VertexBuffer);
+
+   // GPU 스키닝 모드: 원본의 GPU 리소스를 공유 (얕은 복사)
+   // PIE 복제본은 GPU 리소스를 새로 생성하지 않고, 에디터 원본의 리소스를 참조만 함
+   // 이렇게 하면 PIE 중지 시 PIE 복제본이 삭제되어도 에디터 원본의 GPU 리소스는 유지됨
+   if (bUseGPUSkinning)
+   {
+      // GPU 리소스 포인터는 이미 복사됨 (얕은 복사)
+      // GPUSkinnedVertexBuffer와 BoneMatrixConstantBuffer는 원본과 동일한 포인터를 가짐
+
+      // 이 복제본은 GPU 리소스를 소유하지 않음 (소멸 시 해제하지 않음)
+      bOwnsGPUResources = false;
+
+      UE_LOG("[info] DuplicateSubObjects: Sharing GPU resources from original component (GPUVertexBuffer: %p, BoneBuffer: %p)",
+         GPUSkinnedVertexBuffer, BoneMatrixConstantBuffer);
+   }
 }
 
 void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMeshBatchElements, const FSceneView* View)
 {
     if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshData()) { return; }
 
-   if (bSkinningMatricesDirty)
+   // IndexBuffer 유효성 검사 (PIE 중지 시 이미 해제되었을 수 있음)
+   if (!SkeletalMesh->GetIndexBuffer())
    {
-      bSkinningMatricesDirty = false;
-      SkeletalMesh->UpdateVertexBuffer(SkinnedVertices, VertexBuffer);
+      return;
+   }
+
+   // CPU 스키닝 모드: 버텍스 버퍼 업데이트
+   if (!bUseGPUSkinning)
+   {
+      // CPU 모드용 VertexBuffer 유효성 검사
+      if (!VertexBuffer)
+      {
+         UE_LOG("[error] CollectMeshBatches: VertexBuffer is null in CPU mode.");
+         return;
+      }
+
+      if (bSkinningMatricesDirty)
+      {
+         bSkinningMatricesDirty = false;
+         SkeletalMesh->UpdateVertexBuffer(SkinnedVertices, VertexBuffer);
+      }
+   }
+   // GPU 스키닝 모드: 본 매트릭스 버퍼 업데이트
+   else
+   {
+      // GPU 리소스 유효성 검사 (PIE 복제본도 원본의 리소스를 공유하므로 유효해야 함)
+      if (!BoneMatrixConstantBuffer || !GPUSkinnedVertexBuffer)
+      {
+         UE_LOG("[error] CollectMeshBatches: GPU resources invalid (BoneBuffer: %p, VertexBuffer: %p). Skipping rendering.",
+            BoneMatrixConstantBuffer, GPUSkinnedVertexBuffer);
+         return;
+      }
+
+      UpdateBoneMatrixBuffer();
    }
 
     const TArray<FGroupInfo>& MeshGroupInfos = SkeletalMesh->GetMeshGroupInfo();
@@ -118,6 +170,16 @@ void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMes
        {
           ShaderMacros.Append(MaterialToUse->GetShaderMacros());
        }
+
+       // GPU 스키닝 모드일 때 GPU_SKINNING 매크로 추가
+       if (bUseGPUSkinning)
+       {
+          FShaderMacro GPUSkinningMacro;
+          GPUSkinningMacro.Name = "GPU_SKINNING";
+          GPUSkinningMacro.Definition = "1";
+          ShaderMacros.Add(GPUSkinningMacro);
+       }
+
        FShaderVariant* ShaderVariant = ShaderToUse->GetOrCompileShaderVariant(ShaderMacros);
 
        if (ShaderVariant)
@@ -126,13 +188,25 @@ void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMes
           BatchElement.PixelShader = ShaderVariant->PixelShader;
           BatchElement.InputLayout = ShaderVariant->InputLayout;
        }
-       
+
        BatchElement.Material = MaterialToUse;
-       
-       BatchElement.VertexBuffer = VertexBuffer;
+
+       // CPU/GPU 모드에 따라 다른 버텍스 버퍼와 스트라이드 사용
+       if (bUseGPUSkinning)
+       {
+          BatchElement.VertexBuffer = GPUSkinnedVertexBuffer;
+          BatchElement.VertexStride = sizeof(FSkinnedVertex);
+          BatchElement.BoneMatrixConstantBuffer = BoneMatrixConstantBuffer;  // GPU 스키닝용 본 매트릭스 버퍼
+       }
+       else
+       {
+          BatchElement.VertexBuffer = VertexBuffer;
+          BatchElement.VertexStride = SkeletalMesh->GetVertexStride();
+          BatchElement.BoneMatrixConstantBuffer = nullptr;
+       }
+
        BatchElement.IndexBuffer = SkeletalMesh->GetIndexBuffer();
-       BatchElement.VertexStride = SkeletalMesh->GetVertexStride();
-       
+
        BatchElement.IndexCount = IndexCount;
        BatchElement.StartIndex = StartIndex;
        BatchElement.BaseVertexIndex = 0;
@@ -232,9 +306,12 @@ void USkinnedMeshComponent::SetSkeletalMesh(const FString& PathFileName)
 
 void USkinnedMeshComponent::PerformSkinning()
 {
+   // GPU 스키닝 모드에서는 CPU 스키닝을 수행하지 않음
+   if (bUseGPUSkinning) { return; }
+
    if (!SkeletalMesh || FinalSkinningMatrices.IsEmpty()) { return; }
    if (!bSkinningMatricesDirty) { return; }
-   
+
    const TArray<FSkinnedVertex>& SrcVertices = SkeletalMesh->GetSkeletalMeshData()->Vertices;
    const int32 NumVertices = SrcVertices.Num();
    SkinnedVertices.SetNum(NumVertices);
@@ -244,7 +321,7 @@ void USkinnedMeshComponent::PerformSkinning()
       const FSkinnedVertex& SrcVert = SrcVertices[Idx];
       FNormalVertex& DstVert = SkinnedVertices[Idx];
 
-      DstVert.pos = SkinVertexPosition(SrcVert); 
+      DstVert.pos = SkinVertexPosition(SrcVert);
       DstVert.normal = SkinVertexNormal(SrcVert);
       DstVert.Tangent = SkinVertexTangent(SrcVert);
       DstVert.tex = SrcVert.UV;
@@ -320,4 +397,172 @@ FVector4 USkinnedMeshComponent::SkinVertexTangent(const FSkinnedVertex& InVertex
 
    const FVector FinalTangentDir = BlendedTangentDir.GetSafeNormal();
    return { FinalTangentDir.X, FinalTangentDir.Y, FinalTangentDir.Z, OriginalSignW };
+}
+
+// ===== GPU 스키닝 함수 구현 =====
+
+void USkinnedMeshComponent::SetSkinningMode(bool bUseGPU)
+{
+   if (bUseGPUSkinning == bUseGPU)
+   {
+      return;  // 이미 같은 모드면 아무것도 하지 않음
+   }
+
+   bUseGPUSkinning = bUseGPU;
+
+   if (bUseGPUSkinning)
+   {
+      // GPU 모드로 전환: GPU 리소스가 없으면 생성
+      if (!BoneMatrixConstantBuffer || !GPUSkinnedVertexBuffer)
+      {
+         CreateGPUSkinningResources();
+      }
+      UE_LOG("Switched to GPU Skinning mode");
+   }
+   else
+   {
+      // CPU 모드로 전환: GPU 리소스는 유지하고 CPU 스키닝만 재수행
+      // GPU 리소스는 컴포넌트 소멸 시에만 해제됨 (나중에 GPU 모드로 다시 전환할 수 있음)
+      bSkinningMatricesDirty = true;
+      PerformSkinning();
+      UE_LOG("Switched to CPU Skinning mode");
+   }
+}
+
+void USkinnedMeshComponent::CreateGPUSkinningResources()
+{
+   if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshData())
+   {
+      UE_LOG("[error] CreateGPUSkinningResources: SkeletalMesh is null");
+      return;
+   }
+
+   ID3D11Device* Device = GEngine.GetRHIDevice()->GetDevice();
+   if (!Device)
+   {
+      UE_LOG("[error] CreateGPUSkinningResources: Device is null");
+      return;
+   }
+
+   // 기존 리소스 해제
+   ReleaseGPUSkinningResources();
+
+   // 1. GPU용 Vertex Buffer 생성 (FSkinnedVertex 형식, 본 인덱스/가중치 포함)
+   const TArray<FSkinnedVertex>& SkinnedVertices = SkeletalMesh->GetSkeletalMeshData()->Vertices;
+   const uint32 NumVertices = SkinnedVertices.Num();
+   const uint32 VertexBufferSize = NumVertices * sizeof(FSkinnedVertex);
+
+   D3D11_BUFFER_DESC VertexBufferDesc = {};
+   VertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;  // GPU 스키닝은 정점 데이터를 변경하지 않음
+   VertexBufferDesc.ByteWidth = VertexBufferSize;
+   VertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+   VertexBufferDesc.CPUAccessFlags = 0;
+
+   D3D11_SUBRESOURCE_DATA VertexInitData = {};
+   VertexInitData.pSysMem = SkinnedVertices.data();
+
+   HRESULT hr = Device->CreateBuffer(&VertexBufferDesc, &VertexInitData, &GPUSkinnedVertexBuffer);
+   if (FAILED(hr))
+   {
+      UE_LOG("[error] CreateGPUSkinningResources: Failed to create GPU vertex buffer");
+      return;
+   }
+
+   // 2. Bone Matrix Constant Buffer 생성 (register b6)
+   // 메시의 실제 본 개수만큼만 버퍼 생성 (메모리 최적화)
+   const uint32 ActualBoneCount = SkeletalMesh->GetBoneCount();
+   const uint32 MaxBones = (ActualBoneCount > 0) ? ActualBoneCount : 256;  // 최소 1개 이상
+   const uint32 BoneBufferSize = MaxBones * sizeof(FMatrix);
+
+   D3D11_BUFFER_DESC ConstantBufferDesc = {};
+   ConstantBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+   ConstantBufferDesc.ByteWidth = (BoneBufferSize + 15) & ~15;  // 16바이트 정렬
+   ConstantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+   ConstantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+   hr = Device->CreateBuffer(&ConstantBufferDesc, nullptr, &BoneMatrixConstantBuffer);
+
+   UE_LOG("[GPU Skinning] Created bone buffer for %u bones (%u bytes, aligned: %u bytes)",
+      MaxBones, BoneBufferSize, ConstantBufferDesc.ByteWidth);
+   if (FAILED(hr))
+   {
+      UE_LOG("[error] CreateGPUSkinningResources: Failed to create bone matrix constant buffer");
+      if (GPUSkinnedVertexBuffer)
+      {
+         GPUSkinnedVertexBuffer->Release();
+         GPUSkinnedVertexBuffer = nullptr;
+      }
+      return;
+   }
+
+   UE_LOG("GPU Skinning resources created successfully");
+}
+
+void USkinnedMeshComponent::ReleaseGPUSkinningResources()
+{
+   if (GPUSkinnedVertexBuffer)
+   {
+      GPUSkinnedVertexBuffer->Release();
+      GPUSkinnedVertexBuffer = nullptr;
+   }
+
+   if (BoneMatrixConstantBuffer)
+   {
+      BoneMatrixConstantBuffer->Release();
+      BoneMatrixConstantBuffer = nullptr;
+   }
+}
+
+void USkinnedMeshComponent::UpdateBoneMatrixBuffer()
+{
+   // GPU 스키닝이 비활성화되었으면 리턴
+   if (!bUseGPUSkinning)
+   {
+      return;
+   }
+
+   // 버퍼나 매트릭스 데이터가 없으면 리턴
+   if (!BoneMatrixConstantBuffer || FinalSkinningMatrices.IsEmpty())
+   {
+      return;
+   }
+
+   ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
+   if (!Context)
+   {
+      return;
+   }
+
+   // SEH(Structured Exception Handling)로 예외 처리
+   __try
+   {
+      // Constant Buffer에 본 매트릭스 업로드
+      D3D11_MAPPED_SUBRESOURCE MappedResource;
+      HRESULT hr = Context->Map(BoneMatrixConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
+
+      if (FAILED(hr))
+      {
+         // Map 실패 시 이번 프레임만 스킵 (플래그는 유지)
+         UE_LOG("[error] UpdateBoneMatrixBuffer: Failed to map buffer (HRESULT: 0x%X). Skipping this frame.", hr);
+         return;
+      }
+
+      const uint32 NumBones = FinalSkinningMatrices.Num();
+
+      // 버퍼에 복사할 본 개수 결정 (버퍼 크기를 초과하지 않도록)
+      // 버퍼는 실제 메시의 본 개수만큼 생성되어 있음
+      const uint32 MaxBonesInBuffer = SkeletalMesh->GetBoneCount();
+      const uint32 BonesToCopy = (NumBones < MaxBonesInBuffer) ? NumBones : MaxBonesInBuffer;
+
+      // 본 매트릭스 복사
+      memcpy(MappedResource.pData, FinalSkinningMatrices.data(), BonesToCopy * sizeof(FMatrix));
+
+      Context->Unmap(BoneMatrixConstantBuffer, 0);
+   }
+   __except (EXCEPTION_EXECUTE_HANDLER)
+   {
+      // 예외 발생 시 이번 프레임만 스킵 (플래그는 유지)
+      DWORD exceptionCode = GetExceptionCode();
+      UE_LOG("[error] UpdateBoneMatrixBuffer: Exception 0x%X occurred. Skipping this frame.", exceptionCode);
+   }
 }

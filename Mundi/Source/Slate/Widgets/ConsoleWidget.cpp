@@ -4,6 +4,8 @@
 #include "GlobalConsole.h"
 #include "StatsOverlayD2D.h"
 #include "USlateManager.h"
+#include "World.h"
+#include "SkinnedMeshComponent.h"
 #include <windows.h>
 #include <cstdarg>
 #include <cctype>
@@ -52,6 +54,8 @@ void UConsoleWidget::Initialize()
 	HelpCommandList.Add("STAT NONE");
 	HelpCommandList.Add("STAT LIGHT");
 	HelpCommandList.Add("STAT SHADOW");
+	HelpCommandList.Add("CPU SKINNING");
+	HelpCommandList.Add("GPU SKINNING");
 
 	// Add welcome messages
 	AddLog("=== Console Widget Initialized ===");
@@ -357,6 +361,66 @@ void UConsoleWidget::ExecCommand(const char* command_line)
 		UStatsOverlayD2D::Get().SetShowDecal(false);
 		UStatsOverlayD2D::Get().SetShowTileCulling(false);
 		AddLog("STAT: OFF");
+	}
+	else if (Stricmp(command_line, "CPU SKINNING") == 0)
+	{
+		// 모든 월드의 모든 SkinnedMeshComponent를 찾아서 CPU 스키닝 모드로 설정
+		extern UEditorEngine GEngine;
+		int32 SwitchedCount = 0;
+
+		// 에디터 월드와 PIE 월드 모두 처리
+		for (const FWorldContext& WorldContext : GEngine.GetWorldContexts())
+		{
+			if (WorldContext.World)
+			{
+				for (AActor* Actor : WorldContext.World->GetActors())
+				{
+					if (Actor)
+					{
+						for (UActorComponent* Component : Actor->GetOwnedComponents())
+						{
+							USkinnedMeshComponent* SkinnedComp = dynamic_cast<USkinnedMeshComponent*>(Component);
+							if (SkinnedComp && SkinnedComp->IsUsingGPUSkinning())
+							{
+								SkinnedComp->SetSkinningMode(false);
+								SwitchedCount++;
+							}
+						}
+					}
+				}
+			}
+		}
+		AddLog("Switched %d components to CPU Skinning mode (all worlds)", SwitchedCount);
+	}
+	else if (Stricmp(command_line, "GPU SKINNING") == 0)
+	{
+		// 모든 월드의 모든 SkinnedMeshComponent를 찾아서 GPU 스키닝 모드로 설정
+		extern UEditorEngine GEngine;
+		int32 SwitchedCount = 0;
+
+		// 에디터 월드와 PIE 월드 모두 처리
+		for (const FWorldContext& WorldContext : GEngine.GetWorldContexts())
+		{
+			if (WorldContext.World)
+			{
+				for (AActor* Actor : WorldContext.World->GetActors())
+				{
+					if (Actor)
+					{
+						for (UActorComponent* Component : Actor->GetOwnedComponents())
+						{
+							USkinnedMeshComponent* SkinnedComp = dynamic_cast<USkinnedMeshComponent*>(Component);
+							if (SkinnedComp && !SkinnedComp->IsUsingGPUSkinning())
+							{
+								SkinnedComp->SetSkinningMode(true);
+								SwitchedCount++;
+							}
+						}
+					}
+				}
+			}
+		}
+		AddLog("Switched %d components to GPU Skinning mode (all worlds)", SwitchedCount);
 	}
 	else
 	{
