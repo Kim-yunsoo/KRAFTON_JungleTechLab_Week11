@@ -95,9 +95,6 @@ void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMes
 
          LastCPUSkinningCpuTime = TotalCpuDuration.count();
 
-         UE_LOG("[DEBUG] CPU 정점 계산: %.6f ms, 버퍼 업로드: %.6f ms, CPU 작업 합계: %.6f ms",
-                CalcDuration.count(), UploadDuration.count(), LastCPUSkinningCpuTime);
-
          // CPU 작업 시간 즉시 기록 (DrawIndexed GPU 시간은 ReadGPUQueryResults에서 추가)
          FSkinningStats::GetInstance().RecordCPUSkinningTime(LastCPUSkinningCpuTime);
       }
