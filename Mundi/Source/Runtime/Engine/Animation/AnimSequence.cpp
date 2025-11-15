@@ -3,8 +3,6 @@
 #include "AnimDataModel.h"
 #include "JsonSerializer.h"
 
-IMPLEMENT_CLASS(UAnimSequence)
-
 void UAnimSequence::SetDataModel(std::unique_ptr<UAnimDataModel> InDataModel)
 {
     // 새로운 데이터 모델을 받고 시퀀스 메타데이터를 즉시 맞춘다.
@@ -21,14 +19,8 @@ void UAnimSequence::ResetDataModel()
 
 const TArray<FBoneAnimationTrack>& UAnimSequence::GetBoneTracks() const
 {
-    if (DataModel)
-    {
-        return DataModel->GetBoneTracks();
-    }
-
-    // DataModel이 없을 때 빈 배열 반환 (static 대신 지역 const 사용)
-    static const TArray<FBoneAnimationTrack> EmptyTracks;
-    return EmptyTracks;
+    static TArray<FBoneAnimationTrack> EmptyTracks;
+    return DataModel ? DataModel->GetBoneTracks() : EmptyTracks;
 }
 
 const FBoneAnimationTrack* UAnimSequence::FindTrackByBoneName(const FName& BoneName) const
@@ -53,14 +45,8 @@ int32 UAnimSequence::GetNumberOfKeys() const
 
 const FFrameRate& UAnimSequence::GetFrameRateStruct() const
 {
-    if (DataModel)
-    {
-        return DataModel->GetFrameRate();
-    }
-
-    // DataModel이 없을 때 기본 프레임레이트 반환 (static const로 불변성 보장)
-    static const FFrameRate DefaultRate{};
-    return DefaultRate;
+    static FFrameRate DefaultRate;
+    return DataModel ? DataModel->GetFrameRate() : DefaultRate;
 }
 
 void UAnimSequence::SyncDerivedMetadata()
@@ -72,36 +58,105 @@ void UAnimSequence::SyncDerivedMetadata()
 // AnimSequence.cpp 내부에서만 사용되므로 namespace로 범위를 한정합니다.
 namespace
 {
-    // SerializePrimitiveArray (Object.h)를 활용한 본 트랙 직렬화 헬퍼
+    // JSON 직렬화/역직렬화를 돕는 로컬 유틸 함수들.
+    JSON SerializeVectorKeys(const TArray<FVector>& Keys)
+    {
+        JSON ArrayJson = JSON::Make(JSON::Class::Array);
+        for (const FVector& Key : Keys)
+        {
+            JSON KeyJson = JSON::Make(JSON::Class::Array);
+            KeyJson.append(Key.X);
+            KeyJson.append(Key.Y);
+            KeyJson.append(Key.Z);
+            ArrayJson.append(KeyJson);
+        }
+        return ArrayJson;
+    }
+
+    JSON SerializeQuatKeys(const TArray<FQuat>& Keys)
+    {
+        JSON ArrayJson = JSON::Make(JSON::Class::Array);
+        for (const FQuat& Key : Keys)
+        {
+            JSON KeyJson = JSON::Make(JSON::Class::Array);
+            KeyJson.append(Key.X);
+            KeyJson.append(Key.Y);
+            KeyJson.append(Key.Z);
+            KeyJson.append(Key.W);
+            ArrayJson.append(KeyJson);
+        }
+        return ArrayJson;
+    }
+
+    void DeserializeVectorKeys(const JSON& JsonArray, TArray<FVector>& OutKeys)
+    {
+        OutKeys.clear();
+        if (JsonArray.JSONType() != JSON::Class::Array)
+        {
+            return;
+        }
+
+        OutKeys.reserve(static_cast<int32>(JsonArray.size()));
+        for (size_t Idx = 0; Idx < JsonArray.size(); ++Idx)
+        {
+            const JSON& KeyJson = JsonArray.at(static_cast<unsigned>(Idx));
+            if (KeyJson.JSONType() != JSON::Class::Array || KeyJson.size() < 3)
+            {
+                continue;
+            }
+
+            FVector Key;
+            Key.X = static_cast<float>(KeyJson.at(0).ToFloat());
+            Key.Y = static_cast<float>(KeyJson.at(1).ToFloat());
+            Key.Z = static_cast<float>(KeyJson.at(2).ToFloat());
+            OutKeys.Add(Key);
+        }
+    }
+
+    void DeserializeQuatKeys(const JSON& JsonArray, TArray<FQuat>& OutKeys)
+    {
+        OutKeys.clear();
+        if (JsonArray.JSONType() != JSON::Class::Array)
+        {
+            return;
+        }
+
+        OutKeys.reserve(static_cast<int32>(JsonArray.size()));
+        for (size_t Idx = 0; Idx < JsonArray.size(); ++Idx)
+        {
+            const JSON& KeyJson = JsonArray.at(static_cast<unsigned>(Idx));
+            if (KeyJson.JSONType() != JSON::Class::Array || KeyJson.size() < 4)
+            {
+                continue;
+            }
+
+            FQuat Key;
+            Key.X = static_cast<float>(KeyJson.at(0).ToFloat());
+            Key.Y = static_cast<float>(KeyJson.at(1).ToFloat());
+            Key.Z = static_cast<float>(KeyJson.at(2).ToFloat());
+            Key.W = static_cast<float>(KeyJson.at(3).ToFloat());
+            OutKeys.Add(Key);
+        }
+    }
+
     JSON SerializeBoneTrack(const FBoneAnimationTrack& Track)
     {
         JSON TrackJson = JSON::Make(JSON::Class::Object);
         TrackJson["BoneName"] = Track.BoneName.ToString().c_str();
         TrackJson["BoneIndex"] = Track.BoneIndex;
-
-        // SerializePrimitiveArray 활용
-        JSON PosKeysJson = JSON::Make(JSON::Class::Array);
-        JSON RotKeysJson = JSON::Make(JSON::Class::Array);
-        JSON ScaleKeysJson = JSON::Make(JSON::Class::Array);
-        JSON KeyTimesJson = JSON::Make(JSON::Class::Array);
-
-        SerializePrimitiveArray(const_cast<TArray<FVector>*>(&Track.InternalTrack.PosKeys), false, PosKeysJson);
-        SerializePrimitiveArray(const_cast<TArray<FQuat>*>(&Track.InternalTrack.RotKeys), false, RotKeysJson);
-        SerializePrimitiveArray(const_cast<TArray<FVector>*>(&Track.InternalTrack.ScaleKeys), false, ScaleKeysJson);
-        SerializePrimitiveArray(const_cast<TArray<float>*>(&Track.InternalTrack.KeyTimes), false, KeyTimesJson);
-
-        TrackJson["PosKeys"] = PosKeysJson;
-        TrackJson["RotKeys"] = RotKeysJson;
-        TrackJson["ScaleKeys"] = ScaleKeysJson;
-        TrackJson["KeyTimes"] = KeyTimesJson;
-
+        TrackJson["PosKeys"] = SerializeVectorKeys(Track.InternalTrack.PosKeys);
+        TrackJson["RotKeys"] = SerializeQuatKeys(Track.InternalTrack.RotKeys);
+        TrackJson["ScaleKeys"] = SerializeVectorKeys(Track.InternalTrack.ScaleKeys);
         return TrackJson;
     }
 
     void DeserializeBoneTracks(const JSON& TracksJson, TArray<FBoneAnimationTrack>& OutTracks)
     {
         OutTracks.clear();
-        if (TracksJson.JSONType() != JSON::Class::Array) { return; }
+        if (TracksJson.JSONType() != JSON::Class::Array)
+        {
+            return;
+        }
 
         OutTracks.reserve(static_cast<int32>(TracksJson.size()));
         for (size_t Idx = 0; Idx < TracksJson.size(); ++Idx)
@@ -118,26 +173,17 @@ namespace
             }
             FJsonSerializer::ReadInt32(TrackJson, "BoneIndex", Track.BoneIndex, -1, false);
 
-            // SerializePrimitiveArray 활용
             if (TrackJson.hasKey("PosKeys"))
             {
-                JSON PosKeysJson = TrackJson.at("PosKeys");
-                SerializePrimitiveArray(&Track.InternalTrack.PosKeys, true, PosKeysJson);
+                DeserializeVectorKeys(TrackJson.at("PosKeys"), Track.InternalTrack.PosKeys);
             }
             if (TrackJson.hasKey("RotKeys"))
             {
-                JSON RotKeysJson = TrackJson.at("RotKeys");
-                SerializePrimitiveArray(&Track.InternalTrack.RotKeys, true, RotKeysJson);
+                DeserializeQuatKeys(TrackJson.at("RotKeys"), Track.InternalTrack.RotKeys);
             }
             if (TrackJson.hasKey("ScaleKeys"))
             {
-                JSON ScaleKeysJson = TrackJson.at("ScaleKeys");
-                SerializePrimitiveArray(&Track.InternalTrack.ScaleKeys, true, ScaleKeysJson);
-            }
-            if (TrackJson.hasKey("KeyTimes"))
-            {
-                JSON KeyTimesJson = TrackJson.at("KeyTimes");
-                SerializePrimitiveArray(&Track.InternalTrack.KeyTimes, true, KeyTimesJson);
+                DeserializeVectorKeys(TrackJson.at("ScaleKeys"), Track.InternalTrack.ScaleKeys);
             }
 
             OutTracks.Add(Track);
@@ -182,37 +228,24 @@ void UAnimSequence::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 
         SyncDerivedMetadata();
     }
-    else // Saving
+    else
     {
-        // DataModel이 없어도 일관성을 위해 빈 구조를 저장
+        if (!DataModel) { return; }
+
+        // DataModel 내용을 JSON에 기록해 디스크로 보낸다.
         JSON ModelJson = JSON::Make(JSON::Class::Object);
+        ModelJson["FrameRateNumerator"] = DataModel->GetFrameRate().Numerator;
+        ModelJson["FrameRateDenominator"] = DataModel->GetFrameRate().Denominator;
+        ModelJson["NumberOfFrames"] = DataModel->GetNumberOfFrames();
+        ModelJson["NumberOfKeys"] = DataModel->GetNumberOfKeys();
+        ModelJson["PlayLength"] = DataModel->GetPlayLengthSeconds();
 
-        if (DataModel)
+        JSON TrackArray = JSON::Make(JSON::Class::Array);
+        for (const FBoneAnimationTrack& Track : DataModel->GetBoneTracks())
         {
-            // DataModel 내용을 JSON에 기록해 디스크로 보낸다.
-            ModelJson["FrameRateNumerator"] = DataModel->GetFrameRate().Numerator;
-            ModelJson["FrameRateDenominator"] = DataModel->GetFrameRate().Denominator;
-            ModelJson["NumberOfFrames"] = DataModel->GetNumberOfFrames();
-            ModelJson["NumberOfKeys"] = DataModel->GetNumberOfKeys();
-            ModelJson["PlayLength"] = DataModel->GetPlayLengthSeconds();
-
-            JSON TrackArray = JSON::Make(JSON::Class::Array);
-            for (const FBoneAnimationTrack& Track : DataModel->GetBoneTracks())
-            {
-                TrackArray.append(SerializeBoneTrack(Track));
-            }
-            ModelJson["Tracks"] = TrackArray;
+            TrackArray.append(SerializeBoneTrack(Track));
         }
-        else
-        {
-            // DataModel이 없을 때 기본값으로 빈 구조 저장
-            ModelJson["FrameRateNumerator"] = 30;
-            ModelJson["FrameRateDenominator"] = 1;
-            ModelJson["NumberOfFrames"] = 0;
-            ModelJson["NumberOfKeys"] = 0;
-            ModelJson["PlayLength"] = 0.0f;
-            ModelJson["Tracks"] = JSON::Make(JSON::Class::Array);
-        }
+        ModelJson["Tracks"] = TrackArray;
 
         InOutHandle["DataModel"] = ModelJson;
     }

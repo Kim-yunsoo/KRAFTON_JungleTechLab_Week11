@@ -1,8 +1,6 @@
 ﻿#include "pch.h"
 #include "AnimDataModel.h"
 
-IMPLEMENT_CLASS(UAnimDataModel)
-
 // 외부에서 구성한 트랙 배열을 받아 복사한다.
 void UAnimDataModel::SetBoneTracks(const TArray<FBoneAnimationTrack>& InTracks)
 {
@@ -67,28 +65,18 @@ void UAnimDataModel::RefreshDerivedData()
 {
     int32 MaxKeysPerTrack = 0;
     int32 TotalKeys = 0;
-    float MaxDurationSeconds = 0.f;
 
     for (const FBoneAnimationTrack& Track : BoneAnimationTracks)
     {
         const int32 TrackKeys = Track.InternalTrack.GetNumKeys();
         MaxKeysPerTrack = std::max(MaxKeysPerTrack, TrackKeys);
         TotalKeys += TrackKeys;
-
-        if (Track.InternalTrack.KeyTimes.empty() == false)
-        {
-            MaxDurationSeconds = std::max(MaxDurationSeconds, Track.InternalTrack.KeyTimes.back());
-        }
     }
 
     NumberOfFrames = MaxKeysPerTrack;
     NumberOfKeys = TotalKeys;
 
-    if (MaxDurationSeconds > 0.f)
-    {
-        DataDurationSeconds = MaxDurationSeconds;
-    }
-    else if (FrameRate.IsValid() && NumberOfFrames > 1)
+    if (FrameRate.IsValid() && NumberOfFrames > 1)
     {
         DataDurationSeconds = FrameRate.AsSeconds(NumberOfFrames - 1);
     }

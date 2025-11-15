@@ -15,7 +15,6 @@
 #include "ObjectFactory.h"
 #include "Object.h"
 #include "SkeletalMesh.h"
-#include "../Engine/Animation/AnimSequence.h"
 // ... 기타 include ...
 
 // --- 전방 선언 ---
@@ -260,8 +259,6 @@ EResourceType UResourceManager::GetResourceType()
         return EResourceType::Material;
     if (T::StaticClass() == USound::StaticClass())
         return EResourceType::Sound;
-    if (T::StaticClass() == UAnimSequence::StaticClass())
-        return EResourceType::AnimSequence;
 
     return EResourceType::None;
 }

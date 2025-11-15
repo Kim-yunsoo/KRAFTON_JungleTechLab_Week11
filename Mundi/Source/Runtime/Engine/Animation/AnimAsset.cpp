@@ -3,8 +3,6 @@
 #include "JsonSerializer.h"
 #include "PathUtils.h"
 
-IMPLEMENT_CLASS(UAnimAsset)
-
 namespace
 {
     FString ExtractAssetNameFromPath(const FString& InPath)
@@ -24,42 +22,58 @@ namespace
     }
 }
 
+void UAnimAsset::SetSourceFile(const FString& InSourceFile)
+{
+    if (InSourceFile.empty())
+    {
+        SourceFile.clear();
+        return;
+    }
+
+    SourceFile = NormalizePath(InSourceFile);
+
+    if (AssetName.empty())
+    {
+        AssetName = ExtractAssetNameFromPath(SourceFile);
+    }
+}
+
 void UAnimAsset::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
     Super::Serialize(bInIsLoading, InOutHandle);
 
     if (bInIsLoading)
     {
-        // AssetName 로드
+        FString LoadedSource;
+        if (FJsonSerializer::ReadString(InOutHandle, "SourceFile", LoadedSource, "", false))
+        {
+            SetSourceFile(LoadedSource);
+        }
+        else
+        {
+            SourceFile.clear();
+        }
+
         FString LoadedAssetName;
         if (FJsonSerializer::ReadString(InOutHandle, "AssetName", LoadedAssetName, "", false))
         {
             AssetName = LoadedAssetName;
         }
 
-        // FilePath 로드 (UResourceBase에서 상속)
-        FString LoadedFilePath;
-        if (FJsonSerializer::ReadString(InOutHandle, "FilePath", LoadedFilePath, "", false))
-        {
-            SetFilePath(NormalizePath(LoadedFilePath));
-
-            // AssetName이 비어있을 때만 자동 생성
-            if (AssetName.empty())
-            {
-                AssetName = ExtractAssetNameFromPath(FilePath);
-            }
-        }
-
-        // SkeletonName 로드
         FString LoadedSkeletonName;
         if (FJsonSerializer::ReadString(InOutHandle, "SkeletonName", LoadedSkeletonName, "", false))
         {
             SkeletonName = LoadedSkeletonName;
         }
+
+        if (AssetName.empty())
+        {
+            AssetName = ExtractAssetNameFromPath(SourceFile);
+        }
     }
     else
     {
-        InOutHandle["FilePath"] = FilePath.c_str();
+        InOutHandle["SourceFile"] = SourceFile.c_str();
         InOutHandle["AssetName"] = AssetName.c_str();
         InOutHandle["SkeletonName"] = SkeletonName.c_str();
     }

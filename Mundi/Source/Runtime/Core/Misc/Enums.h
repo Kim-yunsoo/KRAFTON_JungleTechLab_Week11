@@ -52,7 +52,6 @@ enum class EResourceType : uint8
     Texture,
     Material,
     Sound,
-    AnimSequence,
 
     End
 };

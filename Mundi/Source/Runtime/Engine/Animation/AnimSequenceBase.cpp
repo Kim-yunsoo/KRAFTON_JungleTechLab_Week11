@@ -2,18 +2,10 @@
 #include "AnimSequenceBase.h"
 #include "JsonSerializer.h"
 
-IMPLEMENT_CLASS(UAnimSequenceBase)
-
 void UAnimSequenceBase::AddNotify(const FAnimNotifyEvent& Notify)
 {
-    // 이진 탐색을 통해 추가할 지점을 찾아 삽입합니다.
-    auto InsertPos = std::lower_bound(Notifies.begin(), Notifies.end(), Notify,
-        [](const FAnimNotifyEvent& A, const FAnimNotifyEvent& B)
-        {
-            return A.TriggerTime < B.TriggerTime;
-        });
-
-    Notifies.insert(InsertPos, Notify);
+    Notifies.Add(Notify);
+    SortNotifies();
 }
 
 void UAnimSequenceBase::SetNotifies(const TArray<FAnimNotifyEvent>& InNotifies)
