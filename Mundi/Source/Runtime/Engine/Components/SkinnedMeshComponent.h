@@ -37,6 +37,17 @@ public:
      */
     USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh; }
 
+    /**
+     * @brief GPU/CPU 스키닝 모드 전환
+     * @param bUseGPU true면 GPU 스키닝, false면 CPU 스키닝
+     */
+    void SetSkinningMode(bool bUseGPU);
+
+    /**
+     * @brief 현재 스키닝 모드 반환
+     */
+    bool IsUsingGPUSkinning() const { return bUseGPUSkinning; }
+
 protected:
     void PerformSkinning();
     /**
@@ -44,6 +55,21 @@ protected:
      * @param InSkinningMatrices 스키닝 매트릭스
      */
     void UpdateSkinningMatrices(const TArray<FMatrix>& InSkinningMatrices, const TArray<FMatrix>& InSkinningNormalMatrices);
+
+    /**
+     * @brief GPU 스키닝용 본 매트릭스 상수 버퍼 업데이트
+     */
+    void UpdateBoneMatrixBuffer();
+
+    /**
+     * @brief GPU 스키닝용 리소스 생성 (Vertex Buffer + Constant Buffer)
+     */
+    void CreateGPUSkinningResources();
+
+    /**
+     * @brief GPU 스키닝용 리소스 해제
+     */
+    void ReleaseGPUSkinningResources();
     
     UPROPERTY(EditAnywhere, Category = "Skeletal Mesh", Tooltip = "Skeletal mesh asset to render")
     USkeletalMesh* SkeletalMesh;
@@ -68,9 +94,31 @@ private:
     TArray<FMatrix> FinalSkinningMatrices;
     TArray<FMatrix> FinalSkinningNormalMatrices;
     bool bSkinningMatricesDirty = true;
-    
+
     /**
      * @brief CPU 스키닝에서 진행하기 때문에, Component별로 VertexBuffer를 가지고 스키닝 업데이트를 진행해야함
     */
     ID3D11Buffer* VertexBuffer = nullptr;
+
+    // ===== GPU 스키닝 관련 멤버 =====
+    /**
+     * @brief GPU 스키닝 사용 여부
+     */
+    bool bUseGPUSkinning = false;
+
+    /**
+     * @brief GPU 스키닝용 정점 버퍼 (본 인덱스/가중치 포함, FSkinnedVertex 형식)
+     */
+    ID3D11Buffer* GPUSkinnedVertexBuffer = nullptr;
+
+    /**
+     * @brief GPU 스키닝용 본 매트릭스 상수 버퍼 (register b6)
+     */
+    ID3D11Buffer* BoneMatrixConstantBuffer = nullptr;
+
+    /**
+     * @brief GPU 리소스 소유권 플래그 (PIE 복제본은 false, 원본은 true)
+     * PIE 복제본은 원본의 GPU 리소스를 공유하므로 소멸 시 해제하지 않음
+     */
+    bool bOwnsGPUResources = true;
 };
