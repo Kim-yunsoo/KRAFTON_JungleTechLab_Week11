@@ -41,8 +41,6 @@ public:
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
 
-    void PlayAnimation(UAnimSequence* AnimSequence, bool bLooping);
-
 protected:
     /**
      * @brief CurrentLocalSpacePose의 변경사항을 ComponentSpace -> FinalMatrices 계산까지 모두 수행
@@ -79,8 +77,10 @@ protected:
      */
     TArray<FMatrix> TempFinalSkinningNormalMatrices;
 
-private:
-    
-    UAnimInstance* AnimInstance;
 
+// FOR TEST!!!
+private:
+    float TestTime = 0;
+    bool bIsInitialized = false;
+    FTransform TestBoneBasePose;
 };

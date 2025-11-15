@@ -423,25 +423,6 @@ struct FRawAnimSequenceTrack
     {
         return PosKeys.empty() == false || RotKeys.empty() == false || ScaleKeys.empty() == false;
     }
-
-    FTransform GetTransform(float FrameRate, float Time) const
-    {
-        uint32 KeyCount = PosKeys.Num();
-        float MaxTime = KeyCount / FrameRate;
-        Time = Time < 0 ? 0 : (Time > MaxTime ? MaxTime : Time); //clamp(Time, 0, MaxTime);
-        float TimeValue = Time * FrameRate;
-
-        int PrevIdx = floor(TimeValue);
-        int NextIdx = PrevIdx;
-        NextIdx = NextIdx >= KeyCount ? KeyCount : NextIdx;
-        float T = TimeValue - PrevIdx;
-
-        FVector Pos = FVector::Lerp(PosKeys[PrevIdx], PosKeys[NextIdx], T);
-        FQuat Rot = FQuat::Slerp(RotKeys[PrevIdx], RotKeys[NextIdx], T);
-        FVector Scale = FVector::Lerp(ScaleKeys[PrevIdx], ScaleKeys[NextIdx], T);
-
-        return FTransform(Pos, Rot, Scale);
-    }
 };
 
 struct FBoneAnimationTrack
