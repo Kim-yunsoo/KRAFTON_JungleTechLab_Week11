@@ -9,6 +9,8 @@
 #include "WindowsBinReader.h"
 #include "WindowsBinWriter.h"
 #include "PathUtils.h"
+#include "AnimSequence.h"
+#include "AnimDataModel.h"
 #include <filesystem>
 
 IMPLEMENT_CLASS(UFbxLoader)
@@ -304,41 +306,46 @@ FSkeletalMeshData* UFbxLoader::LoadFbxMeshAsset(const FString& FilePath)
 	// ========================================
 	// 애니메이션 로딩 (스켈레톤이 있고 AnimStack이 있는 경우)
 	// ========================================
-	TArray<FAnimationData*> Animations;
 	if (!MeshData->Skeleton.Bones.IsEmpty())
 	{
 		int AnimStackCount = Scene->GetSrcObjectCount<FbxAnimStack>();
 		if (AnimStackCount > 0)
 		{
 			UE_LOG("Found %d animation stack(s) in FBX, loading animations...", AnimStackCount);
-			Animations = LoadAnimationsFromScene(Scene, MeshData->Skeleton);
+			TArray<FAnimationData*> Animations = LoadAnimationsFromScene(Scene, MeshData->Skeleton);
 
-			// 애니메이션 캐시 저장
-			#ifdef USE_OBJ_CACHE
+			// FAnimationData를 UAnimSequence로 변환하고 ResourceManager에 등록
 			for (FAnimationData* AnimData : Animations)
 			{
 				if (AnimData && AnimData->IsValid())
 				{
-					// 애니메이션 캐시 파일명: 원본파일명_애니메이션이름.anim.bin
-					FString AnimCachePath = ConvertDataPathToCachePath(NormalizedPath);
-					AnimCachePath = AnimCachePath + "_" + AnimData->AnimationName + ".anim.bin";
-					AnimData->CacheFilePath = AnimCachePath;
+					// UAnimSequence 생성
+					UAnimSequence* AnimSequence = NewObject<UAnimSequence>();
 
-					try
-					{
-						// TODO: 애니메이션 캐시 직렬화 구현 필요
-						// FWindowsBinWriter AnimWriter(AnimCachePath);
-						// AnimWriter << *AnimData;
-						// AnimWriter.Close();
-						UE_LOG("Animation cache saved: %s", AnimCachePath.c_str());
-					}
-					catch (const std::exception& e)
-					{
-						UE_LOG("Failed to save animation cache: %s", e.what());
-					}
+					// UAnimDataModel 생성 및 설정
+					std::unique_ptr<UAnimDataModel> DataModel = std::make_unique<UAnimDataModel>();
+					DataModel->SetFrameRate(AnimData->FrameRate);
+					DataModel->SetBoneTracks(std::move(AnimData->BoneTracks)); // move로 복사 비용 절감
+
+					// DataModel을 AnimSequence에 설정
+					AnimSequence->SetDataModel(std::move(DataModel));
+
+					// ResourceManager에 등록 (파일명_애니메이션이름 형식)
+					FString AnimAssetName = NormalizedPath + "_" + AnimData->AnimationName;
+					UResourceManager::GetInstance().Add<UAnimSequence>(AnimAssetName, AnimSequence);
+
+					UE_LOG("Loaded animation '%s' (%.2f sec, %d frames, %d tracks)",
+						AnimData->AnimationName.c_str(),
+						AnimData->Duration,
+						AnimData->TotalFrames,
+						AnimData->GetNumBones());
+
+					// FAnimationData 메모리 해제 (메모리 릭 방지)
+					delete AnimData;
 				}
 			}
-			#endif
+
+			UE_LOG("Successfully created %zu UAnimSequence object(s)", Animations.size());
 		}
 	}
 
