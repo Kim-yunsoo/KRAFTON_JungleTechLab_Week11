@@ -31,4 +31,9 @@ public:
     
     bool bBoneTransformChanged = false;
     bool bBoneRotationEditing = false;
+
+    // 애니메이션 재생 관련 (Step 6: AnimSequenceViewer 연동)
+    float CurrentTime = 0.0f;
+    bool bIsPlaying = false;
+    float PlayRate = 1.0f;
 };

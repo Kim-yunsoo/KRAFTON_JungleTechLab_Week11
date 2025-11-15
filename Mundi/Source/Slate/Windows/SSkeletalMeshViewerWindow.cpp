@@ -237,6 +237,78 @@ void SSkeletalMeshViewerWindow::OnRender()
             ImGui::PopStyleColor();
             ImGui::Spacing();
 
+            // =============== Animation Tools 섹션 =============
+            // Animation Tools Section
+            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.35f, 0.50f, 0.35f, 0.8f)); // 초록색 톤
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4);
+            ImGui::Indent(8.0f);
+            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
+            ImGui::Text("Animation Tools");
+            ImGui::PopFont();
+            ImGui::Unindent(8.0f);
+            ImGui::PopStyleColor();
+
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.35f, 0.45f, 0.60f, 0.7f));
+            ImGui::Separator();
+            ImGui::PopStyleColor();
+            ImGui::Spacing();
+
+            // Animation Sequence Viewer 버튼
+            ImGui::BeginGroup();
+            {
+                USlateManager& SlateManager = USlateManager::GetInstance();
+                bool bAnimViewerOpen = SlateManager.IsAnimSequenceViewerOpen();
+
+                const char* buttonText = bAnimViewerOpen
+                    ? "Close Animation Viewer"
+                    : "Open Animation Viewer";
+
+                ImVec4 buttonColor = bAnimViewerOpen
+                    ? ImVec4(0.60f, 0.40f, 0.40f, 1.0f)  // 빨간색 (닫기)
+                    : ImVec4(0.35f, 0.60f, 0.50f, 1.0f); // 초록색 (열기)
+
+                ImVec4 buttonHovered = bAnimViewerOpen
+                    ? ImVec4(0.70f, 0.50f, 0.50f, 1.0f)
+                    : ImVec4(0.45f, 0.70f, 0.60f, 1.0f);
+
+                ImVec4 buttonActive = bAnimViewerOpen
+                    ? ImVec4(0.50f, 0.30f, 0.30f, 1.0f)
+                    : ImVec4(0.25f, 0.50f, 0.40f, 1.0f);
+
+                ImGui::PushStyleColor(ImGuiCol_Button, buttonColor);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonHovered);
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, buttonActive);
+
+                float buttonWidth = leftWidth - 24.0f;
+                if (ImGui::Button(buttonText, ImVec2(buttonWidth, 35)))
+                {
+                    if (bAnimViewerOpen)
+                    {
+                        SlateManager.CloseAnimSequenceViewer();
+                    }
+                    else
+                    {
+                        SlateManager.OpenAnimSequenceViewer();
+                    }
+                }
+
+                ImGui::PopStyleColor(3);
+
+                // 툴팁
+                if (ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip("Opens a separate window to view and edit animation sequences");
+                }
+            }
+            ImGui::EndGroup();
+
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.35f, 0.45f, 0.60f, 0.7f));
+            ImGui::Separator();
+            ImGui::PopStyleColor();
+            ImGui::Spacing();
+
             // Bone Hierarchy Section
             ImGui::Text("Bone Hierarchy:");
             ImGui::Spacing();
