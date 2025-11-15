@@ -111,15 +111,15 @@ void USkeletalMeshComponent::SetBoneWorldTransform(int32 BoneIndex, const FTrans
 
     SetBoneLocalTransform(BoneIndex, DesiredLocal);
 }
-void USkeletalMeshComponent::SetPose(const TArray<FTransform>& Pose)
+
+void USkeletalMeshComponent::SetPose(const FPoseContext& Pose)
 {
-    if (CurrentLocalSpacePose.Num() == Pose.Num())
+    if (Pose.Pose.Num() == CurrentLocalSpacePose.Num())
     {
-        CurrentLocalSpacePose = Pose;
+        CurrentLocalSpacePose = Pose.Pose;
         ForceRecomputePose();
     }
 }
-
 
 FTransform USkeletalMeshComponent::GetBoneLocalTransform(int32 BoneIndex) const
 {

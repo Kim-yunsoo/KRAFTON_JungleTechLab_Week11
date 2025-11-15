@@ -14,29 +14,20 @@ void UAnimSingleNodeInstance::SetAnimSequence(UAnimSequence* InAnimSequence, con
 void UAnimSingleNodeInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	float SequenceTime = AnimSequence->GetPlayLength();
-	float ClampTime = Clamp(CurrentTime, 0, SequenceTime);
-	//범위 벗어났을 경우
-	if (ClampTime != CurrentTime)
+	if (bLoop)
 	{
-		if (bLoop)
+		CurrentTime = ClampTimeLooped(CurrentTime, CurrentTime - PrevTime, SequenceTime);
+	}
+	else
+	{
+		CurrentTime = Clamp(CurrentTime, 0, SequenceTime);
+		if (CurrentTime != SequenceTime)
 		{
-			float Quotient = CurrentTime / SequenceTime;
-			float FracQuotient = Quotient - floor(Quotient);
-			CurrentTime = FracQuotient * SequenceTime;
-		}
-		else
-		{
-			CurrentTime = ClampTime;
 			bPlay = false;
 		}
 	}
-	const TArray<FBoneAnimationTrack>& BoneTracks = AnimSequence->GetBoneTracks();
-	float FrameRate = AnimSequence->GetFrameRate();
-	TArray<FTransform> BoneLocalTransforms;
-	BoneLocalTransforms.Reserve(BoneTracks.Num());
-	for (const FBoneAnimationTrack& BoneTrack : BoneTracks)
-	{
-		BoneLocalTransforms.Push(BoneTrack.InternalTrack.GetTransform(FrameRate, CurrentTime));
-	}
-	OwnerComponent->SetPose(BoneLocalTransforms);
+
+	FPoseContext PoseA(this);
+	PoseA.SetPose(AnimSequence, CurrentTime);
+	OwnerComponent->SetPose(PoseA);
 }
