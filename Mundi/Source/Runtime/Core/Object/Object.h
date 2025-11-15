@@ -260,6 +260,8 @@ static void SerializePrimitiveArray(TArray<T>* ArrayPtr, bool bIsLoading, JSON& 
     if (bIsLoading)
     {
         ArrayPtr->clear();
+        ArrayPtr->reserve(static_cast<int32>(ArrayJson.size()));
+
         for (uint32 i = 0; i < static_cast<uint32>(ArrayJson.size()); ++i)
         {
             if constexpr (std::is_same_v<T, int32>)
@@ -278,6 +280,33 @@ static void SerializePrimitiveArray(TArray<T>* ArrayPtr, bool bIsLoading, JSON& 
             {
                 ArrayPtr->Add(ArrayJson[i].ToString());
             }
+            else if constexpr (std::is_same_v<T, FVector>)
+            {
+                const JSON& VecJson = ArrayJson[i];
+                if (VecJson.JSONType() == JSON::Class::Array && VecJson.size() >= 3)
+                {
+                    FVector Vec(
+                        static_cast<float>(VecJson.at(0).ToFloat()),
+                        static_cast<float>(VecJson.at(1).ToFloat()),
+                        static_cast<float>(VecJson.at(2).ToFloat())
+                    );
+                    ArrayPtr->Add(Vec);
+                }
+            }
+            else if constexpr (std::is_same_v<T, FQuat>)
+            {
+                const JSON& QuatJson = ArrayJson[i];
+                if (QuatJson.JSONType() == JSON::Class::Array && QuatJson.size() >= 4)
+                {
+                    FQuat Quat(
+                        static_cast<float>(QuatJson.at(0).ToFloat()),
+                        static_cast<float>(QuatJson.at(1).ToFloat()),
+                        static_cast<float>(QuatJson.at(2).ToFloat()),
+                        static_cast<float>(QuatJson.at(3).ToFloat())
+                    );
+                    ArrayPtr->Add(Quat);
+                }
+            }
         }
     }
     else // Saving
@@ -287,6 +316,23 @@ static void SerializePrimitiveArray(TArray<T>* ArrayPtr, bool bIsLoading, JSON& 
             if constexpr (std::is_same_v<T, FString>)
             {
                 ArrayJson.append(Element.c_str());
+            }
+            else if constexpr (std::is_same_v<T, FVector>)
+            {
+                JSON VecJson = JSON::Make(JSON::Class::Array);
+                VecJson.append(Element.X);
+                VecJson.append(Element.Y);
+                VecJson.append(Element.Z);
+                ArrayJson.append(VecJson);
+            }
+            else if constexpr (std::is_same_v<T, FQuat>)
+            {
+                JSON QuatJson = JSON::Make(JSON::Class::Array);
+                QuatJson.append(Element.X);
+                QuatJson.append(Element.Y);
+                QuatJson.append(Element.Z);
+                QuatJson.append(Element.W);
+                ArrayJson.append(QuatJson);
             }
             else
             {
