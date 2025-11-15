@@ -2,6 +2,11 @@
 #include "Object.h"
 #include "fbxsdk.h"
 
+class UAnimSequence;
+class UAnimDataModel;
+struct FSkeleton;
+struct FSkeletalMeshData;
+
 class UFbxLoader : public UObject
 {
 public:
@@ -15,10 +20,15 @@ public:
 	USkeletalMesh* LoadFbxMesh(const FString& FilePath);
 
 	FSkeletalMeshData* LoadFbxMeshAsset(const FString& FilePath);
-	
+
+	UAnimSequence* LoadAnimationFromFbx(const FString& FilePath, const FSkeleton& TargetSkeleton);
+
+	bool BuildAnimDataModelFromFbx(const FString& FilePath, const FSkeleton& TargetSkeleton, UAnimDataModel& OutModel);
+	const TArray<FString>& GetDiscoveredAnimationSources() const { return AnimationSourceFiles; }
 
 protected:
 	~UFbxLoader() override;
+
 private:
 	UFbxLoader(const UFbxLoader&) = delete;
 	UFbxLoader& operator=(const UFbxLoader&) = delete;
@@ -35,9 +45,13 @@ private:
 	FString ParseTexturePath(FbxProperty& Property);
 
 	void EnsureSingleRootBone(FSkeletalMeshData& MeshData);
-	
+	bool ExtractAnimationFromScene(FbxScene& Scene, const FSkeleton& TargetSkeleton, UAnimDataModel& OutModel);
+	bool InspectFbxContent(const FString& FilePath, bool& OutHasMesh, bool& OutHasAnimation) const;
+	FString MakeAnimationCacheKey(const FString& FilePath, const FString& SkeletonName) const;
+
 	// bin파일 저장용
 	TArray<FMaterialInfo> MaterialInfos;
 	FbxManager* SdkManager = nullptr;
+	TArray<FString> AnimationSourceFiles;
 	
 };
