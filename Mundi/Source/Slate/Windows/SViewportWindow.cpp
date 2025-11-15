@@ -1992,14 +1992,14 @@ void SViewportWindow::RenderShowFlagDropdownMenu()
 			ImGui::RadioButton(" CPU SKINNING", &skinningModeInt, 0);
 			if (ImGui::IsItemHovered())
 			{
-				ImGui::SetTooltip("CPU에서 스키닝 계산 수행\n- 호환성 높음\n- GPU 부하 낮음");
+				ImGui::SetTooltip("CPU에서 스키닝 계산 수행");
 			}
 
 			// GPU SKINNING 라디오 버튼
 			ImGui::RadioButton(" GPU SKINNING", &skinningModeInt, 1);
 			if (ImGui::IsItemHovered())
 			{
-				ImGui::SetTooltip("GPU에서 스키닝 계산 수행 (Vertex Shader)\n- 성능 향상\n- GPU 활용");
+				ImGui::SetTooltip("GPU에서 스키닝 계산 수행");
 			}
 
 			// 모드 변경 시 모든 SkinnedMeshComponent에 적용
