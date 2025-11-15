@@ -1496,6 +1496,16 @@ void SViewportWindow::RenderShowFlagDropdownMenu()
 				ImGui::SetTooltip("셉도우 맵 통계를 표시합니다. (셉도우 라이트 개수, 아틀라스 크기, 메모리 사용량)");
 			}
 
+			bool bSkinningStats = UStatsOverlayD2D::Get().IsSkinningVisible();
+			if (ImGui::Checkbox(" SKINNING", &bSkinningStats))
+			{
+				UStatsOverlayD2D::Get().ToggleSkinning();
+			}
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("CPU/GPU 스키닝 성능 비교 통계를 표시합니다. (현재/평균 시간, 속도 향상)");
+			}
+
 			ImGui::EndMenu();
 		}
 

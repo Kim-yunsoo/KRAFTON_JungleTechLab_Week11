@@ -1423,8 +1423,20 @@ void FSceneRenderer::DrawMeshBatches(TArray<FMeshBatchElement>& InMeshBatches, b
 			RHIDevice->GetDeviceContext()->VSSetConstantBuffers(6, 1, &Batch.BoneMatrixConstantBuffer);
 		}
 
+		// CPU/GPU 스키닝 성능 측정: Query 시작 (DrawIndexed 실행 시간 측정)
+		if (Batch.OwnerComponent)
+		{
+			Batch.OwnerComponent->BeginGPUQuery();
+		}
+
 		// 5. 드로우 콜 실행
 		RHIDevice->GetDeviceContext()->DrawIndexed(Batch.IndexCount, Batch.StartIndex, Batch.BaseVertexIndex);
+
+		// CPU/GPU 스키닝 성능 측정: Query 종료
+		if (Batch.OwnerComponent)
+		{
+			Batch.OwnerComponent->EndGPUQuery();
+		}
 	}
 
 	// 루프 종료 후 리스트 비우기 (옵션)

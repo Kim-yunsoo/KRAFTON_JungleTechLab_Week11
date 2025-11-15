@@ -11,6 +11,9 @@
 #include <cctype>
 #include <cstring>
 #include <algorithm>
+#include <functional>
+#include <cstdlib>
+#include <exception>
 
 using std::max;
 using std::min;
@@ -38,7 +41,7 @@ UConsoleWidget::~UConsoleWidget()
 
 void UConsoleWidget::Initialize()
 {
-	ClearLog();
+    ClearLog();
 
 	// Help 커맨드를 입력했을 때 콘솔에 표시할 명령어 목록
 	HelpCommandList.Add("HELP");
@@ -55,7 +58,13 @@ void UConsoleWidget::Initialize()
 	HelpCommandList.Add("STAT LIGHT");
 	HelpCommandList.Add("STAT SHADOW");
 	HelpCommandList.Add("CPU SKINNING");
-	HelpCommandList.Add("GPU SKINNING");
+    HelpCommandList.Add("GPU SKINNING");
+    HelpCommandList.Add("CAUSECRASH [depth] [type]");
+    HelpCommandList.Add("CAUSEAV [depth]");
+    HelpCommandList.Add("CAUSERAISE [depth]");
+    HelpCommandList.Add("CAUSEABORT [depth]");
+    HelpCommandList.Add("CAUSETERMINATE [depth]");
+    HelpCommandList.Add("CAUSEDIV0 [depth]");
 
 	// Add welcome messages
 	AddLog("=== Console Widget Initialized ===");
@@ -273,7 +282,7 @@ void UConsoleWidget::ClearLog()
 
 void UConsoleWidget::ExecCommand(const char* command_line)
 {
-	AddLog("# %s", command_line);
+    AddLog("# %s", command_line);
 
 	// Add to history
 	HistoryPos = -1;
@@ -304,10 +313,158 @@ void UConsoleWidget::ExecCommand(const char* command_line)
 		for (int32 i = max(0, first); i < History.Num(); i++)
 			AddLog("%3d: %s", i, History[i].c_str());
 	}
-	else if (Stricmp(command_line, "CLASSIFY") == 0)
-	{
-		AddLog("This is a classification test command.");
-	}
+    else if (Stricmp(command_line, "CLASSIFY") == 0)
+    {
+        AddLog("This is a classification test command.");
+    }
+    else if (Strnicmp(command_line, "CAUSECRASH", 10) == 0)
+    {
+        // Syntax: CAUSECRASH [depth] [type]
+        // type: raise (default) | av | abort | terminate
+        int depth = 5;
+        char typeStr[32] = { 0 };
+
+        // Parse tokens
+        // Simple parsing: split by spaces
+        const char* p = command_line;
+        // skip command token
+        while (*p && *p != ' ') ++p;
+        while (*p == ' ') ++p;
+        if (*p)
+        {
+            depth = atoi(p);
+            // move to next
+            while (*p && *p != ' ') ++p;
+            while (*p == ' ') ++p;
+            if (*p)
+            {
+                strncpy_s(typeStr, p, sizeof(typeStr) - 1);
+                // trim trailing spaces
+                for (int i = (int)strlen(typeStr) - 1; i >= 0 && typeStr[i] == ' '; --i) typeStr[i] = 0;
+            }
+        }
+
+        auto TriggerCrash = [](const char* t)
+        {
+            if (!t || _stricmp(t, "raise") == 0)
+            {
+                RaiseException(0xE0000001, 0, 0, nullptr);
+            }
+            else if (_stricmp(t, "av") == 0 || _stricmp(t, "accessviolation") == 0)
+            {
+                volatile int* pNull = (int*)0;
+                *pNull = 42; // Access Violation
+            }
+            else if (_stricmp(t, "abort") == 0)
+            {
+                abort();
+            }
+            else if (_stricmp(t, "terminate") == 0)
+            {
+                std::terminate();
+            }
+            else
+            {
+                RaiseException(0xE0000001, 0, 0, nullptr);
+            }
+        };
+
+        std::function<void(int)> Frame;
+        Frame = [&](int n)
+        {
+            if (n > 0) Frame(n - 1);
+            else TriggerCrash(typeStr[0] ? typeStr : "raise");
+        };
+
+        AddLog("CAUSECRASH: depth=%d, type=%s", depth, typeStr[0] ? typeStr : "raise");
+        Frame(std::max(0, depth));
+    }
+    else if (Strnicmp(command_line, "CAUSEAV", 7) == 0)
+    {
+        int depth = 5;
+        const char* p = command_line + 7; // after token
+        while (*p == ' ') ++p;
+        if (*p) depth = atoi(p);
+
+        std::function<void(int)> Frame;
+        Frame = [&](int n)
+        {
+            if (n > 0) Frame(n - 1);
+            else {
+                volatile int* pNull = (int*)0;
+                *pNull = 42; // Access Violation
+            }
+        };
+        AddLog("CAUSEAV: depth=%d", depth);
+        Frame(std::max(0, depth));
+    }
+    else if (Strnicmp(command_line, "CAUSERAISE", 10) == 0)
+    {
+        int depth = 5;
+        const char* p = command_line + 10; // after token
+        while (*p == ' ') ++p;
+        if (*p) depth = atoi(p);
+
+        std::function<void(int)> Frame;
+        Frame = [&](int n)
+        {
+            if (n > 0) Frame(n - 1);
+            else RaiseException(0xE0000001, 0, 0, nullptr);
+        };
+        AddLog("CAUSERAISE: depth=%d", depth);
+        Frame(std::max(0, depth));
+    }
+    else if (Strnicmp(command_line, "CAUSEABORT", 10) == 0)
+    {
+        int depth = 5;
+        const char* p = command_line + 10; // after token
+        while (*p == ' ') ++p;
+        if (*p) depth = atoi(p);
+
+        std::function<void(int)> Frame;
+        Frame = [&](int n)
+        {
+            if (n > 0) Frame(n - 1);
+            else abort();
+        };
+        AddLog("CAUSEABORT: depth=%d", depth);
+        Frame(std::max(0, depth));
+    }
+    else if (Strnicmp(command_line, "CAUSETERMINATE", 14) == 0)
+    {
+        int depth = 5;
+        const char* p = command_line + 14; // after token
+        while (*p == ' ') ++p;
+        if (*p) depth = atoi(p);
+
+        std::function<void(int)> Frame;
+        Frame = [&](int n)
+        {
+            if (n > 0) Frame(n - 1);
+            else std::terminate();
+        };
+        AddLog("CAUSETERMINATE: depth=%d", depth);
+        Frame(std::max(0, depth));
+    }
+    else if (Strnicmp(command_line, "CAUSEDIV0", 9) == 0)
+    {
+        int depth = 5;
+        const char* p = command_line + 9; // after token
+        while (*p == ' ') ++p;
+        if (*p) depth = atoi(p);
+
+        std::function<void(int)> Frame;
+        Frame = [&](int n)
+        {
+            if (n > 0) Frame(n - 1);
+            else {
+                volatile int zero = 0;
+                volatile int a = 1 / zero; (void)a; // divide by zero
+            }
+        };
+        AddLog("CAUSEDIV0: depth=%d", depth);
+        Frame(std::max(0, depth));
+    }
 	else if (Stricmp(command_line, "STAT") == 0)
 	{
 		AddLog("STAT commands:");

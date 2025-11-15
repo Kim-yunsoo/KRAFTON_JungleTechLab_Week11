@@ -12,7 +12,6 @@ public:
 	void TriggerAnimNotifies(float DeltaSeconds);
 	void Tick(float DeltaSeconds);
 
-	void SetAnimation(UAnimSequence* InSequence, bool IsInit = true);
 	void SetOwner(USkeletalMeshComponent* InOwner)
 	{
 		OwnerComponent = InOwner;
@@ -25,9 +24,9 @@ public:
 	{
 		Speed = InSpeed;
 	}
-	void SetPosition(const float InPosition)
+	void SetTime(const float InTime)
 	{
-		CurrentTime = InPosition;
+		CurrentTime = InTime;
 	}
 	void SetPlay(const bool InPlay)
 	{
@@ -37,11 +36,11 @@ public:
 protected:
 	virtual void NativeUpdateAnimation(float DeltaSeconds);
 	float CurrentTime = 0;
+	float PrevTime = 0;
 	float Speed = 1;
 	bool bLoop = false;
 	bool bPlay = false;
 	USkeletalMeshComponent* OwnerComponent = nullptr;
-	UAnimSequence* AnimSequence = nullptr;
 private:
 
 

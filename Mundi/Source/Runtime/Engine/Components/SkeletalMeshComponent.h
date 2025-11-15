@@ -41,7 +41,7 @@ public:
      * @brief 기즈모를 렌더링하기 위해 특정 뼈의 월드 트랜스폼을 계산
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
-    void PlayAnimation(UAnimSequence* AnimSequence, bool bLoop);
+    void PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop);
 
 protected:
     /**

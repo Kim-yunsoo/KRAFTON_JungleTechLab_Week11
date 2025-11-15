@@ -234,8 +234,6 @@ void ACameraActor::DuplicateSubObjects()
     }
 }
 
-static inline float Clamp(float v, float a, float b) { return v < a ? a : (v > b ? b : v); }
-
 void ACameraActor::ProcessCameraRotation(float DeltaSeconds)
 {
     UInputManager& InputManager = UInputManager::GetInstance();

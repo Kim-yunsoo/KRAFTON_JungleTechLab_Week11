@@ -188,15 +188,19 @@ void USkeletalMeshComponent::UpdateFinalSkinningMatrices()
         TempFinalSkinningNormalMatrices[BoneIndex] = TempFinalSkinningMatrices[BoneIndex].Inverse().Transpose();
     }
 }
-void USkeletalMeshComponent::PlayAnimation(UAnimSequence* AnimSequence, bool bLoop)
+void USkeletalMeshComponent::PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop)
 {
+    UAnimSingleNodeInstance* SingleNode = nullptr;
     if (AnimInstance == nullptr)
     {
-        AnimInstance = NewObject<UAnimSingleNodeInstance>();
+        SingleNode = NewObject<UAnimSingleNodeInstance>();
+        AnimInstance = SingleNode;
         AnimInstance->SetOwner(this);
     }
+    else
+    {
+        SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance);
+    }
 
-    AnimInstance->SetAnimation(AnimSequence);
-    AnimInstance->SetLoop(bLoop);
-    AnimInstance->SetPlay(true);
+    SingleNode->SetAnimSequence(InAnimSequence, bLoop);
 }
