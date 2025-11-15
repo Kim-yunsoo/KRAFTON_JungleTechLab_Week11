@@ -469,8 +469,10 @@ void USkinnedMeshComponent::CreateGPUSkinningResources()
    }
 
    // 2. Bone Matrix Constant Buffer 생성 (register b6)
-   const uint32 MaxBones = 256;
-   const uint32 BoneBufferSize = MaxBones * sizeof(FMatrix);  // 128 bones * 64 bytes = 8192 bytes
+   // 메시의 실제 본 개수만큼만 버퍼 생성 (메모리 최적화)
+   const uint32 ActualBoneCount = SkeletalMesh->GetBoneCount();
+   const uint32 MaxBones = (ActualBoneCount > 0) ? ActualBoneCount : 256;  // 최소 1개 이상
+   const uint32 BoneBufferSize = MaxBones * sizeof(FMatrix);
 
    D3D11_BUFFER_DESC ConstantBufferDesc = {};
    ConstantBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -479,6 +481,9 @@ void USkinnedMeshComponent::CreateGPUSkinningResources()
    ConstantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
    hr = Device->CreateBuffer(&ConstantBufferDesc, nullptr, &BoneMatrixConstantBuffer);
+
+   UE_LOG("[GPU Skinning] Created bone buffer for %u bones (%u bytes, aligned: %u bytes)",
+      MaxBones, BoneBufferSize, ConstantBufferDesc.ByteWidth);
    if (FAILED(hr))
    {
       UE_LOG("[error] CreateGPUSkinningResources: Failed to create bone matrix constant buffer");
@@ -543,8 +548,11 @@ void USkinnedMeshComponent::UpdateBoneMatrixBuffer()
       }
 
       const uint32 NumBones = FinalSkinningMatrices.Num();
-      const uint32 MaxBones = 256;
-      const uint32 BonesToCopy = (NumBones < MaxBones) ? NumBones : MaxBones;
+
+      // 버퍼에 복사할 본 개수 결정 (버퍼 크기를 초과하지 않도록)
+      // 버퍼는 실제 메시의 본 개수만큼 생성되어 있음
+      const uint32 MaxBonesInBuffer = SkeletalMesh->GetBoneCount();
+      const uint32 BonesToCopy = (NumBones < MaxBonesInBuffer) ? NumBones : MaxBonesInBuffer;
 
       // 본 매트릭스 복사
       memcpy(MappedResource.pData, FinalSkinningMatrices.data(), BonesToCopy * sizeof(FMatrix));

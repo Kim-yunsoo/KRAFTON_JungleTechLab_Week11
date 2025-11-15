@@ -410,9 +410,15 @@ struct FRawAnimSequenceTrack
     TArray<FVector> PosKeys;    // 위치 키프레임
     TArray<FQuat>   RotKeys;    // 회전 키프레임
     TArray<FVector> ScaleKeys;  // 스케일 키프레임
+    TArray<float>   KeyTimes;   // 키 타임(초). 불규칙한 타이밍을 그대로 보관.
 
     int32 GetNumKeys() const
     {
+        if (KeyTimes.empty() == false)
+        {
+            return static_cast<int32>(KeyTimes.size());
+        }
+
         const int32 NumPosKeys = static_cast<int32>(PosKeys.size());
         const int32 NumRotKeys = static_cast<int32>(RotKeys.size());
         const int32 NumScaleKeys = static_cast<int32>(ScaleKeys.size());
@@ -421,7 +427,26 @@ struct FRawAnimSequenceTrack
 
     bool HasAnyKeys() const
     {
-        return PosKeys.empty() == false || RotKeys.empty() == false || ScaleKeys.empty() == false;
+        return !PosKeys.empty() || !RotKeys.empty() || !ScaleKeys.empty() || !KeyTimes.empty();
+    }
+
+    FTransform GetTransform(float FrameRate, float Time) const
+    {
+        uint32 KeyCount = PosKeys.Num();
+        float MaxTime = KeyCount / FrameRate;
+        Time = Time < 0 ? 0 : (Time > MaxTime ? MaxTime : Time); //clamp(Time, 0, MaxTime);
+        float TimeValue = Time * FrameRate;
+
+        int PrevIdx = floor(TimeValue);
+        int NextIdx = PrevIdx;
+        NextIdx = NextIdx >= KeyCount ? KeyCount : NextIdx;
+        float T = TimeValue - PrevIdx;
+
+        FVector Pos = FVector::Lerp(PosKeys[PrevIdx], PosKeys[NextIdx], T);
+        FQuat Rot = FQuat::Slerp(RotKeys[PrevIdx], RotKeys[NextIdx], T);
+        FVector Scale = FVector::Lerp(ScaleKeys[PrevIdx], ScaleKeys[NextIdx], T);
+
+        return FTransform(Pos, Rot, Scale);
     }
 };
 
