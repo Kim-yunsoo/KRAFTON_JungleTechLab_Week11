@@ -1,6 +1,8 @@
 ﻿#include "pch.h"
 #include "Source/Runtime/Engine/Animation/AnimInstance.h"
 
+IMPLEMENT_CLASS(UAnimInstance)
+
 void UAnimInstance::Tick(float DeltaSeconds)
 {
 	if (OwnerComponent && bPlay && Speed != 0)
