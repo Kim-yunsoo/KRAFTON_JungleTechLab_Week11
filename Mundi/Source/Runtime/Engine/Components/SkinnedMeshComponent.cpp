@@ -17,12 +17,25 @@ USkinnedMeshComponent::~USkinnedMeshComponent()
       VertexBuffer = nullptr;
    }
 
-   // GPU 리소스를 소유한 컴포넌트(원본)만 해제
-   // PIE 복제본은 원본의 GPU 리소스를 공유하므로 해제하지 않음
-   if (bOwnsGPUResources)
-   {
-      ReleaseGPUSkinningResources();
-   }
+   // GPU 리소스 해제 (각 컴포넌트가 자신의 리소스 소유)
+   // GPU Query는 CPU/GPU 모드 모두 사용하므로 항상 해제
+   ReleaseGPUQueryResources();
+
+   //// GPU 스키닝 버퍼는 GPU 모드일 때만 해제
+   //if (bOwnsGPUResources)
+   //{
+      if (GPUSkinnedVertexBuffer)
+      {
+         GPUSkinnedVertexBuffer->Release();
+         GPUSkinnedVertexBuffer = nullptr;
+      }
+
+      if (BoneMatrixConstantBuffer)
+      {
+         BoneMatrixConstantBuffer->Release();
+         BoneMatrixConstantBuffer = nullptr;
+      }
+   //}
 }
 
 void USkinnedMeshComponent::BeginPlay()
@@ -58,7 +71,6 @@ void USkinnedMeshComponent::DuplicateSubObjects()
    // 복제된 컴포넌트가 원본의 작은 Constant Buffer를 공유하면 안 됨!
    GPUSkinnedVertexBuffer = nullptr;
    BoneMatrixConstantBuffer = nullptr;
-   bOwnsGPUResources = false;
 
    // GPU Query 리소스도 각 컴포넌트마다 독립적으로 생성
    GPUDisjointQuery = nullptr;
@@ -72,8 +84,13 @@ void USkinnedMeshComponent::DuplicateSubObjects()
    if (bUseGPUSkinning)
    {
       CreateGPUSkinningResources();
-      UE_LOG("[DEBUG] DuplicateSubObjects: GPU 리소스 재생성 완료");
+      //bOwnsGPUResources = true;  // ← 새 버퍼 생성했으므로 소유권 true!
+      UE_LOG("[DEBUG] DuplicateSubObjects: GPU 리소스 재생성 완료 (bOwnsGPUResources = true)");
    }
+   //else
+   //{
+   //   bOwnsGPUResources = false;  // ← GPU 스키닝 아니면 소유권 false
+   //}
 }
 
 void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMeshBatchElements, const FSceneView* View)

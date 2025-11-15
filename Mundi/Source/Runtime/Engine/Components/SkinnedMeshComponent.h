@@ -145,7 +145,7 @@ private:
      * @brief GPU 리소스 소유권 플래그 (PIE 복제본은 false, 원본은 true)
      * PIE 복제본은 원본의 GPU 리소스를 공유하므로 소멸 시 해제하지 않음
      */
-    bool bOwnsGPUResources = true;
+    //bool bOwnsGPUResources = true;
 
     // ===== GPU 성능 측정 관련 =====
     // CPU/GPU 스키닝 모두 DrawIndexed의 GPU 실행 시간을 측정하기 위해 사용
