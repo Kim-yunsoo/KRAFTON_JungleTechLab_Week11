@@ -16,7 +16,7 @@ public:
     GENERATED_REFLECTION_BODY()
     
     USkeletalMeshComponent();
-    ~USkeletalMeshComponent() override = default;
+    ~USkeletalMeshComponent() override;
 
     void BeginPlay() override;
     void TickComponent(float DeltaTime) override;
