@@ -79,6 +79,7 @@ public:
     void OpenSkeletalMeshViewerWithFile(const char* FilePath);
     void CloseSkeletalMeshViewer();
     bool IsSkeletalMeshViewerOpen() const { return SkeletalViewerWindow != nullptr; }
+    SSkeletalMeshViewerWindow* GetSkeletalMeshViewer() const { return SkeletalViewerWindow; }
 
     // Anim Sequnce Viewer
     void OpenAnimSequenceViewer();

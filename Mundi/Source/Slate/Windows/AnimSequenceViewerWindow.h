@@ -2,6 +2,7 @@
 #include "SWindow.h"
 #include "AnimSequence.h"
 #include "AnimSequenceBase.h"
+#include "SSkeletalMeshViewerWindow.h"
 /**
 * @brief 애니메이션 시퀀스 뷰어 윈도우
 * - 타임라인 UI (프레임 눈금, 재생 헤드)
@@ -46,16 +47,19 @@ private:
 	void RenderNotifyMarkers();
 
 private:
-	
-    /** SkeletalViewer에 현재 시간 반영 (실시간 동기화) */
-	//void ApplyToSkeletalViewer();
+
+	// === Skeletal Mesh Viewer 연동 ===
+	// Comment: 나중에 스켈레탈 메시 뷰어로 연동하는게 아니라 직접 이 애니메이션 시퀀스 뷰어에서 직접 프리뷰가 가능하도록 수정하는 것이 궁극적 목표
+	/** SkeletalViewer에 현재 시간 반영 (실시간 동기화) */
+	void ApplyToSkeletalViewer();
 	
 	/** SkeletalViewer 가져오기 */
-	//SSkeletalMeshViewerWindow* GetSkeletalViewer();
+	SSkeletalMeshViewerWindow* GetSkeletalViewer();
 	
 	/** ViewerState 가져오기 */
-	//ViewerState* GetViewerState();
-	
+	ViewerState* GetViewerState();
+
+private:
 	// === 타임라인 UI 헬퍼 메서드 ===
 	/** 시간 → 화면 X좌표 변환 */
 	float TimeToPixel(float Time) const;

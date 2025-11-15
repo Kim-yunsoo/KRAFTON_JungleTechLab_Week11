@@ -1,5 +1,7 @@
 ﻿#include "pch.h"
 #include "AnimSequenceViewerWindow.h"
+#include "USlateManager.h"
+#include "Source/Runtime/Engine/SkeletalViewer/ViewerState.h"
 
 SAnimSequenceViewerWindow::SAnimSequenceViewerWindow()
 {
@@ -124,6 +126,8 @@ void SAnimSequenceViewerWindow::OnRender()
 
 void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
 {
+	// Step 6: SkeletalViewer에 현재 시간 반영
+	ApplyToSkeletalViewer();
 }
 
 void SAnimSequenceViewerWindow::RenderAnimationList()
@@ -619,5 +623,36 @@ int32 SAnimSequenceViewerWindow::TimeToFrame(float Time) const
 {
     if (PlayLength <= 0.0f) return 0;
     return (int32)((Time / PlayLength) * (float)TotalFrames);
+}
+
+// ============================================================
+// Step 6: SkeletalViewer 연동 (나중에 연동하지 않고 별도 프리뷰로 만들 예정)
+// ============================================================
+
+SSkeletalMeshViewerWindow* SAnimSequenceViewerWindow::GetSkeletalViewer()
+{
+	USlateManager& SlateManager = USlateManager::GetInstance();
+	return SlateManager.GetSkeletalMeshViewer();
+}
+
+ViewerState* SAnimSequenceViewerWindow::GetViewerState()
+{
+	SSkeletalMeshViewerWindow* SkeletalViewer = GetSkeletalViewer();
+	if (!SkeletalViewer)
+		return nullptr;
+
+	return SkeletalViewer->GetCurrentViewerState();
+}
+
+void SAnimSequenceViewerWindow::ApplyToSkeletalViewer()
+{
+	ViewerState* State = GetViewerState();
+	if (!State)
+		return;
+
+	// 현재 시간을 SkeletalViewer에 반영
+	State->CurrentTime = CurrentTime;
+	State->bIsPlaying = bIsPlaying;
+	State->PlayRate = PlayRate;
 }
 
