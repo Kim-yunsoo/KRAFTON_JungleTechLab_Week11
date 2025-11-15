@@ -11,6 +11,20 @@ USkeletalMeshComponent::USkeletalMeshComponent()
     PlayAnimation(AnimSeq, true);
 }
 
+void USkeletalMeshComponent::BeginPlay()
+{
+    UAnimSequence* AnimSeq = RESOURCE.Get<UAnimSequence>("Data/Animations/Capoeira.fbx");
+    if (AnimSeq)
+    {
+        PlayAnimation(AnimSeq, true);
+        UE_LOG("Playing Capoeira animation on SkeletalMeshActor!");
+    }
+    else
+    {
+        UE_LOG("Failed to load Capoeira.fbx AnimSequence!");
+    }
+}
+
 void USkeletalMeshComponent::TickComponent(float DeltaTime)
 {
     Super::TickComponent(DeltaTime);
@@ -165,17 +179,36 @@ void USkeletalMeshComponent::UpdateFinalSkinningMatrices()
 }
 void USkeletalMeshComponent::PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop)
 {
+    if (!InAnimSequence)
+    {
+        UE_LOG("PlayAnimation: InAnimSequence is nullptr!");
+        return;
+    }
+
     UAnimSingleNodeInstance* SingleNode = nullptr;
     if (AnimInstance == nullptr)
     {
         SingleNode = NewObject<UAnimSingleNodeInstance>();
+        if (!SingleNode)
+        {
+            UE_LOG("PlayAnimation: Failed to create UAnimSingleNodeInstance!");
+            return;
+        }
+
         AnimInstance = SingleNode;
         AnimInstance->SetOwner(this);
+        UE_LOG("PlayAnimation: AnimInstance created successfully");
     }
     else
     {
         SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance);
+        if (!SingleNode)
+        {
+            UE_LOG("PlayAnimation: AnimInstance is not UAnimSingleNodeInstance!");
+            return;
+        }
     }
 
     SingleNode->SetAnimSequence(InAnimSequence, bLoop);
+    UE_LOG("PlayAnimation: Animation set successfully");
 }
