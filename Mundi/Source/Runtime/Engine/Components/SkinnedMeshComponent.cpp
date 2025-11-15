@@ -84,13 +84,9 @@ void USkinnedMeshComponent::DuplicateSubObjects()
    if (bUseGPUSkinning)
    {
       CreateGPUSkinningResources();
-      //bOwnsGPUResources = true;  // ← 새 버퍼 생성했으므로 소유권 true!
       UE_LOG("[DEBUG] DuplicateSubObjects: GPU 리소스 재생성 완료 (bOwnsGPUResources = true)");
    }
-   //else
-   //{
-   //   bOwnsGPUResources = false;  // ← GPU 스키닝 아니면 소유권 false
-   //}
+
 }
 
 void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMeshBatchElements, const FSceneView* View)
