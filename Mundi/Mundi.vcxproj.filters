@@ -1541,4 +1541,13 @@
   <ItemGroup>
     <Text Include="BuildTools\CodeGenerator\requirements.txt" />
   </ItemGroup>
+  <!-- Add CrashHandler sources to filter tree -->
+  <ItemGroup>
+    <ClCompile Include="Source\Runtime\Core\Misc\CrashHandler.cpp">
+      <Filter>Source\Runtime\Core\Misc</Filter>
+    </ClCompile>
+    <ClInclude Include="Source\Runtime\Core\Misc\CrashHandler.h">
+      <Filter>Source\Runtime\Core\Misc</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>

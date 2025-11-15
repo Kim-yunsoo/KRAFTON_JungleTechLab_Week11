@@ -1,6 +1,8 @@
 ﻿#include "pch.h"
 #include "Source/Runtime/Engine/Animation/AnimSingleNodeInstance.h"
 
+IMPLEMENT_CLASS(UAnimSingleNodeInstance)
+
 void UAnimSingleNodeInstance::SetAnimSequence(UAnimSequence* InAnimSequence, const bool bLoop)
 {
 	AnimSequence = InAnimSequence;
