@@ -115,4 +115,10 @@ private:
      * @brief GPU 스키닝용 본 매트릭스 상수 버퍼 (register b6)
      */
     ID3D11Buffer* BoneMatrixConstantBuffer = nullptr;
+
+    /**
+     * @brief GPU 리소스 소유권 플래그 (PIE 복제본은 false, 원본은 true)
+     * PIE 복제본은 원본의 GPU 리소스를 공유하므로 소멸 시 해제하지 않음
+     */
+    bool bOwnsGPUResources = true;
 };

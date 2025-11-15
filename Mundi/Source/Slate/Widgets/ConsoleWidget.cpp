@@ -364,63 +364,63 @@ void UConsoleWidget::ExecCommand(const char* command_line)
 	}
 	else if (Stricmp(command_line, "CPU SKINNING") == 0)
 	{
-		// 모든 SkinnedMeshComponent를 찾아서 CPU 스키닝 모드로 설정
+		// 모든 월드의 모든 SkinnedMeshComponent를 찾아서 CPU 스키닝 모드로 설정
 		extern UEditorEngine GEngine;
-		UWorld* World = GEngine.GetDefaultWorld();
-		if (World)
+		int32 SwitchedCount = 0;
+
+		// 에디터 월드와 PIE 월드 모두 처리
+		for (const FWorldContext& WorldContext : GEngine.GetWorldContexts())
 		{
-			int32 SwitchedCount = 0;
-			for (AActor* Actor : World->GetActors())
+			if (WorldContext.World)
 			{
-				if (Actor)
+				for (AActor* Actor : WorldContext.World->GetActors())
 				{
-					for (UActorComponent* Component : Actor->GetOwnedComponents())
+					if (Actor)
 					{
-						USkinnedMeshComponent* SkinnedComp = dynamic_cast<USkinnedMeshComponent*>(Component);
-						if (SkinnedComp && SkinnedComp->IsUsingGPUSkinning())
+						for (UActorComponent* Component : Actor->GetOwnedComponents())
 						{
-							SkinnedComp->SetSkinningMode(false);
-							SwitchedCount++;
+							USkinnedMeshComponent* SkinnedComp = dynamic_cast<USkinnedMeshComponent*>(Component);
+							if (SkinnedComp && SkinnedComp->IsUsingGPUSkinning())
+							{
+								SkinnedComp->SetSkinningMode(false);
+								SwitchedCount++;
+							}
 						}
 					}
 				}
 			}
-			AddLog("Switched %d components to CPU Skinning mode", SwitchedCount);
 		}
-		else
-		{
-			AddLog("[error] World is null");
-		}
+		AddLog("Switched %d components to CPU Skinning mode (all worlds)", SwitchedCount);
 	}
 	else if (Stricmp(command_line, "GPU SKINNING") == 0)
 	{
-		// 모든 SkinnedMeshComponent를 찾아서 GPU 스키닝 모드로 설정
+		// 모든 월드의 모든 SkinnedMeshComponent를 찾아서 GPU 스키닝 모드로 설정
 		extern UEditorEngine GEngine;
-		UWorld* World = GEngine.GetDefaultWorld();
-		if (World)
+		int32 SwitchedCount = 0;
+
+		// 에디터 월드와 PIE 월드 모두 처리
+		for (const FWorldContext& WorldContext : GEngine.GetWorldContexts())
 		{
-			int32 SwitchedCount = 0;
-			for (AActor* Actor : World->GetActors())
+			if (WorldContext.World)
 			{
-				if (Actor)
+				for (AActor* Actor : WorldContext.World->GetActors())
 				{
-					for (UActorComponent* Component : Actor->GetOwnedComponents())
+					if (Actor)
 					{
-						USkinnedMeshComponent* SkinnedComp = dynamic_cast<USkinnedMeshComponent*>(Component);
-						if (SkinnedComp && !SkinnedComp->IsUsingGPUSkinning())
+						for (UActorComponent* Component : Actor->GetOwnedComponents())
 						{
-							SkinnedComp->SetSkinningMode(true);
-							SwitchedCount++;
+							USkinnedMeshComponent* SkinnedComp = dynamic_cast<USkinnedMeshComponent*>(Component);
+							if (SkinnedComp && !SkinnedComp->IsUsingGPUSkinning())
+							{
+								SkinnedComp->SetSkinningMode(true);
+								SwitchedCount++;
+							}
 						}
 					}
 				}
 			}
-			AddLog("Switched %d components to GPU Skinning mode", SwitchedCount);
 		}
-		else
-		{
-			AddLog("[error] World is null");
-		}
+		AddLog("Switched %d components to GPU Skinning mode (all worlds)", SwitchedCount);
 	}
 	else
 	{

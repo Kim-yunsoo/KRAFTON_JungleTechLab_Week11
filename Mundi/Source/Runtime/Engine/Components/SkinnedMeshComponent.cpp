@@ -16,7 +16,12 @@ USkinnedMeshComponent::~USkinnedMeshComponent()
       VertexBuffer = nullptr;
    }
 
-   ReleaseGPUSkinningResources();
+   // GPU 리소스를 소유한 컴포넌트(원본)만 해제
+   // PIE 복제본은 원본의 GPU 리소스를 공유하므로 해제하지 않음
+   if (bOwnsGPUResources)
+   {
+      ReleaseGPUSkinningResources();
+   }
 }
 
 void USkinnedMeshComponent::BeginPlay()
@@ -45,17 +50,19 @@ void USkinnedMeshComponent::DuplicateSubObjects()
    Super::DuplicateSubObjects();
    SkeletalMesh->CreateVertexBuffer(&VertexBuffer);
 
-   // GPU 스키닝 모드였다면 GPU 리소스도 복제
+   // GPU 스키닝 모드: 원본의 GPU 리소스를 공유 (얕은 복사)
+   // PIE 복제본은 GPU 리소스를 새로 생성하지 않고, 에디터 원본의 리소스를 참조만 함
+   // 이렇게 하면 PIE 중지 시 PIE 복제본이 삭제되어도 에디터 원본의 GPU 리소스는 유지됨
    if (bUseGPUSkinning)
    {
-      CreateGPUSkinningResources();
+      // GPU 리소스 포인터는 이미 복사됨 (얕은 복사)
+      // GPUSkinnedVertexBuffer와 BoneMatrixConstantBuffer는 원본과 동일한 포인터를 가짐
 
-      // GPU 리소스 생성 실패 시 CPU 모드로 폴백
-      if (!BoneMatrixConstantBuffer || !GPUSkinnedVertexBuffer)
-      {
-         UE_LOG("[error] DuplicateSubObjects: Failed to create GPU resources. Falling back to CPU skinning.");
-         bUseGPUSkinning = false;
-      }
+      // 이 복제본은 GPU 리소스를 소유하지 않음 (소멸 시 해제하지 않음)
+      bOwnsGPUResources = false;
+
+      UE_LOG("[info] DuplicateSubObjects: Sharing GPU resources from original component (GPUVertexBuffer: %p, BoneBuffer: %p)",
+         GPUSkinnedVertexBuffer, BoneMatrixConstantBuffer);
    }
 }
 
@@ -88,31 +95,15 @@ void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMes
    // GPU 스키닝 모드: 본 매트릭스 버퍼 업데이트
    else
    {
-      // GPU 리소스가 유효하지 않으면 CPU 모드로 폴백
+      // GPU 리소스 유효성 검사 (PIE 복제본도 원본의 리소스를 공유하므로 유효해야 함)
       if (!BoneMatrixConstantBuffer || !GPUSkinnedVertexBuffer)
       {
-         UE_LOG("[error] CollectMeshBatches: GPU resources are invalid. Falling back to CPU skinning.");
-         bUseGPUSkinning = false;
-         bSkinningMatricesDirty = true;
-         PerformSkinning();
-
-         // CPU 모드용 VertexBuffer 유효성 재검사
-         if (!VertexBuffer)
-         {
-            UE_LOG("[error] CollectMeshBatches: VertexBuffer is null after fallback to CPU mode.");
-            return;
-         }
-
-         if (bSkinningMatricesDirty)
-         {
-            bSkinningMatricesDirty = false;
-            SkeletalMesh->UpdateVertexBuffer(SkinnedVertices, VertexBuffer);
-         }
+         UE_LOG("[error] CollectMeshBatches: GPU resources invalid (BoneBuffer: %p, VertexBuffer: %p). Skipping rendering.",
+            BoneMatrixConstantBuffer, GPUSkinnedVertexBuffer);
+         return;
       }
-      else
-      {
-         UpdateBoneMatrixBuffer();
-      }
+
+      UpdateBoneMatrixBuffer();
    }
 
     const TArray<FGroupInfo>& MeshGroupInfos = SkeletalMesh->GetMeshGroupInfo();
@@ -421,14 +412,17 @@ void USkinnedMeshComponent::SetSkinningMode(bool bUseGPU)
 
    if (bUseGPUSkinning)
    {
-      // GPU 모드로 전환: GPU 리소스 생성
-      CreateGPUSkinningResources();
+      // GPU 모드로 전환: GPU 리소스가 없으면 생성
+      if (!BoneMatrixConstantBuffer || !GPUSkinnedVertexBuffer)
+      {
+         CreateGPUSkinningResources();
+      }
       UE_LOG("Switched to GPU Skinning mode");
    }
    else
    {
-      // CPU 모드로 전환: GPU 리소스 해제, CPU 스키닝 재수행
-      ReleaseGPUSkinningResources();
+      // CPU 모드로 전환: GPU 리소스는 유지하고 CPU 스키닝만 재수행
+      // GPU 리소스는 컴포넌트 소멸 시에만 해제됨 (나중에 GPU 모드로 다시 전환할 수 있음)
       bSkinningMatricesDirty = true;
       PerformSkinning();
       UE_LOG("Switched to CPU Skinning mode");
@@ -543,9 +537,8 @@ void USkinnedMeshComponent::UpdateBoneMatrixBuffer()
 
       if (FAILED(hr))
       {
-         // Map 실패 시 GPU 리소스가 유효하지 않으므로 GPU 모드 비활성화
-         bUseGPUSkinning = false;
-         ReleaseGPUSkinningResources();
+         // Map 실패 시 이번 프레임만 스킵 (플래그는 유지)
+         UE_LOG("[error] UpdateBoneMatrixBuffer: Failed to map buffer (HRESULT: 0x%X). Skipping this frame.", hr);
          return;
       }
 
@@ -560,8 +553,8 @@ void USkinnedMeshComponent::UpdateBoneMatrixBuffer()
    }
    __except (EXCEPTION_EXECUTE_HANDLER)
    {
-      // 예외 발생 시 GPU 모드 비활성화 및 리소스 해제
-      bUseGPUSkinning = false;
-      ReleaseGPUSkinningResources();
+      // 예외 발생 시 이번 프레임만 스킵 (플래그는 유지)
+      DWORD exceptionCode = GetExceptionCode();
+      UE_LOG("[error] UpdateBoneMatrixBuffer: Exception 0x%X occurred. Skipping this frame.", exceptionCode);
    }
 }
