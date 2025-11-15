@@ -37,8 +37,8 @@ private:
 	void RenderAnimationList();
 	/** 우측: 애니메이션 정보 패널*/
 	void RenderInfoPanel();
-	///** 재생 컨트롤*/
-	//void RenderPlaybackControls();
+	/** 재생 컨트롤*/
+	void RenderPlaybackControls();
 	///** 타임라인 (프레임 눈금, 재생 헤드) */
 	//void RenderTimeline();
 	///** Notify 트랙 (마커, 드래그, 편집) */
@@ -89,15 +89,15 @@ private:
 	//TArray<FString> AvailableAnimationNames; // 임시 목록
 	int32 SelectedAnimIndex = -1;
 	//
-	//// 재생 상태
-	//float CurrentTime = 0.0f;
-	//float PlayLength = 5.0f; // 임시 기본값
-	//float PlayRate = 1.0f;
-	//bool bIsPlaying = false;
-	//bool bLooping = true;
-	//int32 CurrentFrame = 0;
-	//int32 TotalFrames = 150; // 임시 기본값
-	//
+	// 재생 상태
+	float CurrentTime = 0.0f;
+	float PlayLength = 5.0f; // 임시 기본값
+	float PlayRate = 1.0f;
+	bool bIsPlaying = false;
+	bool bLooping = true;
+	int32 CurrentFrame = 0;
+	int32 TotalFrames = 150; // 임시 기본값
+	
 	//// UI 상태
 	//float TimelineWidth = 800.0f;
 	bool bInitialPlacementDone = false;

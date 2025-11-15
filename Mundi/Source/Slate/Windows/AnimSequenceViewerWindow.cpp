@@ -69,8 +69,8 @@ void SAnimSequenceViewerWindow::OnRender()
 
         ImGui::BeginChild("Timeline", ImVec2(totalWidth, timelineHeight), true);
         {
-            ImGui::Text("Timeline Area (Step 3+)");
-            ImGui::Text("Playback controls and timeline will be added here");
+            // 재생 컨트롤
+            RenderPlaybackControls();
         }
         ImGui::EndChild();
     }
@@ -169,4 +169,97 @@ void SAnimSequenceViewerWindow::RenderInfoPanel()
         ImGui::TextWrapped("Select an animation from the list to view details");
         ImGui::PopStyleColor();
     }
+}
+
+void SAnimSequenceViewerWindow::RenderPlaybackControls()
+{
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // 중앙 정렬을 위한 계산
+    float windowWidth = ImGui::GetContentRegionAvail().x;
+    float buttonWidth = 40.0f;
+    float spacing = 8.0f;
+    float totalWidth = (buttonWidth * 5) + (spacing * 4); // 5개 버튼 + 4개 간격
+    float startX = (windowWidth - totalWidth) * 0.5f;
+
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + startX);
+
+    // 재생 컨트롤 버튼들
+    ImGui::BeginGroup();
+    {
+        // Previous Frame 버튼
+        if (ImGui::Button("|<<", ImVec2(buttonWidth, 30)))
+        {
+            // TODO: 이전 프레임으로 이동
+            if (CurrentFrame > 0)
+                CurrentFrame--;
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Previous Frame");
+
+        ImGui::SameLine(0, spacing);
+
+        // Play/Pause 버튼
+        const char* playButtonText = bIsPlaying ? "||" : ">";
+        if (ImGui::Button(playButtonText, ImVec2(buttonWidth, 30)))
+        {
+            // TODO: 재생/일시정지 토글
+            bIsPlaying = !bIsPlaying;
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(bIsPlaying ? "Pause" : "Play");
+
+        ImGui::SameLine(0, spacing);
+
+        // Stop 버튼
+        if (ImGui::Button("[]", ImVec2(buttonWidth, 30)))
+        {
+            // TODO: 정지 (처음으로)
+            bIsPlaying = false;
+            CurrentFrame = 0;
+            CurrentTime = 0.0f;
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Stop");
+
+        ImGui::SameLine(0, spacing);
+
+        // Next Frame 버튼
+        if (ImGui::Button(">>|", ImVec2(buttonWidth, 30)))
+        {
+            // TODO: 다음 프레임으로 이동
+            if (CurrentFrame < TotalFrames - 1)
+                CurrentFrame++;
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Next Frame");
+
+        ImGui::SameLine(0, spacing);
+
+        // Loop Toggle 버튼
+        ImVec4 loopColor = bLooping ? ImVec4(0.4f, 0.7f, 0.4f, 1.0f) : ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+        ImGui::PushStyleColor(ImGuiCol_Button, loopColor);
+        if (ImGui::Button("Loop", ImVec2(buttonWidth, 30)))
+        {
+            bLooping = !bLooping;
+        }
+        ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(bLooping ? "Loop: ON" : "Loop: OFF");
+    }
+    ImGui::EndGroup();
+
+    ImGui::Spacing();
+
+    // 프레임 정보 표시
+    ImGui::Text("Frame: %d / %d  |  Time: %.2fs / %.2fs  |  Speed: %.2fx",
+        CurrentFrame, TotalFrames, CurrentTime, PlayLength, PlayRate);
+
+    ImGui::Spacing();
+
+    // 재생 속도 슬라이더
+    ImGui::SetNextItemWidth(200.0f);
+    ImGui::SliderFloat("Playback Speed", &PlayRate, 0.1f, 2.0f, "%.2fx");
 }
