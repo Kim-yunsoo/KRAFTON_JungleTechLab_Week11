@@ -13,6 +13,7 @@ void UAnimBlendInstance::NativeUpdateAnimation(float DeltaSeconds)
 	{
 		float ASequenceTime = AnimA->GetSequenceLength();
 		float BSequenceTime = AnimB->GetSequenceLength();
+		bool AMax = ASequenceTime > BSequenceTime;
 		float MaxSequenceTime = fmax(ASequenceTime, BSequenceTime);
 
 		if (bLoop)
@@ -21,17 +22,20 @@ void UAnimBlendInstance::NativeUpdateAnimation(float DeltaSeconds)
 		}
 		else
 		{
-			CurrentTime = Clamp(CurrentTime, 0, MaxSequenceTime);
+			CurrentTime = Clamp(CurrentTime, 0.0f, MaxSequenceTime);
 			if (CurrentTime != MaxSequenceTime)
 			{
 				bPlay = false;
 			}
 		}
 
+		float CurrentTimeA = AMax ? CurrentTime : CurrentTime / BSequenceTime * ASequenceTime;
+		float CurrentTimeB = AMax ? CurrentTime / ASequenceTime * BSequenceTime : CurrentTime;
+
 		FPoseContext PoseA(this);
 		FPoseContext PoseB(this);
-		PoseA.SetPose(AnimA, CurrentTime);
-		PoseB.SetPose(AnimB, CurrentTime);
+		PoseA.SetPose(AnimA, CurrentTimeA);
+		PoseB.SetPose(AnimB, CurrentTimeB);
 		FPoseContext::BlendTwoPoses(PoseA, PoseB, BlendAlpha, PoseA);
 		OwnerComponent->SetPose(PoseA);
 	}

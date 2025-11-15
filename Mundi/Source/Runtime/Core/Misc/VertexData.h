@@ -438,8 +438,9 @@ struct FRawAnimSequenceTrack
         float TimeValue = Time * FrameRate;
 
         int PrevIdx = floor(TimeValue);
-        int NextIdx = PrevIdx;
-        NextIdx = NextIdx >= KeyCount ? KeyCount : NextIdx;
+        int NextIdx = PrevIdx + 1;
+        PrevIdx = Clamp(PrevIdx, 0, KeyCount - 1);
+        NextIdx = Clamp(NextIdx, 0, KeyCount - 1);
         float T = TimeValue - PrevIdx;
 
         FTransform PrevTransform = FTransform(PosKeys[PrevIdx], RotKeys[PrevIdx], ScaleKeys[PrevIdx]);

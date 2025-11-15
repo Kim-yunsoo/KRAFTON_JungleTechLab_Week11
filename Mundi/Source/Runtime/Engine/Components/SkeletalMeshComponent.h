@@ -44,7 +44,11 @@ public:
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
     void PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop);
+    void PlayBlendAnimation(UAnimSequence* AnimA, UAnimSequence* AnimB);
 
+public:
+    UPROPERTY(EditAnywhere, Category = "SkeletalComponent", Range = "0.0, 1.0")
+    float TestBlend = 0;
 protected:
     /**
      * @brief CurrentLocalSpacePose의 변경사항을 ComponentSpace -> FinalMatrices 계산까지 모두 수행

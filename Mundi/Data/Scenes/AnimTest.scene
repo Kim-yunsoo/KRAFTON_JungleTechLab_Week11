@@ -1,9 +1,9 @@
 {
   "Actors" : {
-    "875" : {
+    "892" : {
       "ObjectName" : "APlayerCameraManager_2",
       "OwnedComponents" : [{
-          "Id" : 876,
+          "Id" : 893,
           "ObjectName" : "USceneComponent_3",
           "ParentId" : 0,
           "RelativeLocation" : [0.000000, 0.000000, 0.000000],
@@ -15,25 +15,34 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 876,
+      "RootComponentId" : 893,
       "Tag" : "",
       "Type" : "APlayerCameraManager",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "883" : {
+    "894" : {
       "ObjectName" : "스켈레탈 메시_0",
       "OwnedComponents" : [{
-          "Id" : 884,
+          "Id" : 896,
           "MaterialSlots" : [{
               "Type" : "None"
+            }, {
+              "AssetPath" : "Ch06_body",
+              "Type" : "UMaterial"
+            }, {
+              "AssetPath" : "Ch06_eyelashes",
+              "Type" : "UMaterial"
+            }, {
+              "AssetPath" : "Ch06_body1",
+              "Type" : "UMaterial"
             }],
           "ObjectName" : "USkeletalMeshComponent_1",
           "ParentId" : 0,
           "RelativeLocation" : [1.532815, -1.532815, 1.173166],
           "RelativeRotationEuler" : [0.000000, -0.000000, 0.000000],
           "RelativeScale" : [1.000000, 1.000000, 1.000000],
-          "SkeletalMesh" : "Data/Test.fbx",
+          "SkeletalMesh" : "Data/James/James.fbx",
           "Type" : "USkeletalMeshComponent",
           "bBlockComponent" : false,
           "bCastShadows" : true,
@@ -43,16 +52,16 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 884,
+      "RootComponentId" : 896,
       "Tag" : "",
       "Type" : "ASkeletalMeshActor",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "886" : {
+    "897" : {
       "ObjectName" : "앰비언트 라이트_0",
       "OwnedComponents" : [{
-          "Id" : 887,
+          "Id" : 899,
           "Intensity" : 1.000000,
           "LightColor" : [1.000000, 1.000000, 1.000000, 1.000000],
           "ObjectName" : "UAmbientLightComponent_2",
@@ -72,20 +81,20 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 887,
+      "RootComponentId" : 899,
       "Tag" : "",
       "Type" : "AAmbientLightActor",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     }
   },
-  "NextUUID" : 889,
+  "NextUUID" : 902,
   "PerspectiveCamera" : {
     "FOV" : [60.000000],
     "FarClip" : [2000.000000],
-    "Location" : [12.848583, -0.222269, 6.357766],
+    "Location" : [4.937116, -1.450899, 3.626913],
     "NearClip" : [0.100000],
-    "Rotation" : [0.000000, 12.899971, -165.100021]
+    "Rotation" : [0.000000, 23.599997, -176.900101]
   },
   "Version" : 1
 }

@@ -22,7 +22,7 @@ void UAnimSingleNodeInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 	else
 	{
-		CurrentTime = Clamp(CurrentTime, 0, SequenceTime);
+		CurrentTime = Clamp(CurrentTime, 0.0f, SequenceTime);
 		if (CurrentTime != SequenceTime)
 		{
 			bPlay = false;

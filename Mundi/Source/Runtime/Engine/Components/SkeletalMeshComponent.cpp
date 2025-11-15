@@ -1,28 +1,20 @@
 ﻿#include "pch.h"
 #include "SkeletalMeshComponent.h"
 #include "Source/Runtime/Engine/Animation/AnimSingleNodeInstance.h"
+#include "Source/Runtime/Engine/Animation/AnimBlendInstance.h"
+
 
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
     // 테스트용 기본 메시 설정
     SetSkeletalMesh(GDataDir + "/Test.fbx"); 
-    UAnimSequence* AnimSeq = RESOURCE.Get<UAnimSequence>("Data/Animations/Capoeira.fbx");
-
-    PlayAnimation(AnimSeq, true);
 }
 
 void USkeletalMeshComponent::BeginPlay()
 {
-    UAnimSequence* AnimSeq = RESOURCE.Get<UAnimSequence>("Data/Animations/Capoeira.fbx");
-    if (AnimSeq)
-    {
-        PlayAnimation(AnimSeq, true);
-        UE_LOG("Playing Capoeira animation on SkeletalMeshActor!");
-    }
-    else
-    {
-        UE_LOG("Failed to load Capoeira.fbx AnimSequence!");
-    }
+    UAnimSequence* AnimWalk = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx");
+    UAnimSequence* AnimRun = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Run.fbx");
+    PlayBlendAnimation(AnimWalk, AnimRun);
 }
 
 void USkeletalMeshComponent::TickComponent(float DeltaTime)
@@ -30,6 +22,10 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime)
     Super::TickComponent(DeltaTime);
     if (AnimInstance)
     {
+        if (UAnimBlendInstance* BlendInstance = Cast<UAnimBlendInstance>(AnimInstance))
+        {
+            BlendInstance->SetBlendAlpha(TestBlend);
+        }
         AnimInstance->Tick(DeltaTime);
     }
 }
@@ -181,7 +177,6 @@ void USkeletalMeshComponent::PlayAnimation(UAnimSequence* InAnimSequence, bool b
 {
     if (!InAnimSequence)
     {
-        UE_LOG("PlayAnimation: InAnimSequence is nullptr!");
         return;
     }
 
@@ -189,26 +184,38 @@ void USkeletalMeshComponent::PlayAnimation(UAnimSequence* InAnimSequence, bool b
     if (AnimInstance == nullptr)
     {
         SingleNode = NewObject<UAnimSingleNodeInstance>();
-        if (!SingleNode)
-        {
-            UE_LOG("PlayAnimation: Failed to create UAnimSingleNodeInstance!");
-            return;
-        }
-
         AnimInstance = SingleNode;
         AnimInstance->SetOwner(this);
-        UE_LOG("PlayAnimation: AnimInstance created successfully");
     }
     else
     {
         SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance);
-        if (!SingleNode)
-        {
-            UE_LOG("PlayAnimation: AnimInstance is not UAnimSingleNodeInstance!");
-            return;
-        }
     }
 
     SingleNode->SetAnimSequence(InAnimSequence, bLoop);
-    UE_LOG("PlayAnimation: Animation set successfully");
+}
+void USkeletalMeshComponent::PlayBlendAnimation(UAnimSequence* AnimA, UAnimSequence* AnimB)
+{
+    if (!AnimA || !AnimB)
+    {
+        return;
+    }
+
+    UAnimBlendInstance* BlendInstance = nullptr;
+    if (AnimInstance == nullptr)
+    {
+        BlendInstance = NewObject<UAnimBlendInstance>();
+        AnimInstance = BlendInstance;
+        AnimInstance->SetOwner(this);
+    }
+    else
+    {
+        BlendInstance = Cast<UAnimBlendInstance>(AnimInstance);
+    }
+
+    BlendInstance->SetBlendAnimation(AnimA, AnimB);
+    BlendInstance->SetLoop(true);
+    BlendInstance->SetTime(0);
+    BlendInstance->SetSpeed(1);
+    BlendInstance->SetPlay(true);
 }
