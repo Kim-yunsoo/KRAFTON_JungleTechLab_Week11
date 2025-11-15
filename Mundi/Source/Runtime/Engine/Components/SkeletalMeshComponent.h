@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "SkinnedMeshComponent.h"
 #include "USkeletalMeshComponent.generated.h"
+#include "Source/Runtime/Engine/Animation/AnimationTypes.h"
 
 // 전방 선언
 class UAnimInstance;
@@ -31,7 +32,7 @@ public:
 
     void SetBoneWorldTransform(int32 BoneIndex, const FTransform& NewWorldTransform);
     
-    void SetPose(const TArray<FTransform>& Pose);
+    void SetPose(const FPoseContext& Pose);
     /**
      * @brief 특정 뼈의 현재 로컬 트랜스폼을 반환
      */

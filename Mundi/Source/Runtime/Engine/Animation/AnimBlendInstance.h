@@ -11,7 +11,7 @@ public:
 	UAnimBlendInstance() = default;
 	virtual ~UAnimBlendInstance() = default;
 	void SetBlendAnimation(UAnimSequence* SequenceA, UAnimSequence* SequenceB);
-	void SetBlendAlpha(const float InBlendAlpha);
+	void SetBlendAlpha(const float InBlendAlpha) { BlendAlpha = InBlendAlpha; }
 
 public:
 

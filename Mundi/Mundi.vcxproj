@@ -270,6 +270,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Runtime\Core\Misc\VertexData.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimAsset.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimationStateMachine.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Animation\AnimationTypes.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimDataModel.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimInstance.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimSequence.cpp" />
@@ -675,6 +676,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Core\Object\Property.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimAsset.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimationStateMachine.h" />
+    <ClInclude Include="Source\Runtime\Engine\Animation\AnimationTypes.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimDataModel.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimInstance.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimSequence.h" />
