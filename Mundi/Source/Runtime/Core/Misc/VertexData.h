@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Archive.h"
 #include "Vector.h"
+#include "Name.h"
 
 // 직렬화 포맷 (FVertexDynamic와 역할이 달라서 분리됨)
 struct FNormalVertex
@@ -378,6 +379,32 @@ struct FSkeletalMeshData
     }
 };
 
+struct FFrameRate
+{
+    int32 Numerator = 30;   // 분자
+    int32 Denominator = 1;  // 분모
+
+    float AsDecimal() const
+    {
+        if (Denominator == 0) { return 0.f; }
+        return static_cast<float>(Numerator) / Denominator;
+    }
+
+    int32 AsFrameNumber(float TimeInSeconds) const
+    {
+        const float Decimal = AsDecimal();
+        return Decimal > KINDA_SMALL_NUMBER ? static_cast<int32>(std::round(TimeInSeconds * Decimal)) : 0;
+    }
+
+    float AsSeconds(int32 FrameNumber) const
+    {
+        const float Decimal = AsDecimal();
+        return Decimal > KINDA_SMALL_NUMBER ? static_cast<float>(FrameNumber) / Decimal : 0.f;
+    }
+
+    bool IsValid() const { return Numerator > 0 && Denominator > 0; }
+};
+
 struct FRawAnimSequenceTrack
 {
     TArray<FVector> PosKeys;    // 위치 키프레임
@@ -400,7 +427,7 @@ struct FRawAnimSequenceTrack
 
 struct FBoneAnimationTrack
 {
-    FString BoneName;
+    FName BoneName;
     int32 BoneIndex = -1;
     FRawAnimSequenceTrack InternalTrack; // 실제 애니메이션 데이터
 

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "AnimAsset.h"
 
+/* 애니메이션에 트리거를 넣어 Notify 기능을 가능하도록 만드는 구조체 */
 struct FAnimNotifyEvent
 {
     float TriggerTime = 0.f;    // 이벤트가 발생의 시작 지점
@@ -9,11 +10,14 @@ struct FAnimNotifyEvent
 
     float GetEndTime() const { return TriggerTime + Duration; }
     bool IsWithin(float StartTime, float EndTime) const
-    {
+    { 
         return TriggerTime >= StartTime && TriggerTime <= EndTime;
     }
 };
 
+/*
+* @brief 모든 유형의 애니메이션 클래스는 해당 클래스를 거쳐 파생 클래스로 정의해야 합니다.
+*/
 class UAnimSequenceBase : public UAnimAsset
 {
 public:
@@ -55,7 +59,7 @@ protected:
     }
 
 protected:
-    TArray<FAnimNotifyEvent> Notifies;   // 시퀀스에 배치된 노티파이 목록
+    TArray<FAnimNotifyEvent> Notifies{};   // 시퀀스에 배치된 노티파이 목록
     float TotalPlayLength = 0.f;         // 전체 재생 시간(초)
     float PlayRate = 1.f;                // 속도 배율 (1.0 = 원래 속도)
     bool bLoop = false;                  // 애니메이션 반복 여부

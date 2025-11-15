@@ -26,6 +26,7 @@ void UAnimSequenceBase::RemoveNotifiesByName(const FName& InName)
         Notifies.end());
 }
 
+// 애니메이션의 특정 구간에서 노티파이 이벤트 목록들을 수집해서 반환합니다
 void UAnimSequenceBase::GetAnimNotifiesInRange(float StartTime, float EndTime, TArray<FAnimNotifyEvent>& OutNotifies) const
 {
     OutNotifies.clear(); // 오염 방지

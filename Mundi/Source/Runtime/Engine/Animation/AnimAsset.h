@@ -13,7 +13,7 @@ public:
     UAnimAsset() = default;
     virtual ~UAnimAsset() override = default;
 
-    // 모든 애니메이션(시퀀스, 몽타주 등)의 재생 길이 질의
+    // 모든 애니메이션(시퀀스, 몽타주 등)의 재생 길이 반환
     virtual float GetPlayLength() const = 0;
 
     const FString& GetSourceFile() const { return SourceFile; }
