@@ -31,12 +31,12 @@ public:
 	//virtual void OnMouseUp(FVector2D MousePos, uint32 Button) override;
 
 private:
-	//// === UI 렌더링 메서드 ===
-	//
-	///** 좌측: 애니메이션 목록 */
-	//void RenderAnimationList();
-	///** 우측: 애니메이션 정보 패널*/
-	//void RenderInfoPanel();
+	// === UI 렌더링 메서드 ===
+	
+	/** 좌측: 애니메이션 목록 */
+	void RenderAnimationList();
+	/** 우측: 애니메이션 정보 패널*/
+	void RenderInfoPanel();
 	///** 재생 컨트롤*/
 	//void RenderPlaybackControls();
 	///** 타임라인 (프레임 눈금, 재생 헤드) */
@@ -87,7 +87,7 @@ private:
 	//// 애니메이션 데이터
 	//void* CurrentSquence = nullptr; // UAnimSquence* 대신 임시
 	//TArray<FString> AvailableAnimationNames; // 임시 목록
-	//int32 SelectedAnimIndex = -1;
+	int32 SelectedAnimIndex = -1;
 	//
 	//// 재생 상태
 	//float CurrentTime = 0.0f;

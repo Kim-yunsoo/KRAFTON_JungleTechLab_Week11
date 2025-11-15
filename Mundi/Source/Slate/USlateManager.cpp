@@ -443,6 +443,13 @@ void USlateManager::Render()
     if (AnimSequenceViewerWindow)
     {
         AnimSequenceViewerWindow->OnRender();
+
+        // X 버튼으로 창이 닫혔으면 정리
+        if (!AnimSequenceViewerWindow->IsOpen())
+        {
+            delete AnimSequenceViewerWindow;
+            AnimSequenceViewerWindow = nullptr;
+        }
     }
 }
 
