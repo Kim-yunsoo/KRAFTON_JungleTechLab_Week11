@@ -461,3 +461,26 @@ struct FBoneAnimationTrack
         return BoneIndex >= 0 && InternalTrack.HasAnyKeys();
     }
 };
+
+// 하나의 애니메이션 시퀀스 데이터 (FBX의 AnimStack에 해당)
+struct FAnimationData
+{
+    FString AnimationName;                      // AnimStack 이름
+    FString PathFileName;                        // 원본 FBX 파일 경로
+    FString CacheFilePath;                       // 캐시 파일 경로
+    FFrameRate FrameRate;                        // 프레임 레이트
+    float Duration = 0.0f;                       // 애니메이션 길이 (초)
+    int32 TotalFrames = 0;                       // 전체 프레임 수
+    TArray<FBoneAnimationTrack> BoneTracks;      // 본별 애니메이션 트랙
+    FSkeleton Skeleton;                          // 스켈레톤 정보 (본 이름-인덱스 매핑용)
+
+    bool IsValid() const
+    {
+        return !AnimationName.empty() && !BoneTracks.empty() && Duration > 0.0f;
+    }
+
+    int32 GetNumBones() const
+    {
+        return static_cast<int32>(BoneTracks.size());
+    }
+};

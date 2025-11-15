@@ -2,6 +2,12 @@
 #include "Object.h"
 #include "fbxsdk.h"
 
+enum class EAssetType
+{
+	SkeletalMesh,   // 메시 + 스켈레톤 (+ 선택적 애니메이션)
+	AnimationOnly   // 애니메이션만 (스켈레톤 노드만 있고 메시 없음)
+};
+
 class UFbxLoader : public UObject
 {
 public:
@@ -15,7 +21,9 @@ public:
 	USkeletalMesh* LoadFbxMesh(const FString& FilePath);
 
 	FSkeletalMeshData* LoadFbxMeshAsset(const FString& FilePath);
-	
+
+	// 애니메이션 로딩 함수들
+	TArray<FAnimationData*> LoadAnimationsFromFbx(const FString& FilePath);
 
 protected:
 	~UFbxLoader() override;
@@ -35,7 +43,11 @@ private:
 	FString ParseTexturePath(FbxProperty& Property);
 
 	void EnsureSingleRootBone(FSkeletalMeshData& MeshData);
-	
+
+	EAssetType DetermineAssetType(FbxScene* Scene);
+	TArray<FAnimationData*> LoadAnimationsFromScene(FbxScene* Scene, const FSkeleton& Skeleton);
+	void ExtractAnimCurveKeys(FbxAnimCurve* Curve, TArray<float>& OutKeys, TArray<float>& OutTimes);
+
 	// bin파일 저장용
 	TArray<FMaterialInfo> MaterialInfos;
 	FbxManager* SdkManager = nullptr;
