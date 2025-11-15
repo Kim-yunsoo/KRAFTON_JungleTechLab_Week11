@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Archive.h"
 #include "Vector.h"
+#include "Name.h"
 
 // 직렬화 포맷 (FVertexDynamic와 역할이 달라서 분리됨)
 struct FNormalVertex
@@ -375,5 +376,63 @@ struct FSkeletalMeshData
             Serialization::ReadString(Ar, Data.CacheFilePath);
         }
         return Ar;
+    }
+};
+
+struct FFrameRate
+{
+    int32 Numerator = 30;   // 분자
+    int32 Denominator = 1;  // 분모
+
+    float AsDecimal() const
+    {
+        if (Denominator == 0) { return 0.f; }
+        return static_cast<float>(Numerator) / Denominator;
+    }
+
+    int32 AsFrameNumber(float TimeInSeconds) const
+    {
+        const float Decimal = AsDecimal();
+        return Decimal > KINDA_SMALL_NUMBER ? static_cast<int32>(std::round(TimeInSeconds * Decimal)) : 0;
+    }
+
+    float AsSeconds(int32 FrameNumber) const
+    {
+        const float Decimal = AsDecimal();
+        return Decimal > KINDA_SMALL_NUMBER ? static_cast<float>(FrameNumber) / Decimal : 0.f;
+    }
+
+    bool IsValid() const { return Numerator > 0 && Denominator > 0; }
+};
+
+struct FRawAnimSequenceTrack
+{
+    TArray<FVector> PosKeys;    // 위치 키프레임
+    TArray<FQuat>   RotKeys;    // 회전 키프레임
+    TArray<FVector> ScaleKeys;  // 스케일 키프레임
+
+    int32 GetNumKeys() const
+    {
+        const int32 NumPosKeys = static_cast<int32>(PosKeys.size());
+        const int32 NumRotKeys = static_cast<int32>(RotKeys.size());
+        const int32 NumScaleKeys = static_cast<int32>(ScaleKeys.size());
+        return std::max({ NumPosKeys, NumRotKeys, NumScaleKeys });
+    }
+
+    bool HasAnyKeys() const
+    {
+        return PosKeys.empty() == false || RotKeys.empty() == false || ScaleKeys.empty() == false;
+    }
+};
+
+struct FBoneAnimationTrack
+{
+    FName BoneName;
+    int32 BoneIndex = -1;
+    FRawAnimSequenceTrack InternalTrack; // 실제 애니메이션 데이터
+
+    bool IsValid() const
+    {
+        return BoneIndex >= 0 && InternalTrack.HasAnyKeys();
     }
 };

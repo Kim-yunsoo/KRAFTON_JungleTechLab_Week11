@@ -497,22 +497,6 @@ void UFbxLoader::LoadSkeletonFromNode(FbxNode* InNode, FSkeletalMeshData& MeshDa
 	}
 }
 
-// 예시 코드
-void UFbxLoader::LoadMeshFromAttribute(FbxNodeAttribute* InAttribute, FSkeletalMeshData& MeshData)
-{
-
-	/*if (!InAttribute)
-	{
-		return;
-	}*/
-	//FbxString TypeName = GetAttributeTypeName(InAttribute);
-	// 타입과 별개로 Element 자체의 이름도 있음
-	//FbxString AttributeName = InAttribute->GetName();
-
-	// Buffer함수로 FbxString->char* 변환
-	//UE_LOG("<Attribute Type = %s, Name = %s\n", TypeName.Buffer(), AttributeName.Buffer());
-}
-
 void UFbxLoader::LoadMesh(FbxMesh* InMesh, FSkeletalMeshData& MeshData, TMap<int32, TArray<uint32>>& MaterialGroupIndexList, TMap<FbxNode*, int32>& BoneToIndex, TArray<int32> MaterialSlotToIndex, int32 DefaultMaterialIndex)
 {
 	// 위에서 뼈 인덱스를 구했으므로 일단 ControlPoint에 대응되는 뼈 인덱스와 가중치부터 할당할 것임(이후 MeshData를 채우면서 ControlPoint를 순회할 것이므로)
@@ -1091,37 +1075,6 @@ FString UFbxLoader::ParseTexturePath(FbxProperty& Property)
 		}
 	}
 	return FString();
-}
-
-FbxString UFbxLoader::GetAttributeTypeName(FbxNodeAttribute* InAttribute)
-{
-	// 테스트코드
-	// Attribute타입에 대한 자료형, 이것으로 Skeleton만 빼낼 수 있을 듯
-	/*FbxNodeAttribute::EType Type = InAttribute->GetAttributeType();
-	switch (Type) {
-	case FbxNodeAttribute::eUnknown: return "unidentified";
-	case FbxNodeAttribute::eNull: return "null";
-	case FbxNodeAttribute::eMarker: return "marker";
-	case FbxNodeAttribute::eSkeleton: return "skeleton";
-	case FbxNodeAttribute::eMesh: return "mesh";
-	case FbxNodeAttribute::eNurbs: return "nurbs";
-	case FbxNodeAttribute::ePatch: return "patch";
-	case FbxNodeAttribute::eCamera: return "camera";
-	case FbxNodeAttribute::eCameraStereo: return "stereo";
-	case FbxNodeAttribute::eCameraSwitcher: return "camera switcher";
-	case FbxNodeAttribute::eLight: return "light";
-	case FbxNodeAttribute::eOpticalReference: return "optical reference";
-	case FbxNodeAttribute::eOpticalMarker: return "marker";
-	case FbxNodeAttribute::eNurbsCurve: return "nurbs curve";
-	case FbxNodeAttribute::eTrimNurbsSurface: return "trim nurbs surface";
-	case FbxNodeAttribute::eBoundary: return "boundary";
-	case FbxNodeAttribute::eNurbsSurface: return "nurbs surface";
-	case FbxNodeAttribute::eShape: return "shape";
-	case FbxNodeAttribute::eLODGroup: return "lodgroup";
-	case FbxNodeAttribute::eSubDiv: return "subdiv";
-	default: return "unknown";
-	}*/
-	return "test";
 }
 
 void UFbxLoader::EnsureSingleRootBone(FSkeletalMeshData& MeshData)
