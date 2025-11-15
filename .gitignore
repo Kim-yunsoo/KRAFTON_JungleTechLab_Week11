@@ -479,3 +479,6 @@ GEMINI.md
 # 단, 일부 임시 파일은 제외
 /Mundi/Generated/**/*.bak
 /Mundi/Generated/**/*.tmp
+
+# Crash dumps
+/Saved/Crashes/
