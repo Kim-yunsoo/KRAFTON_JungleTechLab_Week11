@@ -2,6 +2,8 @@
 #include "Object.h"
 #include "fbxsdk.h"
 
+class UAnimSequence;
+
 class UFbxLoader : public UObject
 {
 public:
@@ -15,6 +17,7 @@ public:
 	USkeletalMesh* LoadFbxMesh(const FString& FilePath);
 
 	FSkeletalMeshData* LoadFbxMeshAsset(const FString& FilePath);
+	UAnimSequence* LoadFbxAnimSequence(const FString& FilePath);
 	
 
 protected:

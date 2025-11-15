@@ -10,6 +10,7 @@
 #include "../Engine/Audio/Sound.h"
 #include "Quad.h"
 #include "LineDynamicMesh.h"
+#include <type_traits>
 
 #pragma once
 #include "ObjectFactory.h"
@@ -90,7 +91,9 @@ public:
 	FMeshBVH* GetOrBuildMeshBVH(const FString& ObjPath, const struct FStaticMesh* StaticMeshAsset);
 	void SetStaticMeshs();
 	void SetSkeletalMeshs();
+	void SetAnimSequences();
 	const TArray<UStaticMesh*>& GetStaticMeshs() { return StaticMeshs; }
+	const TArray<UAnimSequence*>& GetAnimSequences() { return AnimSequences; }
 
 	void SetAudioFiles();  
 
@@ -118,6 +121,7 @@ protected:
 
 	TArray<UStaticMesh*> StaticMeshs;
 	TArray<USkeletalMesh*> SkeletalMeshs;
+	TArray<UAnimSequence*> AnimSequences;
 
 	TArray<USound*> Sounds;
 
@@ -203,6 +207,14 @@ inline T* UResourceManager::Load(const FString& InFilePath, Args && ...InArgs)
 	{
 		T* Resource = NewObject<T>();
 		Resource->Load(NormalizedPath, Device, std::forward<Args>(InArgs)...);
+		if constexpr (std::is_same_v<T, UStaticMesh>)
+		{
+			if (!Resource->GetStaticMeshAsset())
+			{
+				ObjectFactory::DeleteObject(Resource);
+				return nullptr;
+			}
+		}
 		Resource->SetFilePath(NormalizedPath);
 		Resources[typeIndex][NormalizedPath] = Resource;
 		return Resource;
@@ -279,10 +291,22 @@ TArray<T*> UResourceManager::GetAll()
 
 	for (auto& Pair : Resources[TypeIndex])
 	{
-		if (Pair.second)
+		if (!Pair.second)
 		{
-			Result.push_back(static_cast<T*>(Pair.second));
+			continue;
 		}
+
+		T* Resource = static_cast<T*>(Pair.second);
+
+		if constexpr (std::is_same_v<T, UStaticMesh>)
+		{
+			if (!Resource->GetStaticMeshAsset())
+			{
+				continue;
+			}
+		}
+
+		Result.push_back(Resource);
 	}
 	return Result;
 }
@@ -300,13 +324,25 @@ TArray<FString> UResourceManager::GetAllFilePaths()
 
 	for (auto& Pair : Resources[TypeIndex])
 	{
-		if (Pair.second)
+		if (!Pair.second)
 		{
-			const FString& Path = Pair.second->GetFilePath();
-			if (!Path.empty())
+			continue;
+		}
+
+		T* Resource = static_cast<T*>(Pair.second);
+
+		if constexpr (std::is_same_v<T, UStaticMesh>)
+		{
+			if (!Resource->GetStaticMeshAsset())
 			{
-				Paths.push_back(Path);
+				continue;
 			}
+		}
+
+		const FString& Path = Resource->GetFilePath();
+		if (!Path.empty())
+		{
+			Paths.push_back(Path);
 		}
 	}
 	return Paths;
