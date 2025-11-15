@@ -39,34 +39,34 @@ private:
 	void RenderInfoPanel();
 	/** 재생 컨트롤*/
 	void RenderPlaybackControls();
-	///** 타임라인 (프레임 눈금, 재생 헤드) */
-	//void RenderTimeline();
+	/** 타임라인 (프레임 눈금, 재생 헤드) */
+	void RenderTimeline();
 	///** Notify 트랙 (마커, 드래그, 편집) */
 	//void RenderNotifyMarkers();
 
 private:
-	//// === 헬퍼 메서드 ===
-	//
-    ///** SkeletalViewer에 현재 시간 반영 (실시간 동기화) */
+	// === 헬퍼 메서드 ===
+	
+    /** SkeletalViewer에 현재 시간 반영 (실시간 동기화) */
 	//void ApplyToSkeletalViewer();
-	//
-	///** SkeletalViewer 가져오기 */
+	
+	/** SkeletalViewer 가져오기 */
 	//SSkeletalMeshViewerWindow* GetSkeletalViewer();
-	//
-	///** ViewerState 가져오기 */
+	
+	/** ViewerState 가져오기 */
 	//ViewerState* GetViewerState();
-	//
-	///** 시간 → 화면 X좌표 변환 */
-	//float TimeToPixel(float Time) const;
-	//
-	///** 화면 X좌표 → 시간 변환 */
-	//float PixelToTime(float PixelX) const;
-	//
-	///** 프레임 → 시간 변환 */
-	//float FrameToTime(int32 Frame) const;
-	//
-	///** 시간 → 프레임 변환 */
-	//int32 TimeToFrame(float Time) const;
+	
+	/** 시간 → 화면 X좌표 변환 */
+	float TimeToPixel(float Time) const;
+	
+	/** 화면 X좌표 → 시간 변환 */
+	float PixelToTime(float PixelX) const;
+	
+	/** 프레임 → 시간 변환 */
+	float FrameToTime(int32 Frame) const;
+	
+	/** 시간 → 프레임 변환 */
+	int32 TimeToFrame(float Time) const;
 
 private:
 	//// === Notify 편집 메서드 ===
@@ -88,7 +88,6 @@ private:
 	//void* CurrentSquence = nullptr; // UAnimSquence* 대신 임시
 	//TArray<FString> AvailableAnimationNames; // 임시 목록
 	int32 SelectedAnimIndex = -1;
-	//
 	// 재생 상태
 	float CurrentTime = 0.0f;
 	float PlayLength = 5.0f; // 임시 기본값
@@ -98,8 +97,10 @@ private:
 	int32 CurrentFrame = 0;
 	int32 TotalFrames = 150; // 임시 기본값
 	
-	//// UI 상태
-	//float TimelineWidth = 800.0f;
+	// UI 상태
+	float TimelineWidth = 800.0f;
+	bool bIsDraggingPlayhead = false; // 재생 헤드 드래그 중
+
 	bool bInitialPlacementDone = false;
 	bool bIsOpen = true;
 
