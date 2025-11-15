@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "SWindow.h"
 #include "AnimSequence.h"
+#include "AnimSequenceBase.h"
 /**
 * @brief 애니메이션 시퀀스 뷰어 윈도우
 * - 타임라인 UI (프레임 눈금, 재생 헤드)
@@ -41,11 +42,10 @@ private:
 	void RenderPlaybackControls();
 	/** 타임라인 (프레임 눈금, 재생 헤드) */
 	void RenderTimeline();
-	///** Notify 트랙 (마커, 드래그, 편집) */
-	//void RenderNotifyMarkers();
+	/** Notify 트랙 (마커, 드래그, 편집) */
+	void RenderNotifyMarkers();
 
 private:
-	// === 헬퍼 메서드 ===
 	
     /** SkeletalViewer에 현재 시간 반영 (실시간 동기화) */
 	//void ApplyToSkeletalViewer();
@@ -56,6 +56,7 @@ private:
 	/** ViewerState 가져오기 */
 	//ViewerState* GetViewerState();
 	
+	// === 타임라인 UI 헬퍼 메서드 ===
 	/** 시간 → 화면 X좌표 변환 */
 	float TimeToPixel(float Time) const;
 	
@@ -69,19 +70,12 @@ private:
 	int32 TimeToFrame(float Time) const;
 
 private:
-	//// === Notify 편집 메서드 ===
-	//
-	///** Notify 마커 히트 테스트 */
-	//int32 HitTestNotify(FVector2D MousePos);
-	//
-	///** Notify 추가 팝업 표시 */
-	//void ShowAddNotifyPopup(float TriggerTime);
-	//
-	///** Notify 삭제 */
-	//void DeleteNotify(int32 NotifyIndex);
-	//
-	///** Notify 컨텍스트 메뉴 */
-	//void ShowNotifyContextMenu(int32 NotifyIndex);
+	// === Notify 상태 ===
+	int32 HoveredNotifyIndex = -1;
+	int32 SelectedNotifyIndex = -1;
+
+	// 현재 보고 있는 애니메이션 시퀀스
+	UAnimSequenceBase* CurrentSequence = nullptr;
 
 private:
 	//// 애니메이션 데이터

@@ -3,10 +3,44 @@
 
 SAnimSequenceViewerWindow::SAnimSequenceViewerWindow()
 {
+	// 더미 시퀀스 생성 (테스트용)
+	CurrentSequence = NewObject<UAnimSequenceBase>();
+	CurrentSequence->SetSequenceLength(5.0f);
+	CurrentSequence->SetLooping(true);
+
+	// 더미 Notify 데이터 추가
+	FAnimNotifyEvent notify1;
+	notify1.TriggerTime = 1.0f;
+	notify1.Duration = 0.3f;
+	notify1.NotifyName = "Footstep_L";
+	CurrentSequence->AddNotify(notify1);
+
+	FAnimNotifyEvent notify2;
+	notify2.TriggerTime = 2.0f;
+	notify2.Duration = 0.0f;
+	notify2.NotifyName = "Footstep_R";
+	CurrentSequence->AddNotify(notify2);
+
+	FAnimNotifyEvent notify3;
+	notify3.TriggerTime = 3.5f;
+	notify3.Duration = 0.5f;  // Duration이 있는 경우
+	notify3.NotifyName = "PlaySound";
+	CurrentSequence->AddNotify(notify3);
+
+	FAnimNotifyEvent notify4;
+	notify4.TriggerTime = 4.2f;
+	notify4.Duration = 0.0f;
+	notify4.NotifyName = "SpawnEffect";
+	CurrentSequence->AddNotify(notify4);
 }
 
 SAnimSequenceViewerWindow::~SAnimSequenceViewerWindow()
 {
+	// 더미 시퀀스 정리
+	if (CurrentSequence)
+	{
+		CurrentSequence = nullptr;
+	}
 }
 
 bool SAnimSequenceViewerWindow::Initialize()
@@ -67,7 +101,7 @@ void SAnimSequenceViewerWindow::OnRender()
         // 하단 영역 - 타임라인
         // ============================================================
 
-        ImGui::BeginChild("Timeline", ImVec2(TotalWidth, TimelineHeight), true);
+        ImGui::BeginChild("Timeline", ImVec2(TotalWidth, 280), true);  // Notify 트랙 추가로 높이 증가
         {
             // 타임라인 렌더링
             RenderTimeline();
@@ -280,6 +314,13 @@ void SAnimSequenceViewerWindow::RenderTimeline()
     ImGui::Text("Timeline");
     ImGui::Spacing();
 
+    // Step 5: Notify 트랙 먼저 렌더링
+    RenderNotifyMarkers();
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
     // 타임라인 영역 크기 계산
     TimelineWidth = ImGui::GetContentRegionAvail().x - 20.0f;
     float TimelineHeight = 60.0f;
@@ -381,6 +422,180 @@ void SAnimSequenceViewerWindow::RenderTimeline()
     ImGui::Spacing();
 }
 
+void SAnimSequenceViewerWindow::RenderNotifyMarkers()
+{
+	ImGui::Text("Notify Track");
+	ImGui::Spacing();
+
+	// Notify 트랙 영역
+	float TrackWidth = TimelineWidth;
+	float TrackHeight = 50.0f;
+
+	ImVec2 CanvasPos = ImGui::GetCursorScreenPos();
+	ImVec2 CanvasSize(TrackWidth, TrackHeight);
+
+	ImDrawList* DrawList = ImGui::GetWindowDrawList();
+
+	// 트랙 배경
+	DrawList->AddRectFilled(CanvasPos,
+		ImVec2(CanvasPos.x + CanvasSize.x, CanvasPos.y + CanvasSize.y),
+		IM_COL32(40, 40, 45, 255));
+
+	// 트랙 테두리
+	DrawList->AddRect(CanvasPos,
+		ImVec2(CanvasPos.x + CanvasSize.x, CanvasPos.y + CanvasSize.y),
+		IM_COL32(80, 80, 90, 255), 0.0f, 0, 1.0f);
+
+	// 시퀀스가 없으면 빈 트랙만 표시
+	if (!CurrentSequence)
+	{
+		ImGui::SetCursorScreenPos(ImVec2(CanvasPos.x, CanvasPos.y + CanvasSize.y + 5));
+		ImGui::Spacing();
+		return;
+	}
+
+	// 실제 Notify 데이터 가져오기
+	const TArray<FAnimNotifyEvent>& Notifies = CurrentSequence->GetNotifies();
+
+	// Notify 마커 그리기
+	HoveredNotifyIndex = -1;
+
+	for (int i = 0; i < Notifies.size(); i++)
+	{
+		const FAnimNotifyEvent& Notify = Notifies[i];
+		float XPos = CanvasPos.x + TimeToPixel(Notify.TriggerTime);
+
+		// Duration이 있는 경우 (Notify State) - 사각형으로 표시
+		if (Notify.Duration > 0.0f)
+		{
+			float EndX = CanvasPos.x + TimeToPixel(Notify.GetEndTime());
+			float Width = EndX - XPos;
+
+			ImU32 RectColor = (i == SelectedNotifyIndex)
+				? IM_COL32(255, 180, 100, 120)  // 선택됨
+				: IM_COL32(100, 150, 255, 80);   // 기본
+
+			// Duration 사각형
+			DrawList->AddRectFilled(
+				ImVec2(XPos, CanvasPos.y + 5),
+				ImVec2(EndX, CanvasPos.y + TrackHeight - 5),
+				RectColor, 3.0f);
+
+			DrawList->AddRect(
+				ImVec2(XPos, CanvasPos.y + 5),
+				ImVec2(EndX, CanvasPos.y + TrackHeight - 5),
+				IM_COL32(150, 200, 255, 255), 3.0f, 0, 2.0f);
+		}
+
+		// 마커 위치 (다이아몬드 모양)
+		ImVec2 Center(XPos, CanvasPos.y + TrackHeight * 0.5f);
+		float Size = 8.0f;
+
+		ImVec2 Diamond[4] = {
+			ImVec2(Center.x, Center.y - Size),        // 위
+			ImVec2(Center.x + Size, Center.y),        // 오른쪽
+			ImVec2(Center.x, Center.y + Size),        // 아래
+			ImVec2(Center.x - Size, Center.y)         // 왼쪽
+		};
+
+		// 선택/호버 상태에 따른 색상
+		ImU32 MarkerColor;
+		if (i == SelectedNotifyIndex)
+			MarkerColor = IM_COL32(255, 200, 100, 255); // 주황색 (선택됨)
+		else if (i == HoveredNotifyIndex)
+			MarkerColor = IM_COL32(150, 200, 255, 255); // 밝은 파란색 (호버)
+		else
+			MarkerColor = IM_COL32(100, 150, 255, 255); // 기본 파란색
+
+		// 다이아몬드 마커 그리기
+		DrawList->AddQuadFilled(Diamond[0], Diamond[1], Diamond[2], Diamond[3], MarkerColor);
+		DrawList->AddQuad(Diamond[0], Diamond[1], Diamond[2], Diamond[3],
+			IM_COL32(255, 255, 255, 200), 1.5f);
+
+		// Notify 이름 텍스트
+		ImVec2 TextPos(XPos + Size + 4, CanvasPos.y + TrackHeight * 0.5f - 8);
+		DrawList->AddText(TextPos, IM_COL32(220, 220, 220, 255),
+			Notify.NotifyName.ToString().c_str());
+
+		// 마우스 호버 감지
+		ImVec2 MousePos = ImGui::GetMousePos();
+		float Dist = sqrtf(
+			(MousePos.x - Center.x) * (MousePos.x - Center.x) +
+			(MousePos.y - Center.y) * (MousePos.y - Center.y)
+		);
+
+		if (Dist < Size + 5.0f)
+		{
+			HoveredNotifyIndex = i;
+
+			// 툴팁 표시
+			if (Notify.Duration > 0.0f)
+			{
+				ImGui::SetTooltip("%s\nTime: %.2fs - %.2fs (Duration: %.2fs)\nFrame: %d - %d",
+					Notify.NotifyName.ToString().c_str(),
+					Notify.TriggerTime,
+					Notify.GetEndTime(),
+					Notify.Duration,
+					TimeToFrame(Notify.TriggerTime),
+					TimeToFrame(Notify.GetEndTime()));
+			}
+			else
+			{
+				ImGui::SetTooltip("%s\nTime: %.2fs (Frame: %d)",
+					Notify.NotifyName.ToString().c_str(),
+					Notify.TriggerTime,
+					TimeToFrame(Notify.TriggerTime));
+			}
+		}
+	}
+
+	// 트랙 클릭 감지
+	ImGui::SetCursorScreenPos(CanvasPos);
+	ImGui::InvisibleButton("NotifyTrackButton", CanvasSize);
+
+	if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+	{
+		if (HoveredNotifyIndex >= 0)
+		{
+			// Notify 마커 클릭
+			SelectedNotifyIndex = HoveredNotifyIndex;
+		}
+		else
+		{
+			// 빈 공간 클릭 (선택 해제)
+			SelectedNotifyIndex = -1;
+		}
+	}
+
+	// 우클릭 컨텍스트 메뉴
+	if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+	{
+		if (HoveredNotifyIndex >= 0)
+		{
+			ImGui::OpenPopup("NotifyContextMenu");
+		}
+	}
+
+	// 컨텍스트 메뉴
+	if (ImGui::BeginPopup("NotifyContextMenu"))
+	{
+		if (ImGui::MenuItem("Delete Notify"))
+		{
+			if (SelectedNotifyIndex >= 0 && SelectedNotifyIndex < Notifies.size())
+			{
+				// UAnimSequenceBase의 RemoveNotifiesByName 사용
+				CurrentSequence->RemoveNotifiesByName(Notifies[SelectedNotifyIndex].NotifyName);
+				SelectedNotifyIndex = -1;
+			}
+		}
+		ImGui::EndPopup();
+	}
+
+	// 커서 이동
+	ImGui::SetCursorScreenPos(ImVec2(CanvasPos.x, CanvasPos.y + CanvasSize.y + 5));
+	ImGui::Spacing();
+}
+
 float SAnimSequenceViewerWindow::TimeToPixel(float Time) const
 {
     if (PlayLength <= 0.0f) return 0.0f;
@@ -405,3 +620,4 @@ int32 SAnimSequenceViewerWindow::TimeToFrame(float Time) const
     if (PlayLength <= 0.0f) return 0;
     return (int32)((Time / PlayLength) * (float)TotalFrames);
 }
+
