@@ -215,6 +215,31 @@ void USlateManager::CloseSkeletalMeshViewer()
     SkeletalViewerWindow = nullptr;
 }
 
+void USlateManager::OpenAnimSequenceViewer()
+{
+    if (!AnimSequenceViewerWindow)
+    {
+        AnimSequenceViewerWindow = new SAnimSequenceViewerWindow();
+        AnimSequenceViewerWindow->Initialize();
+    }
+}
+
+void USlateManager::CloseAnimSequenceViewer()
+{
+    if (AnimSequenceViewerWindow)
+    {
+        AnimSequenceViewerWindow->Close();
+        delete AnimSequenceViewerWindow;
+        AnimSequenceViewerWindow = nullptr;
+    }
+}
+
+bool USlateManager::IsAnimSequenceViewerOpen() const
+{
+    return AnimSequenceViewerWindow != nullptr &&
+        AnimSequenceViewerWindow->IsOpen();
+}
+
 void USlateManager::SwitchLayout(EViewportLayoutMode NewMode)
 {
     if (NewMode == CurrentMode) return;
@@ -412,6 +437,12 @@ void USlateManager::Render()
     if (SkeletalViewerWindow)
     {
         SkeletalViewerWindow->OnRender();
+    }
+
+    // Render sequence viewer
+    if (AnimSequenceViewerWindow)
+    {
+        AnimSequenceViewerWindow->OnRender();
     }
 }
 
