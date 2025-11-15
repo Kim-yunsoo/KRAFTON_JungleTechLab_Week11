@@ -17,6 +17,8 @@ public:
     UAnimSequence() = default;
     virtual ~UAnimSequence() override = default;
 
+    void Load(const FString& InFilePath, ID3D11Device* InDevice);
+
     // DataModel은 실제 본 키 데이터를 가진 컨테이너이며 UAnimSequence가 소유한다.
     UAnimDataModel* GetDataModel() { return DataModel.get(); }
     const UAnimDataModel* GetDataModel() const { return DataModel.get(); }

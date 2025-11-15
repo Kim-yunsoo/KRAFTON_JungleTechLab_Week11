@@ -1,20 +1,59 @@
-ï»¿#include "pch.h"
+#include "pch.h"
 #include "AnimSequence.h"
 #include "AnimDataModel.h"
 #include "JsonSerializer.h"
+#include "PathUtils.h"
+
+#include <filesystem>
 
 IMPLEMENT_CLASS(UAnimSequence)
 
+void UAnimSequence::Load(const FString& InFilePath, ID3D11Device* InDevice)
+{
+    (void)InDevice;
+
+    FString NormalizedPath = NormalizePath(InFilePath);
+    JSON AnimJson;
+    FWideString WidePath = UTF8ToWide(NormalizedPath);
+
+    if (!FJsonSerializer::LoadJsonFromFile(AnimJson, WidePath))
+    {
+        UE_LOG("[error] UAnimSequence::Load: Failed to read %s", NormalizedPath.c_str());
+        SetFilePath(NormalizedPath);
+        ResetDataModel();
+        ClearNotifies();
+        SetLastModifiedTime(std::filesystem::file_time_type::clock::now());
+        return;
+    }
+
+    Serialize(true, AnimJson);
+
+    if (GetFilePath().empty())
+    {
+        SetFilePath(NormalizedPath);
+    }
+
+    try
+    {
+        std::filesystem::path FsPath(WidePath);
+        SetLastModifiedTime(std::filesystem::last_write_time(FsPath));
+    }
+    catch (...)
+    {
+        SetLastModifiedTime(std::filesystem::file_time_type::clock::now());
+    }
+}
+
 void UAnimSequence::SetDataModel(std::unique_ptr<UAnimDataModel> InDataModel)
 {
-    // ìƒˆë¡œìš´ ë°ì´í„° ëª¨ë¸ì„ ë°›ê³  ì‹œí€€ìŠ¤ ë©”íƒ€ë°ì´í„°ë¥¼ ì¦‰ì‹œ ë§ì¶˜ë‹¤.
+    // »õ·Î¿î µ¥ÀÌÅÍ ¸ğµ¨À» ¹Ş°í ½ÃÄö½º ¸ŞÅ¸µ¥ÀÌÅÍ¸¦ Áï½Ã ¸ÂÃá´Ù.
     DataModel = std::move(InDataModel);
     SyncDerivedMetadata();
 }
 
 void UAnimSequence::ResetDataModel()
 {
-    // ëª¨ë¸ ì†Œìœ ê¶Œì„ ë¹„ìš°ë©´ ì¬ìƒ ê¸¸ì´ ì—­ì‹œ 0ì´ˆë¡œ ë¦¬ì…‹ëœë‹¤.
+    // ¸ğµ¨ ¼ÒÀ¯±ÇÀ» ºñ¿ì¸é Àç»ı ±æÀÌ ¿ª½Ã 0ÃÊ·Î ¸®¼ÂµÈ´Ù.
     DataModel.reset();
     SyncDerivedMetadata();
 }
@@ -26,7 +65,7 @@ const TArray<FBoneAnimationTrack>& UAnimSequence::GetBoneTracks() const
         return DataModel->GetBoneTracks();
     }
 
-    // DataModelì´ ì—†ì„ ë•Œ ë¹ˆ ë°°ì—´ ë°˜í™˜ (static ëŒ€ì‹  ì§€ì—­ const ì‚¬ìš©)
+    // DataModelÀÌ ¾øÀ» ¶§ ºó ¹è¿­ ¹İÈ¯ (static ´ë½Å Áö¿ª const »ç¿ë)
     static const TArray<FBoneAnimationTrack> EmptyTracks;
     return EmptyTracks;
 }
@@ -58,28 +97,28 @@ const FFrameRate& UAnimSequence::GetFrameRateStruct() const
         return DataModel->GetFrameRate();
     }
 
-    // DataModelì´ ì—†ì„ ë•Œ ê¸°ë³¸ í”„ë ˆì„ë ˆì´íŠ¸ ë°˜í™˜ (static constë¡œ ë¶ˆë³€ì„± ë³´ì¥)
+    // DataModelÀÌ ¾øÀ» ¶§ ±âº» ÇÁ·¹ÀÓ·¹ÀÌÆ® ¹İÈ¯ (static const·Î ºÒº¯¼º º¸Àå)
     static const FFrameRate DefaultRate{};
     return DefaultRate;
 }
 
 void UAnimSequence::SyncDerivedMetadata()
 {
-    // DataModelì´ ì¡´ì¬í•˜ë©´ ê¸¸ì´ë¥¼ ê³„ì‚°í•˜ê³ , ì—†ìœ¼ë©´ 0ì´ˆë¡œ ë§ì¶˜ë‹¤.
+    // DataModelÀÌ Á¸ÀçÇÏ¸é ±æÀÌ¸¦ °è»êÇÏ°í, ¾øÀ¸¸é 0ÃÊ·Î ¸ÂÃá´Ù.
     DataModel ? SetSequenceLength(DataModel->GetPlayLengthSeconds()) : SetSequenceLength(0.f);
 }
 
-// AnimSequence.cpp ë‚´ë¶€ì—ì„œë§Œ ì‚¬ìš©ë˜ë¯€ë¡œ namespaceë¡œ ë²”ìœ„ë¥¼ í•œì •í•©ë‹ˆë‹¤.
+// AnimSequence.cpp ³»ºÎ¿¡¼­¸¸ »ç¿ëµÇ¹Ç·Î namespace·Î ¹üÀ§¸¦ ÇÑÁ¤ÇÕ´Ï´Ù.
 namespace
 {
-    // SerializePrimitiveArray (Object.h)ë¥¼ í™œìš©í•œ ë³¸ íŠ¸ë™ ì§ë ¬í™” í—¬í¼
+    // SerializePrimitiveArray (Object.h)¸¦ È°¿ëÇÑ º» Æ®·¢ Á÷·ÄÈ­ ÇïÆÛ
     JSON SerializeBoneTrack(const FBoneAnimationTrack& Track)
     {
         JSON TrackJson = JSON::Make(JSON::Class::Object);
         TrackJson["BoneName"] = Track.BoneName.ToString().c_str();
         TrackJson["BoneIndex"] = Track.BoneIndex;
 
-        // SerializePrimitiveArray í™œìš©
+        // SerializePrimitiveArray È°¿ë
         JSON PosKeysJson = JSON::Make(JSON::Class::Array);
         JSON RotKeysJson = JSON::Make(JSON::Class::Array);
         JSON ScaleKeysJson = JSON::Make(JSON::Class::Array);
@@ -118,7 +157,7 @@ namespace
             }
             FJsonSerializer::ReadInt32(TrackJson, "BoneIndex", Track.BoneIndex, -1, false);
 
-            // SerializePrimitiveArray í™œìš©
+            // SerializePrimitiveArray È°¿ë
             if (TrackJson.hasKey("PosKeys"))
             {
                 JSON PosKeysJson = TrackJson.at("PosKeys");
@@ -156,7 +195,7 @@ void UAnimSequence::Serialize(const bool bInIsLoading, JSON& InOutHandle)
             const JSON& ModelJson = InOutHandle.at("DataModel");
             auto NewModel = std::make_unique<UAnimDataModel>();
 
-            // JSONì— ì €ì¥ëœ í”„ë ˆì„ë ˆì´íŠ¸/íŠ¸ë™ ì •ë³´ë¥¼ ì—­ì§ë ¬í™”í•œë‹¤.
+            // JSON¿¡ ÀúÀåµÈ ÇÁ·¹ÀÓ·¹ÀÌÆ®/Æ®·¢ Á¤º¸¸¦ ¿ªÁ÷·ÄÈ­ÇÑ´Ù.
             FFrameRate Rate;
             FJsonSerializer::ReadInt32(ModelJson, "FrameRateNumerator", Rate.Numerator, Rate.Numerator, false);
             FJsonSerializer::ReadInt32(ModelJson, "FrameRateDenominator", Rate.Denominator, Rate.Denominator, false);
@@ -184,12 +223,12 @@ void UAnimSequence::Serialize(const bool bInIsLoading, JSON& InOutHandle)
     }
     else // Saving
     {
-        // DataModelì´ ì—†ì–´ë„ ì¼ê´€ì„±ì„ ìœ„í•´ ë¹ˆ êµ¬ì¡°ë¥¼ ì €ì¥
+        // DataModelÀÌ ¾ø¾îµµ ÀÏ°ü¼ºÀ» À§ÇØ ºó ±¸Á¶¸¦ ÀúÀå
         JSON ModelJson = JSON::Make(JSON::Class::Object);
 
         if (DataModel)
         {
-            // DataModel ë‚´ìš©ì„ JSONì— ê¸°ë¡í•´ ë””ìŠ¤í¬ë¡œ ë³´ë‚¸ë‹¤.
+            // DataModel ³»¿ëÀ» JSON¿¡ ±â·ÏÇØ µğ½ºÅ©·Î º¸³½´Ù.
             ModelJson["FrameRateNumerator"] = DataModel->GetFrameRate().Numerator;
             ModelJson["FrameRateDenominator"] = DataModel->GetFrameRate().Denominator;
             ModelJson["NumberOfFrames"] = DataModel->GetNumberOfFrames();
@@ -205,7 +244,7 @@ void UAnimSequence::Serialize(const bool bInIsLoading, JSON& InOutHandle)
         }
         else
         {
-            // DataModelì´ ì—†ì„ ë•Œ ê¸°ë³¸ê°’ìœ¼ë¡œ ë¹ˆ êµ¬ì¡° ì €ì¥
+            // DataModelÀÌ ¾øÀ» ¶§ ±âº»°ªÀ¸·Î ºó ±¸Á¶ ÀúÀå
             ModelJson["FrameRateNumerator"] = 30;
             ModelJson["FrameRateDenominator"] = 1;
             ModelJson["NumberOfFrames"] = 0;
@@ -217,3 +256,6 @@ void UAnimSequence::Serialize(const bool bInIsLoading, JSON& InOutHandle)
         InOutHandle["DataModel"] = ModelJson;
     }
 }
+
+
+
