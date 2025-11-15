@@ -1522,3 +1522,8 @@ inline void operator*= (TArray<FVector4>& Vectors, const FMatrix& Mat)
 		Vectors[i] = Vectors[i] * Mat;
 	}
 }
+
+inline float Clamp(const float Cur, const float Min = 0, const float Max = 1)
+{
+	return Cur < Min ? Min : (Cur > Max ? Max : Cur);
+}

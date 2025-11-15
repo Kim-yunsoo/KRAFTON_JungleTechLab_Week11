@@ -3,9 +3,12 @@
 
 void UAnimInstance::Tick(float DeltaSeconds)
 {
-	if (OwnerComponent && AnimSequence && bPlay)
+	if (OwnerComponent && bPlay && Speed != 0)
 	{
+		PrevTime = CurrentTime;
+		CurrentTime += DeltaSeconds * Speed;
 		NativeUpdateAnimation(DeltaSeconds);
+		TriggerAnimNotifies(DeltaSeconds);
 	}
 }
 
@@ -16,16 +19,5 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 
 void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
-
-}
-
-void UAnimInstance::SetAnimation(UAnimSequence* InSequence, bool IsInit)
-{
-	AnimSequence = InSequence;
-	if (IsInit)
-	{
-		SetLoop(false);
-		SetSpeed(1);
-		SetPosition(0);
-	}
+	
 }
