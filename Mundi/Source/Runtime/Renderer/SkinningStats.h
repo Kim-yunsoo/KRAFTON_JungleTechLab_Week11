@@ -36,6 +36,7 @@ public:
 	{
 		GPUSkinningTimes[GPUSampleIndex] = TimeMS;
 		GPUSampleIndex = (GPUSampleIndex + 1) % MaxSamples;
+		GPUSampleCount = std::min(GPUSampleCount + 1, MaxSamples);
 	}
 
 	/**
