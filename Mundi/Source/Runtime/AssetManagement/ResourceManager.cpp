@@ -476,12 +476,19 @@ void UResourceManager::InitShaderILMap()
     layout.Add({ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 });
     layout.Add({ "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 });
     layout.Add({ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 });
-   
+
     ShaderToInputLayoutMap["Shaders/Effects/Decal.hlsl"] = layout;
 	ShaderToInputLayoutMap["Shaders/Materials/UberLit.hlsl"] = layout;
 	ShaderToInputLayoutMap["Shaders/Materials/Fireball.hlsl"] = layout; // Use same vertex format as UberLit
 	ShaderToInputLayoutMap["Shaders/Shadow/PointLightShadow.hlsl"] = layout;  // Shadow map rendering uses same vertex format
 	ShaderToInputLayoutMap["Shaders/Shadows/DepthOnly_VS.hlsl"] = layout;
+
+	// GPU 스키닝용 Input Layout (UberLit with GPU_SKINNING macro)
+	// FSkinnedVertex 형식: 위의 기본 레이아웃 + BLENDINDICES + BLENDWEIGHT
+	layout.Add({ "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0, 64, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+	layout.Add({ "BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 80, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+	ShaderToInputLayoutMap["Shaders/Materials/UberLit.hlsl_GPU_SKINNING"] = layout;
+
     layout.clear();
 
     layout.Add({ "WORLDPOSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 });

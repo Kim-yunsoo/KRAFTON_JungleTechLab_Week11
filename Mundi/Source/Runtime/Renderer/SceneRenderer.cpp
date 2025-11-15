@@ -1417,6 +1417,12 @@ void FSceneRenderer::DrawMeshBatches(TArray<FMeshBatchElement>& InMeshBatches, b
 		RHIDevice->SetAndUpdateConstantBuffer(ModelBufferType(Batch.WorldMatrix, Batch.WorldMatrix.InverseAffine().Transpose()));
 		RHIDevice->SetAndUpdateConstantBuffer(ColorBufferType(Batch.InstanceColor, Batch.ObjectID));
 
+		// GPU 스키닝: 본 매트릭스 상수 버퍼 바인딩 (register b6)
+		if (Batch.BoneMatrixConstantBuffer)
+		{
+			RHIDevice->GetDeviceContext()->VSSetConstantBuffers(6, 1, &Batch.BoneMatrixConstantBuffer);
+		}
+
 		// 5. 드로우 콜 실행
 		RHIDevice->GetDeviceContext()->DrawIndexed(Batch.IndexCount, Batch.StartIndex, Batch.BaseVertexIndex);
 	}

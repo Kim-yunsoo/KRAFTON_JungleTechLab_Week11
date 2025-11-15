@@ -15,6 +15,7 @@
 
 #include "StaticMeshActor.h"
 //#include "SkeletalMeshActor.h"
+#include "SkinnedMeshComponent.h"
 #include "ResourceManager.h"
 #include <filesystem>
 
@@ -440,6 +441,9 @@ void SViewportWindow::LoadToolbarIcons(ID3D11Device* Device)
 
 	IconShadowAA = NewObject<UTexture>();
 	IconShadowAA->Load(GDataDir + "/Icon/Viewport_ShadowAA.png", Device);
+
+	IconSkinning = NewObject<UTexture>();
+	IconSkinning->Load(GDataDir + "/Icon/Viewport_Skinning.png", Device);
 
 	// 뷰포트 레이아웃 전환 아이콘 로드
 	IconSingleToMultiViewport = NewObject<UTexture>();
@@ -1927,6 +1931,113 @@ void SViewportWindow::RenderShowFlagDropdownMenu()
 		if (ImGui::IsItemHovered())
 		{
 			ImGui::SetTooltip("그림자 안티 에일리어싱 기술 설정");
+		}
+
+		// ===== 스키닝 =====
+		// 체크박스 (항상 체크된 상태, 스키닝은 항상 활성화)
+		bool bSkinning = true;
+		if (ImGui::Checkbox("##Skinning", &bSkinning))
+		{
+			// 스키닝은 항상 활성화되어야 하므로 토글 무시
+		}
+		ImGui::SameLine();
+		// 아이콘
+		if (IconSkinning && IconSkinning->GetShaderResourceView())
+		{
+			ImGui::Image((void*)IconSkinning->GetShaderResourceView(), IconSize);
+			ImGui::SameLine(0, 4);
+		}
+
+		// 서브메뉴
+		if (ImGui::BeginMenu(" 스키닝"))
+		{
+			ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "스키닝");
+			ImGui::Separator();
+
+			// 현재 모드 확인을 위한 임시 변수 (첫 번째 SkinnedMeshComponent 기준)
+			extern UEditorEngine GEngine;
+			bool bIsGPUSkinning = false;
+			bool bFoundSkinnedMesh = false;
+
+			for (const FWorldContext& WorldContext : GEngine.GetWorldContexts())
+			{
+				if (WorldContext.World)
+				{
+					for (AActor* Actor : WorldContext.World->GetActors())
+					{
+						if (Actor)
+						{
+							for (UActorComponent* Component : Actor->GetOwnedComponents())
+							{
+								USkinnedMeshComponent* SkinnedComp = dynamic_cast<USkinnedMeshComponent*>(Component);
+								if (SkinnedComp)
+								{
+									bIsGPUSkinning = SkinnedComp->IsUsingGPUSkinning();
+									bFoundSkinnedMesh = true;
+									break;
+								}
+							}
+							if (bFoundSkinnedMesh) break;
+						}
+					}
+					if (bFoundSkinnedMesh) break;
+				}
+			}
+
+			// RadioButton용 int 변수 (0 = CPU, 1 = GPU)
+			int skinningModeInt = bIsGPUSkinning ? 1 : 0;
+			const int oldSkinningModeInt = skinningModeInt;
+
+			// CPU SKINNING 라디오 버튼
+			ImGui::RadioButton(" CPU SKINNING", &skinningModeInt, 0);
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("CPU에서 스키닝 계산 수행");
+			}
+
+			// GPU SKINNING 라디오 버튼
+			ImGui::RadioButton(" GPU SKINNING", &skinningModeInt, 1);
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("GPU에서 스키닝 계산 수행");
+			}
+
+			// 모드 변경 시 모든 SkinnedMeshComponent에 적용
+			if (skinningModeInt != oldSkinningModeInt)
+			{
+				bool bNewGPUMode = (skinningModeInt == 1);
+				int32 SwitchedCount = 0;
+
+				for (const FWorldContext& WorldContext : GEngine.GetWorldContexts())
+				{
+					if (WorldContext.World)
+					{
+						for (AActor* Actor : WorldContext.World->GetActors())
+						{
+							if (Actor)
+							{
+								for (UActorComponent* Component : Actor->GetOwnedComponents())
+								{
+									USkinnedMeshComponent* SkinnedComp = dynamic_cast<USkinnedMeshComponent*>(Component);
+									if (SkinnedComp)
+									{
+										SkinnedComp->SetSkinningMode(bNewGPUMode);
+										SwitchedCount++;
+									}
+								}
+							}
+						}
+					}
+				}
+
+				UE_LOG("Switched %d components to %s mode", SwitchedCount, bNewGPUMode ? "GPU Skinning" : "CPU Skinning");
+			}
+
+			ImGui::EndMenu();
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("스키닝 모드 설정 (GPU/CPU)");
 		}
 
 		ImGui::PopStyleColor(3);
