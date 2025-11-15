@@ -9,7 +9,7 @@ public:
 	UAnimSingleNodeInstance() = default;
 	virtual ~UAnimSingleNodeInstance() = default;
 
-	UAnimSequence* AnimB;
-
+protected:
+	void NativeUpdateAnimation(float DeltaSeconds) override;
 
 };

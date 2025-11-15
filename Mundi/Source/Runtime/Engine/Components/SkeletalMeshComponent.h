@@ -31,6 +31,7 @@ public:
 
     void SetBoneWorldTransform(int32 BoneIndex, const FTransform& NewWorldTransform);
     
+    void SetPose(const TArray<FTransform>& Pose);
     /**
      * @brief 특정 뼈의 현재 로컬 트랜스폼을 반환
      */
@@ -40,7 +41,7 @@ public:
      * @brief 기즈모를 렌더링하기 위해 특정 뼈의 월드 트랜스폼을 계산
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
-    void PlayAnimation(UAnimSequence* AnimSequence, bool bLooping);
+    void PlayAnimation(UAnimSequence* AnimSequence, bool bLoop);
 
 protected:
     /**
@@ -79,7 +80,7 @@ protected:
     TArray<FMatrix> TempFinalSkinningNormalMatrices;
 
 private:
-    UAnimInstance* AnimInstance;
+    UAnimInstance* AnimInstance = nullptr;
 
 
 // FOR TEST!!!

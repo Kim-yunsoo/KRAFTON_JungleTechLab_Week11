@@ -1,8 +1,7 @@
 ﻿#pragma once
 #include "Source/Runtime/Core/Object/Object.h"
 #include "Source/Runtime/Engine/Animation/AnimSequence.h"
-
-class USkeletalMeshComponent;
+#include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
 
 class UAnimInstance : public UObject
 {

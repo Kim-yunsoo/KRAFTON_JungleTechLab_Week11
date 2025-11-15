@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "SkeletalMeshComponent.h"
+#include "Source/Runtime/Engine/Animation/AnimSingleNodeInstance.h"
 
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
@@ -12,7 +13,7 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime)
     Super::TickComponent(DeltaTime);
     if (AnimInstance)
     {
-
+        AnimInstance->Tick(DeltaTime);
     }
     //// FOR TEST ////
     if (!SkeletalMesh) { return; } // 부모의 SkeletalMesh 확인
@@ -110,6 +111,14 @@ void USkeletalMeshComponent::SetBoneWorldTransform(int32 BoneIndex, const FTrans
 
     SetBoneLocalTransform(BoneIndex, DesiredLocal);
 }
+void USkeletalMeshComponent::SetPose(const TArray<FTransform>& Pose)
+{
+    if (CurrentLocalSpacePose.Num() == Pose.Num())
+    {
+        CurrentLocalSpacePose = Pose;
+        ForceRecomputePose();
+    }
+}
 
 
 FTransform USkeletalMeshComponent::GetBoneLocalTransform(int32 BoneIndex) const
@@ -178,4 +187,16 @@ void USkeletalMeshComponent::UpdateFinalSkinningMatrices()
         TempFinalSkinningMatrices[BoneIndex] = InvBindPose * ComponentPoseMatrix;
         TempFinalSkinningNormalMatrices[BoneIndex] = TempFinalSkinningMatrices[BoneIndex].Inverse().Transpose();
     }
+}
+void USkeletalMeshComponent::PlayAnimation(UAnimSequence* AnimSequence, bool bLoop)
+{
+    if (AnimInstance == nullptr)
+    {
+        AnimInstance = NewObject<UAnimSingleNodeInstance>();
+        AnimInstance->SetOwner(this);
+    }
+
+    AnimInstance->SetAnimation(AnimSequence);
+    AnimInstance->SetLoop(bLoop);
+    AnimInstance->SetPlay(true);
 }
