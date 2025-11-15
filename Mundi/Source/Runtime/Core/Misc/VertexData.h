@@ -1,9 +1,9 @@
-ï»¿#pragma once
+#pragma once
 #include "Archive.h"
 #include "Vector.h"
 #include "Name.h"
 
-// ì§ë ¬í™” í¬ë§· (FVertexDynamicì™€ ì—­í• ì´ ë‹¬ë¼ì„œ ë¶„ë¦¬ë¨)
+// Á÷·ÄÈ­ Æ÷¸Ë (FVertexDynamic¿Í ¿ªÇÒÀÌ ´Ş¶ó¼­ ºĞ¸®µÊ)
 struct FNormalVertex
 {
     FVector pos;
@@ -41,7 +41,7 @@ struct FVertexSimple
     void FillFrom(const FNormalVertex& src);
 };
 
-// ëŸ°íƒ€ì„ í¬ë§· (FNormalVertexì™€ ì—­í• ì´ ë‹¬ë¼ì„œ ë¶„ë¦¬ë¨)
+// ·±Å¸ÀÓ Æ÷¸Ë (FNormalVertex¿Í ¿ªÇÒÀÌ ´Ş¶ó¼­ ºĞ¸®µÊ)
 struct FVertexDynamic
 {
     FVector Position;
@@ -55,17 +55,17 @@ struct FVertexDynamic
 };
 
 /**
-* ìŠ¤í‚¤ë‹ìš© ì •ì  êµ¬ì¡°ì²´
+* ½ºÅ°´×¿ë Á¤Á¡ ±¸Á¶Ã¼
 */
 struct FSkinnedVertex
 {
-    FVector Position{}; // ì •ì  ìœ„ì¹˜
-    FVector Normal{}; // ë²•ì„  ë²¡í„°
-    FVector2D UV{}; // í…ìŠ¤ì²˜ ì¢Œí‘œ
-    FVector4 Tangent{}; // íƒ„ì  íŠ¸ (wëŠ” binormal ë°©í–¥)
-    FVector4 Color{}; // ì •ì  ì»¬ëŸ¬
-    uint32 BoneIndices[4]{}; // ì˜í–¥ì„ ì£¼ëŠ” ë³¸ ì¸ë±ìŠ¤ (ìµœëŒ€ 4ê°œ)
-    float BoneWeights[4]{}; // ê° ë³¸ì˜ ê°€ì¤‘ì¹˜ (í•©ì´ 1.0)
+    FVector Position{}; // Á¤Á¡ À§Ä¡
+    FVector Normal{}; // ¹ı¼± º¤ÅÍ
+    FVector2D UV{}; // ÅØ½ºÃ³ ÁÂÇ¥
+    FVector4 Tangent{}; // ÅºÁ¨Æ® (w´Â binormal ¹æÇâ)
+    FVector4 Color{}; // Á¤Á¡ ÄÃ·¯
+    uint32 BoneIndices[4]{}; // ¿µÇâÀ» ÁÖ´Â º» ÀÎµ¦½º (ÃÖ´ë 4°³)
+    float BoneWeights[4]{}; // °¢ º»ÀÇ °¡ÁßÄ¡ (ÇÕÀÌ 1.0)
 
     friend FArchive& operator<<(FArchive& Ar, FSkinnedVertex& Vertex)
     {
@@ -89,7 +89,7 @@ struct FSkinnedVertex
     }
 };
 
-// ê°™ì€ Positionì¸ë° Normalì´ë‚˜ UVê°€ ë‹¤ë¥¸ vertexê°€ ì¡´ì¬í•  ìˆ˜ ìˆìŒ, ê·¸ë˜ì„œ SkinnedVertexë¥¼ í‚¤ë¡œ êµ¬ë³„í•´ì•¼í•´ì„œ hashí•¨ìˆ˜ ì •ì˜í•¨
+// °°Àº PositionÀÎµ¥ NormalÀÌ³ª UV°¡ ´Ù¸¥ vertex°¡ Á¸ÀçÇÒ ¼ö ÀÖÀ½, ±×·¡¼­ SkinnedVertex¸¦ Å°·Î ±¸º°ÇØ¾ßÇØ¼­ hashÇÔ¼ö Á¤ÀÇÇÔ
 template <class T>
 inline void CombineHash(size_t& InSeed, const T& Vertex)
 {
@@ -118,7 +118,7 @@ inline bool operator==(const FSkinnedVertex& Vertex1, const FSkinnedVertex& Vert
         return false;
     }
 
-    // ëª¨ë“  ê²Œ ê°™ìŒ
+    // ¸ğµç °Ô °°À½
     return true;
 }
 namespace std
@@ -163,11 +163,11 @@ struct FBillboardVertexInfo_GPU
     void FillFrom(const FNormalVertex& src);
 };
 
-// ë¹Œë³´ë“œ ì „ìš©: ìœ„ì¹˜ + UVë§Œ ìˆìœ¼ë©´ ì¶©ë¶„
+// ºôº¸µå Àü¿ë: À§Ä¡ + UV¸¸ ÀÖÀ¸¸é ÃæºĞ
 struct FBillboardVertex
 {
-    FVector WorldPosition;  // ì •ì  ìœ„ì¹˜ (ë¡œì»¬ ì¢Œí‘œ, -0.5~0.5 ê¸°ì¤€ ì¿¼ë“œ)
-    FVector2D UV;        // í…ìŠ¤ì²˜ ì¢Œí‘œ (0~1)
+    FVector WorldPosition;  // Á¤Á¡ À§Ä¡ (·ÎÄÃ ÁÂÇ¥, -0.5~0.5 ±âÁØ Äõµå)
+    FVector2D UV;        // ÅØ½ºÃ³ ÁÂÇ¥ (0~1)
 
     void FillFrom(const FMeshData& mesh, size_t i);
     void FillFrom(const FNormalVertex& src);
@@ -177,7 +177,7 @@ struct FGroupInfo
 {
     uint32 StartIndex = 0;
     uint32 IndexCount = 0;
-    FString InitialMaterialName; // obj íŒŒì¼ ìì²´ì— ë§µí•‘ëœ material ì´ë¦„
+    FString InitialMaterialName; // obj ÆÄÀÏ ÀÚÃ¼¿¡ ¸ÊÇÎµÈ material ÀÌ¸§
 
     friend FArchive& operator<<(FArchive& Ar, FGroupInfo& Info)
     {
@@ -196,11 +196,11 @@ struct FGroupInfo
 struct FStaticMesh
 {
     FString PathFileName;
-    FString CacheFilePath;  // ìºì‹œëœ ì†ŒìŠ¤ ê²½ë¡œ (ì˜ˆ: DerivedDataCache/cube.obj.bin)
+    FString CacheFilePath;  // Ä³½ÃµÈ ¼Ò½º °æ·Î (¿¹: DerivedDataCache/cube.obj.bin)
 
     TArray<uint32> Indices;
     TArray<FNormalVertex> Vertices;
-    TArray<FGroupInfo> GroupInfos; // ê° groupì„ render í•˜ê¸° ìœ„í•œ ì •ë³´
+    TArray<FGroupInfo> GroupInfos; // °¢ groupÀ» render ÇÏ±â À§ÇÑ Á¤º¸
 
     bool bHasMaterial;
 
@@ -237,10 +237,10 @@ struct FStaticMesh
 
 struct FBone
 {
-    FString Name; // ë³¸ ì´ë¦„
-    int32 ParentIndex; // ë¶€ëª¨ ë³¸ ì¸ë±ìŠ¤ (-1ì´ë©´ ë£¨íŠ¸)
-    FMatrix BindPose; // Bind Pose ë³€í™˜ í–‰ë ¬
-    FMatrix InverseBindPose; // Inverse Bind Pose (ìŠ¤í‚¤ë‹ìš©)
+    FString Name; // º» ÀÌ¸§
+    int32 ParentIndex; // ºÎ¸ğ º» ÀÎµ¦½º (-1ÀÌ¸é ·çÆ®)
+    FMatrix BindPose; // Bind Pose º¯È¯ Çà·Ä
+    FMatrix InverseBindPose; // Inverse Bind Pose (½ºÅ°´×¿ë)
 
     friend FArchive& operator<<(FArchive& Ar, FBone& Bone)
     {
@@ -264,9 +264,9 @@ struct FBone
 
 struct FSkeleton
 {
-    FString Name; // ìŠ¤ì¼ˆë ˆí†¤ ì´ë¦„
-    TArray<FBone> Bones; // ë³¸ ë°°ì—´
-    TMap <FString, int32> BoneNameToIndex; // ì´ë¦„ìœ¼ë¡œ ë³¸ ê²€ìƒ‰
+    FString Name; // ½ºÄÌ·¹Åæ ÀÌ¸§
+    TArray<FBone> Bones; // º» ¹è¿­
+    TMap <FString, int32> BoneNameToIndex; // ÀÌ¸§À¸·Î º» °Ë»ö
 
     friend FArchive& operator<<(FArchive& Ar, FSkeleton& Skeleton)
     {
@@ -280,7 +280,7 @@ struct FSkeleton
             {
                 Ar << bone;
             }
-            // BoneNameToIndexëŠ” ë¡œë“œ ì‹œ ì¬êµ¬ì¶• ê°€ëŠ¥í•˜ë¯€ë¡œ ì €ì¥ ì•ˆ í•¨
+            // BoneNameToIndex´Â ·Îµå ½Ã Àç±¸Ãà °¡´ÉÇÏ¹Ç·Î ÀúÀå ¾È ÇÔ
         }
         else if (Ar.IsLoading())
         {
@@ -294,7 +294,7 @@ struct FSkeleton
                 Ar << bone;
             }
 
-            // BoneNameToIndex ì¬êµ¬ì¶•
+            // BoneNameToIndex Àç±¸Ãà
             Skeleton.BoneNameToIndex.clear();
             for (int32 i = 0; i < static_cast<int32>(Skeleton.Bones.size()); ++i)
             {
@@ -307,8 +307,8 @@ struct FSkeleton
 
 struct FVertexWeight
 {
-    uint32 VertexIndex; // ì •ì  ì¸ë±ìŠ¤
-    float Weight; // ê°€ì¤‘ì¹˜
+    uint32 VertexIndex; // Á¤Á¡ ÀÎµ¦½º
+    float Weight; // °¡ÁßÄ¡
 };
 
 struct FSkeletalMeshData
@@ -316,26 +316,26 @@ struct FSkeletalMeshData
     FString PathFileName;
     FString CacheFilePath;
     
-    TArray<FSkinnedVertex> Vertices; // ì •ì  ë°°ì—´
-    TArray<uint32> Indices; // ì¸ë±ìŠ¤ ë°°ì—´
-    FSkeleton Skeleton; // ìŠ¤ì¼ˆë ˆí†¤ ì •ë³´
-    TArray<FGroupInfo> GroupInfos; // ë¨¸í‹°ë¦¬ì–¼ ê·¸ë£¹ (ê¸°ì¡´ ì‹œìŠ¤í…œ ì¬ì‚¬ìš©)
+    TArray<FSkinnedVertex> Vertices; // Á¤Á¡ ¹è¿­
+    TArray<uint32> Indices; // ÀÎµ¦½º ¹è¿­
+    FSkeleton Skeleton; // ½ºÄÌ·¹Åæ Á¤º¸
+    TArray<FGroupInfo> GroupInfos; // ¸ÓÆ¼¸®¾ó ±×·ì (±âÁ¸ ½Ã½ºÅÛ Àç»ç¿ë)
     bool bHasMaterial = false;
 
     friend FArchive& operator<<(FArchive& Ar, FSkeletalMeshData& Data)
     {
         if (Ar.IsSaving())
         {
-            // 1. Vertices ì €ì¥
+            // 1. Vertices ÀúÀå
             Serialization::WriteArray(Ar, Data.Vertices);
 
-            // 2. Indices ì €ì¥
+            // 2. Indices ÀúÀå
             Serialization::WriteArray(Ar, Data.Indices);
 
-            // 3. Skeleton ì €ì¥
+            // 3. Skeleton ÀúÀå
             Ar << Data.Skeleton;
 
-            // 4. GroupInfos ì €ì¥
+            // 4. GroupInfos ÀúÀå
             uint32 gCount = static_cast<uint32>(Data.GroupInfos.size());
             Ar << gCount;
             for (auto& g : Data.GroupInfos)
@@ -343,24 +343,24 @@ struct FSkeletalMeshData
                 Ar << g;
             }
 
-            // 5. Material í”Œë˜ê·¸ ì €ì¥
+            // 5. Material ÇÃ·¡±× ÀúÀå
             Ar << Data.bHasMaterial;
 
-            // 6. CacheFilePath ì €ì¥
+            // 6. CacheFilePath ÀúÀå
             Serialization::WriteString(Ar, Data.CacheFilePath);
         }
         else if (Ar.IsLoading())
         {
-            // 1. Vertices ë¡œë“œ
+            // 1. Vertices ·Îµå
             Serialization::ReadArray(Ar, Data.Vertices);
 
-            // 2. Indices ë¡œë“œ
+            // 2. Indices ·Îµå
             Serialization::ReadArray(Ar, Data.Indices);
 
-            // 3. Skeleton ë¡œë“œ
+            // 3. Skeleton ·Îµå
             Ar << Data.Skeleton;
 
-            // 4. GroupInfos ë¡œë“œ
+            // 4. GroupInfos ·Îµå
             uint32 gCount;
             Ar << gCount;
             Data.GroupInfos.resize(gCount);
@@ -369,10 +369,10 @@ struct FSkeletalMeshData
                 Ar << g;
             }
 
-            // 5. Material í”Œë˜ê·¸ ë¡œë“œ
+            // 5. Material ÇÃ·¡±× ·Îµå
             Ar << Data.bHasMaterial;
 
-            // 6. CacheFilePath ë¡œë“œ
+            // 6. CacheFilePath ·Îµå
             Serialization::ReadString(Ar, Data.CacheFilePath);
         }
         return Ar;
@@ -381,8 +381,8 @@ struct FSkeletalMeshData
 
 struct FFrameRate
 {
-    int32 Numerator = 30;   // ë¶„ì
-    int32 Denominator = 1;  // ë¶„ëª¨
+    int32 Numerator = 30;   // ºĞÀÚ
+    int32 Denominator = 1;  // ºĞ¸ğ
 
     float AsDecimal() const
     {
@@ -407,12 +407,18 @@ struct FFrameRate
 
 struct FRawAnimSequenceTrack
 {
-    TArray<FVector> PosKeys;    // ìœ„ì¹˜ í‚¤í”„ë ˆì„
-    TArray<FQuat>   RotKeys;    // íšŒì „ í‚¤í”„ë ˆì„
-    TArray<FVector> ScaleKeys;  // ìŠ¤ì¼€ì¼ í‚¤í”„ë ˆì„
+    TArray<FVector> PosKeys;    // À§Ä¡ Å°ÇÁ·¹ÀÓ
+    TArray<FQuat>   RotKeys;    // È¸Àü Å°ÇÁ·¹ÀÓ
+    TArray<FVector> ScaleKeys;  // ½ºÄÉÀÏ Å°ÇÁ·¹ÀÓ
+    TArray<float>   KeyTimes;   // Å° Å¸ÀÓ(ÃÊ). ºÒ±ÔÄ¢ÇÑ Å¸ÀÌ¹ÖÀ» ±×´ë·Î º¸°ü.
 
     int32 GetNumKeys() const
     {
+        if (KeyTimes.empty() == false)
+        {
+            return static_cast<int32>(KeyTimes.size());
+        }
+
         const int32 NumPosKeys = static_cast<int32>(PosKeys.size());
         const int32 NumRotKeys = static_cast<int32>(RotKeys.size());
         const int32 NumScaleKeys = static_cast<int32>(ScaleKeys.size());
@@ -421,7 +427,7 @@ struct FRawAnimSequenceTrack
 
     bool HasAnyKeys() const
     {
-        return PosKeys.empty() == false || RotKeys.empty() == false || ScaleKeys.empty() == false;
+        return !PosKeys.empty() || !RotKeys.empty() || !ScaleKeys.empty() || !KeyTimes.empty();
     }
 
     FTransform GetTransform(float FrameRate, float Time) const
@@ -448,7 +454,7 @@ struct FBoneAnimationTrack
 {
     FName BoneName;
     int32 BoneIndex = -1;
-    FRawAnimSequenceTrack InternalTrack; // ì‹¤ì œ ì• ë‹ˆë©”ì´ì…˜ ë°ì´í„°
+    FRawAnimSequenceTrack InternalTrack; // ½ÇÁ¦ ¾Ö´Ï¸ŞÀÌ¼Ç µ¥ÀÌÅÍ
 
     bool IsValid() const
     {
