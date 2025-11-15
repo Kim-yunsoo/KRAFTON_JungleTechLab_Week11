@@ -2,6 +2,7 @@
 #include "SkinnedMeshComponent.h"
 #include "MeshBatchElement.h"
 #include "SceneView.h"
+#include "SkinningStats.h"
 
 USkinnedMeshComponent::USkinnedMeshComponent() : SkeletalMesh(nullptr)
 {
@@ -32,6 +33,7 @@ void USkinnedMeshComponent::BeginPlay()
 void USkinnedMeshComponent::TickComponent(float DeltaTime)
 {
    UMeshComponent::TickComponent(DeltaTime);
+   ReadGPUQueryResults();
 }
 
 void USkinnedMeshComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
@@ -48,21 +50,13 @@ void USkinnedMeshComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle
 void USkinnedMeshComponent::DuplicateSubObjects()
 {
    Super::DuplicateSubObjects();
+
+   // CPU 버퍼: 각 컴포넌트마다 새로 생성
    SkeletalMesh->CreateVertexBuffer(&VertexBuffer);
 
-   // GPU 스키닝 모드: 원본의 GPU 리소스를 공유 (얕은 복사)
-   // PIE 복제본은 GPU 리소스를 새로 생성하지 않고, 에디터 원본의 리소스를 참조만 함
-   // 이렇게 하면 PIE 중지 시 PIE 복제본이 삭제되어도 에디터 원본의 GPU 리소스는 유지됨
    if (bUseGPUSkinning)
    {
-      // GPU 리소스 포인터는 이미 복사됨 (얕은 복사)
-      // GPUSkinnedVertexBuffer와 BoneMatrixConstantBuffer는 원본과 동일한 포인터를 가짐
-
-      // 이 복제본은 GPU 리소스를 소유하지 않음 (소멸 시 해제하지 않음)
       bOwnsGPUResources = false;
-
-      UE_LOG("[info] DuplicateSubObjects: Sharing GPU resources from original component (GPUVertexBuffer: %p, BoneBuffer: %p)",
-         GPUSkinnedVertexBuffer, BoneMatrixConstantBuffer);
    }
 }
 
@@ -76,34 +70,54 @@ void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMes
       return;
    }
 
-   // CPU 스키닝 모드: 버텍스 버퍼 업데이트
+   // CPU 스키닝 모드: 버텍스 버퍼 업데이트 (성능 측정 포함)
    if (!bUseGPUSkinning)
    {
-      // CPU 모드용 VertexBuffer 유효성 검사
       if (!VertexBuffer)
       {
-         UE_LOG("[error] CollectMeshBatches: VertexBuffer is null in CPU mode.");
          return;
       }
 
       if (bSkinningMatricesDirty)
       {
+         auto BufferUploadStart = std::chrono::high_resolution_clock::now();
+         //std::chrono::duration<double, std::milli> CalcDuration = BufferUploadStart - CPUSkinningStartTime;
+
          bSkinningMatricesDirty = false;
+
+         // 버퍼 업로드
          SkeletalMesh->UpdateVertexBuffer(SkinnedVertices, VertexBuffer);
+         auto CpuTimeEnd = std::chrono::high_resolution_clock::now();
+
+         // CPU 스키닝 CPU 작업 시간 측정: PerformSkinning 시작 ~ 버퍼 업로드 끝
+         //std::chrono::duration<double, std::milli> UploadDuration = CpuTimeEnd - BufferUploadStart;
+         std::chrono::duration<double, std::milli> TotalCpuDuration = CpuTimeEnd - CPUSkinningStartTime;
+
+         LastCPUSkinningCpuTime = TotalCpuDuration.count();
+
+         // CPU 작업 시간 즉시 기록 (DrawIndexed GPU 시간은 ReadGPUQueryResults에서 추가)
+         FSkinningStats::GetInstance().RecordCPUSkinningTime(LastCPUSkinningCpuTime);
       }
    }
    // GPU 스키닝 모드: 본 매트릭스 버퍼 업데이트
    else
    {
-      // GPU 리소스 유효성 검사 (PIE 복제본도 원본의 리소스를 공유하므로 유효해야 함)
       if (!BoneMatrixConstantBuffer || !GPUSkinnedVertexBuffer)
       {
-         UE_LOG("[error] CollectMeshBatches: GPU resources invalid (BoneBuffer: %p, VertexBuffer: %p). Skipping rendering.",
-            BoneMatrixConstantBuffer, GPUSkinnedVertexBuffer);
          return;
       }
 
+      // GPU 스키닝: 상수 버퍼 업데이트 시간 측정 (CPU 작업)
+      auto GpuCpuTimeStart = std::chrono::high_resolution_clock::now();
       UpdateBoneMatrixBuffer();
+      auto GpuCpuTimeEnd = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double, std::milli> GpuCpuDuration = GpuCpuTimeEnd - GpuCpuTimeStart;
+
+      LastGPUSkinningCpuTime = GpuCpuDuration.count();
+      UE_LOG("[DEBUG] GPU 상수 버퍼 업데이트 (CPU 작업): %.6f ms", LastGPUSkinningCpuTime);
+
+      // GPU 작업 CPU 부분 즉시 기록 (DrawIndexed GPU 시간은 ReadGPUQueryResults에서 추가)
+      FSkinningStats::GetInstance().RecordGPUSkinningTime(LastGPUSkinningCpuTime);
    }
 
     const TArray<FGroupInfo>& MeshGroupInfos = SkeletalMesh->GetMeshGroupInfo();
@@ -126,7 +140,6 @@ void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMes
           }
           if (!Material || !Shader)
           {
-             UE_LOG("USkinnedMeshComponent: 기본 머티리얼이 없습니다.");
              return { nullptr, nullptr };
           }
        }
@@ -196,13 +209,16 @@ void USkinnedMeshComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMes
        {
           BatchElement.VertexBuffer = GPUSkinnedVertexBuffer;
           BatchElement.VertexStride = sizeof(FSkinnedVertex);
-          BatchElement.BoneMatrixConstantBuffer = BoneMatrixConstantBuffer;  // GPU 스키닝용 본 매트릭스 버퍼
+          BatchElement.BoneMatrixConstantBuffer = BoneMatrixConstantBuffer;
+          BatchElement.OwnerComponent = this;  // GPU Query를 위한 컴포넌트 설정
        }
        else
        {
+          // CPU 스키닝: CPU에서 계산된 정점 사용
           BatchElement.VertexBuffer = VertexBuffer;
           BatchElement.VertexStride = SkeletalMesh->GetVertexStride();
           BatchElement.BoneMatrixConstantBuffer = nullptr;
+          BatchElement.OwnerComponent = this;  // CPU 모드에서도 DrawIndexed GPU 시간 측정을 위해 설정
        }
 
        BatchElement.IndexBuffer = SkeletalMesh->GetIndexBuffer();
@@ -306,11 +322,13 @@ void USkinnedMeshComponent::SetSkeletalMesh(const FString& PathFileName)
 
 void USkinnedMeshComponent::PerformSkinning()
 {
-   // GPU 스키닝 모드에서는 CPU 스키닝을 수행하지 않음
    if (bUseGPUSkinning) { return; }
 
    if (!SkeletalMesh || FinalSkinningMatrices.IsEmpty()) { return; }
    if (!bSkinningMatricesDirty) { return; }
+
+   // CPU 스키닝 성능 측정 시작
+   CPUSkinningStartTime = std::chrono::high_resolution_clock::now();
 
    const TArray<FSkinnedVertex>& SrcVertices = SkeletalMesh->GetSkeletalMeshData()->Vertices;
    const int32 NumVertices = SrcVertices.Num();
@@ -405,27 +423,30 @@ void USkinnedMeshComponent::SetSkinningMode(bool bUseGPU)
 {
    if (bUseGPUSkinning == bUseGPU)
    {
-      return;  // 이미 같은 모드면 아무것도 하지 않음
+      return;
    }
 
    bUseGPUSkinning = bUseGPU;
 
    if (bUseGPUSkinning)
    {
-      // GPU 모드로 전환: GPU 리소스가 없으면 생성
+      // GPU 스키닝: Vertex Buffer + Constant Buffer + GPU Query 생성
       if (!BoneMatrixConstantBuffer || !GPUSkinnedVertexBuffer)
       {
          CreateGPUSkinningResources();
       }
-      UE_LOG("Switched to GPU Skinning mode");
    }
    else
    {
-      // CPU 모드로 전환: GPU 리소스는 유지하고 CPU 스키닝만 재수행
-      // GPU 리소스는 컴포넌트 소멸 시에만 해제됨 (나중에 GPU 모드로 다시 전환할 수 있음)
+      // CPU 스키닝: CPU에서 정점 계산, GPU Query는 DrawIndexed 측정용으로 유지
       bSkinningMatricesDirty = true;
       PerformSkinning();
-      UE_LOG("Switched to CPU Skinning mode");
+
+      // CPU 스키닝에서도 DrawIndexed GPU 시간 측정을 위해 Query 리소스 생성
+      if (!GPUDisjointQuery || !GPUTimestampStartQuery || !GPUTimestampEndQuery)
+      {
+         CreateGPUQueryResources();
+      }
    }
 }
 
@@ -433,14 +454,12 @@ void USkinnedMeshComponent::CreateGPUSkinningResources()
 {
    if (!SkeletalMesh || !SkeletalMesh->GetSkeletalMeshData())
    {
-      UE_LOG("[error] CreateGPUSkinningResources: SkeletalMesh is null");
       return;
    }
 
    ID3D11Device* Device = GEngine.GetRHIDevice()->GetDevice();
    if (!Device)
    {
-      UE_LOG("[error] CreateGPUSkinningResources: Device is null");
       return;
    }
 
@@ -464,7 +483,6 @@ void USkinnedMeshComponent::CreateGPUSkinningResources()
    HRESULT hr = Device->CreateBuffer(&VertexBufferDesc, &VertexInitData, &GPUSkinnedVertexBuffer);
    if (FAILED(hr))
    {
-      UE_LOG("[error] CreateGPUSkinningResources: Failed to create GPU vertex buffer");
       return;
    }
 
@@ -482,11 +500,8 @@ void USkinnedMeshComponent::CreateGPUSkinningResources()
 
    hr = Device->CreateBuffer(&ConstantBufferDesc, nullptr, &BoneMatrixConstantBuffer);
 
-   UE_LOG("[GPU Skinning] Created bone buffer for %u bones (%u bytes, aligned: %u bytes)",
-      MaxBones, BoneBufferSize, ConstantBufferDesc.ByteWidth);
    if (FAILED(hr))
    {
-      UE_LOG("[error] CreateGPUSkinningResources: Failed to create bone matrix constant buffer");
       if (GPUSkinnedVertexBuffer)
       {
          GPUSkinnedVertexBuffer->Release();
@@ -495,11 +510,24 @@ void USkinnedMeshComponent::CreateGPUSkinningResources()
       return;
    }
 
-   UE_LOG("GPU Skinning resources created successfully");
+   // 3. GPU Query 리소스 생성 (성능 측정용)
+   CreateGPUQueryResources();
 }
 
 void USkinnedMeshComponent::ReleaseGPUSkinningResources()
 {
+   // GPU 작업이 완료될 때까지 대기 (중요: Release 전에 GPU가 리소스 사용 완료해야 함)
+   ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
+   if (Context)
+   {
+      // 모든 GPU 명령 완료 대기
+      Context->Flush();
+      Context->ClearState();
+   }
+
+   // GPU Query 리소스 해제
+   ReleaseGPUQueryResources();
+
    if (GPUSkinnedVertexBuffer)
    {
       GPUSkinnedVertexBuffer->Release();
@@ -542,8 +570,6 @@ void USkinnedMeshComponent::UpdateBoneMatrixBuffer()
 
       if (FAILED(hr))
       {
-         // Map 실패 시 이번 프레임만 스킵 (플래그는 유지)
-         UE_LOG("[error] UpdateBoneMatrixBuffer: Failed to map buffer (HRESULT: 0x%X). Skipping this frame.", hr);
          return;
       }
 
@@ -561,8 +587,194 @@ void USkinnedMeshComponent::UpdateBoneMatrixBuffer()
    }
    __except (EXCEPTION_EXECUTE_HANDLER)
    {
-      // 예외 발생 시 이번 프레임만 스킵 (플래그는 유지)
-      DWORD exceptionCode = GetExceptionCode();
-      UE_LOG("[error] UpdateBoneMatrixBuffer: Exception 0x%X occurred. Skipping this frame.", exceptionCode);
+   }
+}
+
+// ===== GPU Query 관련 함수 =====
+
+void USkinnedMeshComponent::CreateGPUQueryResources()
+{
+   ID3D11Device* Device = GEngine.GetRHIDevice()->GetDevice();
+   if (!Device)
+   {
+      return;
+   }
+
+   // Disjoint Query 생성 (GPU 주파수 변경 감지)
+   D3D11_QUERY_DESC disjointDesc = {};
+   disjointDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+   HRESULT hr = Device->CreateQuery(&disjointDesc, &GPUDisjointQuery);
+   if (FAILED(hr))
+   {
+      return;
+   }
+
+   // Timestamp Query 생성 - 시작
+   D3D11_QUERY_DESC timestampDesc = {};
+   timestampDesc.Query = D3D11_QUERY_TIMESTAMP;
+   hr = Device->CreateQuery(&timestampDesc, &GPUTimestampStartQuery);
+   if (FAILED(hr))
+   {
+      if (GPUDisjointQuery) { GPUDisjointQuery->Release(); GPUDisjointQuery = nullptr; }
+      return;
+   }
+
+   // Timestamp Query 생성 - 종료
+   hr = Device->CreateQuery(&timestampDesc, &GPUTimestampEndQuery);
+   if (FAILED(hr))
+   {
+      if (GPUDisjointQuery) { GPUDisjointQuery->Release(); GPUDisjointQuery = nullptr; }
+      if (GPUTimestampStartQuery) { GPUTimestampStartQuery->Release(); GPUTimestampStartQuery = nullptr; }
+      return;
+   }
+}
+
+void USkinnedMeshComponent::ReleaseGPUQueryResources()
+{
+   if (GPUDisjointQuery)
+   {
+      GPUDisjointQuery->Release();
+      GPUDisjointQuery = nullptr;
+   }
+
+   if (GPUTimestampStartQuery)
+   {
+      GPUTimestampStartQuery->Release();
+      GPUTimestampStartQuery = nullptr;
+   }
+
+   if (GPUTimestampEndQuery)
+   {
+      GPUTimestampEndQuery->Release();
+      GPUTimestampEndQuery = nullptr;
+   }
+}
+
+void USkinnedMeshComponent::BeginGPUQuery()
+{
+   // GPU Query 중복 방지: 이미 대기 중인 Query가 있으면 스킵
+   if (GPUQueryFrameDelay > 0)
+   {
+      return;
+   }
+
+   if (!GPUDisjointQuery || !GPUTimestampStartQuery || !GPUTimestampEndQuery)
+   {
+      CreateGPUQueryResources();
+      if (!GPUDisjointQuery || !GPUTimestampStartQuery || !GPUTimestampEndQuery)
+      {
+         return;
+      }
+   }
+
+   ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
+   if (!Context)
+   {
+      return;
+   }
+
+   // DrawIndexed의 GPU 실행 시간 측정 시작 (CPU/GPU 스키닝 모두 적용)
+   Context->Begin(GPUDisjointQuery);
+   Context->End(GPUTimestampStartQuery);
+}
+
+void USkinnedMeshComponent::EndGPUQuery()
+{
+   // GPU Query 리소스 확인 및 중복 방지
+   if (!GPUDisjointQuery || !GPUTimestampEndQuery || GPUQueryFrameDelay > 0)
+   {
+      return;
+   }
+
+   ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
+   if (!Context)
+   {
+      return;
+   }
+
+   // DrawIndexed의 GPU 실행 시간 측정 종료 (CPU/GPU 스키닝 모두 적용)
+   Context->End(GPUTimestampEndQuery);
+   Context->End(GPUDisjointQuery);
+   GPUQueryFrameDelay = 3;  // 3프레임 후 결과 읽기
+}
+
+void USkinnedMeshComponent::ReadGPUQueryResults()
+{
+   // GPU Query 결과 대기 중인지 확인
+   if (GPUQueryFrameDelay <= 0)
+   {
+      return;
+   }
+
+   GPUQueryFrameDelay--;
+
+   if (GPUQueryFrameDelay > 0)
+   {
+      return;
+   }
+
+   ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
+   if (!Context)
+   {
+      return;
+   }
+
+   // Disjoint Query 결과 읽기
+   D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData;
+   HRESULT hr = Context->GetData(GPUDisjointQuery, &disjointData, sizeof(disjointData), 0);
+
+   if (hr != S_OK)
+   {
+      GPUQueryFrameDelay = 1;
+      return;
+   }
+
+   if (disjointData.Disjoint)
+   {
+      return;
+   } 
+
+   // Timestamp 시작/종료 읽기
+   UINT64 startTime = 0, endTime = 0;
+   hr = Context->GetData(GPUTimestampStartQuery, &startTime, sizeof(UINT64), 0);
+
+   if (hr != S_OK)
+   {
+      GPUQueryFrameDelay = 1;
+      return;
+   }
+
+   hr = Context->GetData(GPUTimestampEndQuery, &endTime, sizeof(UINT64), 0);
+
+   if (hr != S_OK)
+   {
+      GPUQueryFrameDelay = 1;
+      return;
+   }
+
+   // DrawIndexed GPU 실행 시간 계산 (밀리초)
+   UINT64 delta = endTime - startTime;
+   double gpuDrawTimeMS = (delta * 1000.0) / static_cast<double>(disjointData.Frequency);
+
+   // CPU/GPU 모드별로 다른 통계 기록 및 로그 출력
+   if (bUseGPUSkinning)
+   {
+      // GPU 스키닝: CPU 작업(상수 버퍼 업데이트) + GPU 작업(스키닝 계산 + 그리기)
+      double totalTimeMS = LastGPUSkinningCpuTime + gpuDrawTimeMS;
+
+      UE_LOG("[DEBUG] [GPU 스키닝] DrawIndexed(GPU): %.6f ms, 상수버퍼(CPU): %.6f ms, 총합: %.6f ms",
+             gpuDrawTimeMS, LastGPUSkinningCpuTime, totalTimeMS);
+
+      FSkinningStats::GetInstance().RecordGPUSkinningTime(totalTimeMS);
+   }
+   else
+   {
+      // CPU 스키닝: CPU 작업(정점 계산 + 버퍼 업로드) + GPU 작업(그리기만)
+      double totalTimeMS = LastCPUSkinningCpuTime + gpuDrawTimeMS;
+
+      UE_LOG("[DEBUG] [CPU 스키닝] DrawIndexed(GPU): %.6f ms, 정점계산+업로드(CPU): %.6f ms, 총합: %.6f ms",
+             gpuDrawTimeMS, LastCPUSkinningCpuTime, totalTimeMS);
+
+      FSkinningStats::GetInstance().RecordCPUSkinningTime(totalTimeMS);
    }
 }

@@ -4,6 +4,7 @@
 // 전방 선언
 class UShader;
 class UMaterial;
+class USkinnedMeshComponent;
 
 /**
  * @struct FMeshBatchElement
@@ -65,6 +66,10 @@ struct FMeshBatchElement
 	// GPU 스키닝용 본 매트릭스 상수 버퍼 (register b6)
 	// nullptr이면 GPU 스키닝을 사용하지 않음
 	ID3D11Buffer* BoneMatrixConstantBuffer = nullptr;
+
+	// GPU 스키닝 성능 측정을 위한 컴포넌트 포인터
+	// GPU Query 호출을 위해 사용됨 (GPU 스키닝이 아니면 nullptr)
+	USkinnedMeshComponent* OwnerComponent = nullptr;
 
 	// --- 기본 생성자 ---
 	FMeshBatchElement() = default;

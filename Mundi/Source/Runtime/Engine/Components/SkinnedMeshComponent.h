@@ -48,6 +48,16 @@ public:
      */
     bool IsUsingGPUSkinning() const { return bUseGPUSkinning; }
 
+    /**
+     * @brief GPU Query 시작 (Draw Call 전, SceneRenderer에서 사용)
+     */
+    void BeginGPUQuery();
+
+    /**
+     * @brief GPU Query 종료 (Draw Call 후, SceneRenderer에서 사용)
+     */
+    void EndGPUQuery();
+
 protected:
     void PerformSkinning();
     /**
@@ -70,7 +80,22 @@ protected:
      * @brief GPU 스키닝용 리소스 해제
      */
     void ReleaseGPUSkinningResources();
-    
+
+    /**
+     * @brief GPU Query 리소스 생성 (성능 측정용)
+     */
+    void CreateGPUQueryResources();
+
+    /**
+     * @brief GPU Query 리소스 해제
+     */
+    void ReleaseGPUQueryResources();
+
+    /**
+     * @brief GPU Query 결과 읽기 (TickComponent에서 호출)
+     */
+    void ReadGPUQueryResults();
+
     UPROPERTY(EditAnywhere, Category = "Skeletal Mesh", Tooltip = "Skeletal mesh asset to render")
     USkeletalMesh* SkeletalMesh;
 
@@ -121,4 +146,41 @@ private:
      * PIE 복제본은 원본의 GPU 리소스를 공유하므로 소멸 시 해제하지 않음
      */
     bool bOwnsGPUResources = true;
+
+    // ===== GPU 성능 측정 관련 =====
+    // CPU/GPU 스키닝 모두 DrawIndexed의 GPU 실행 시간을 측정하기 위해 사용
+    /**
+     * @brief GPU Timestamp Disjoint Query (GPU 주파수 변경 감지)
+     */
+    ID3D11Query* GPUDisjointQuery = nullptr;
+
+    /**
+     * @brief GPU Timestamp Query - 시작 시점 (DrawIndexed 전)
+     */
+    ID3D11Query* GPUTimestampStartQuery = nullptr;
+
+    /**
+     * @brief GPU Timestamp Query - 종료 시점 (DrawIndexed 후)
+     */
+    ID3D11Query* GPUTimestampEndQuery = nullptr;
+
+    /**
+     * @brief Query 결과 대기 프레임 카운터 (GPU는 비동기이므로 N프레임 후 읽기)
+     */
+    int32 GPUQueryFrameDelay = 0;
+
+    /**
+     * @brief CPU 스키닝의 CPU 작업 시간 (정점 계산 + 버퍼 업로드)
+     */
+    double LastCPUSkinningCpuTime = 0.0;
+
+    /**
+     * @brief GPU 스키닝의 CPU 작업 시간 (상수 버퍼 업데이트)
+     */
+    double LastGPUSkinningCpuTime = 0.0;
+
+    /**
+     * @brief CPU 스키닝 시작 시간 (정점 계산 시작)
+     */
+    std::chrono::high_resolution_clock::time_point CPUSkinningStartTime;
 };
