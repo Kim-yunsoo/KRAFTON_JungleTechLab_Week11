@@ -10,7 +10,10 @@ USkeletalMeshComponent::USkeletalMeshComponent()
 void USkeletalMeshComponent::TickComponent(float DeltaTime)
 {
     Super::TickComponent(DeltaTime);
+    if (AnimInstance)
+    {
 
+    }
     //// FOR TEST ////
     if (!SkeletalMesh) { return; } // 부모의 SkeletalMesh 확인
 
