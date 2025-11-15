@@ -2,6 +2,7 @@
 #include "Source/Runtime/Core/Object/Object.h"
 #include "Source/Runtime/Engine/Animation/AnimSequence.h"
 #include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
+#include "Source/Runtime/Engine/Animation/AnimationTypes.h"
 
 class UAnimInstance : public UObject
 {
@@ -32,6 +33,7 @@ public:
 	{
 		bPlay = InPlay;
 	}
+	USkeletalMeshComponent* GetOwner() const { return OwnerComponent; }
 
 protected:
 	virtual void NativeUpdateAnimation(float DeltaSeconds);

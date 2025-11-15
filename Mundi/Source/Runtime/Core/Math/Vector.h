@@ -1313,7 +1313,7 @@ struct FTransform
 		return Rotation.RotateVector(SV);
 	}
 
-	static FTransform Lerp(const FTransform& A, const FTransform& B, float T)
+	static FTransform Lerp(const FTransform& A, const FTransform& B, const float T)
 	{
 		FVector  TPosition = FVector::Lerp(A.Translation, B.Translation, T);
 		FVector  TScale = FVector::Lerp(A.Scale3D, B.Scale3D, T);
@@ -1522,8 +1522,29 @@ inline void operator*= (TArray<FVector4>& Vectors, const FMatrix& Mat)
 		Vectors[i] = Vectors[i] * Mat;
 	}
 }
-
+inline int Clamp(const int Cur, const int Min = 0, const int Max = 1)
+{
+	return Cur < Min ? Min : (Cur > Max ? Max : Cur);
+}
 inline float Clamp(const float Cur, const float Min = 0, const float Max = 1)
 {
 	return Cur < Min ? Min : (Cur > Max ? Max : Cur);
+}
+
+inline float ClampTimeLooped(float CurrentTime, const float AdditiveTime, const float SequenceTime)
+{
+	if (SequenceTime <= KINDA_SMALL_NUMBER)
+	{
+		return 0;
+	}
+	CurrentTime += AdditiveTime;
+	float ClampTime = Clamp(CurrentTime, 0.0f, SequenceTime);
+	//범위 벗어났을 경우
+	if (ClampTime != CurrentTime)
+	{
+		float Quotient = CurrentTime / SequenceTime;
+		float FracQuotient = Quotient - floor(Quotient);
+		CurrentTime = FracQuotient * SequenceTime;
+	}
+	return CurrentTime;
 }

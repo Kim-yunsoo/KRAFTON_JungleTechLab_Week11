@@ -9,9 +9,130 @@
 #include "WindowsBinReader.h"
 #include "WindowsBinWriter.h"
 #include "PathUtils.h"
+#include "Source/Runtime/Engine/Animation/AnimSequence.h"
+#include "Source/Runtime/Engine/Animation/AnimDataModel.h"
 #include <filesystem>
+#include <numeric>
 
 IMPLEMENT_CLASS(UFbxLoader)
+
+namespace
+{
+	struct FBoneNodeRecord
+	{
+		FbxNode* Node = nullptr;
+		int32 ParentIndex = -1;
+	};
+
+	void GatherBoneNodesRecursive(FbxNode* Node, int32 ParentIndex, TArray<FBoneNodeRecord>& OutBones)
+	{
+		if (!Node)
+		{
+			return;
+		}
+
+		FbxNodeAttribute* Attribute = Node->GetNodeAttribute();
+		int32 CurrentIndex = ParentIndex;
+
+		// eSkeleton, eNull, eMarker 타입을 모두 본으로 인식
+		// Mixamo 애니메이션은 eMarker 타입으로 저장됨
+		if (Attribute)
+		{
+			FbxNodeAttribute::EType AttrType = Attribute->GetAttributeType();
+			if (AttrType == FbxNodeAttribute::eSkeleton ||
+				AttrType == FbxNodeAttribute::eNull ||
+				AttrType == FbxNodeAttribute::eMarker)
+			{
+				FBoneNodeRecord Record;
+				Record.Node = Node;
+				Record.ParentIndex = ParentIndex;
+				CurrentIndex = OutBones.Num();
+				OutBones.Add(Record);
+			}
+		}
+
+		const int32 ChildCount = Node->GetChildCount();
+		for (int32 ChildIdx = 0; ChildIdx < ChildCount; ++ChildIdx)
+		{
+			GatherBoneNodesRecursive(Node->GetChild(ChildIdx), CurrentIndex, OutBones);
+		}
+	}
+
+	FFrameRate BuildFrameRateFromDouble(double FrameRateHz)
+	{
+		FFrameRate Rate;
+		if (FrameRateHz <= 0.0)
+		{
+			Rate.Numerator = 30;
+			Rate.Denominator = 1;
+			return Rate;
+		}
+
+		const int32 Multiplier = 1000;
+		int32 Numerator = static_cast<int32>(std::round(FrameRateHz * Multiplier));
+		if (Numerator <= 0)
+		{
+			Numerator = 30 * Multiplier;
+		}
+		int32 Denominator = Multiplier;
+		const int32 Divisor = std::gcd(Numerator, Denominator);
+		Rate.Numerator = Numerator / Divisor;
+		Rate.Denominator = Denominator / Divisor;
+		return Rate;
+	}
+
+	void BuildAnimationTrackForNode(FbxNode* BoneNode, const FbxTimeSpan& TimeSpan, double FrameRateHz, FBoneAnimationTrack& OutTrack)
+	{
+		if (!BoneNode)
+		{
+			return;
+		}
+
+		const double StartSeconds = TimeSpan.GetStart().GetSecondDouble();
+		const double EndSeconds = TimeSpan.GetStop().GetSecondDouble();
+		const double Duration = std::max(EndSeconds - StartSeconds, 0.0);
+		const double EffectiveRate = FrameRateHz > 0.0 ? FrameRateHz : 30.0;
+
+		int32 SampleCount = 1;
+		if (Duration > 1e-6)
+		{
+			SampleCount = static_cast<int32>(std::round(Duration * EffectiveRate)) + 1;
+		}
+
+		if (SampleCount <= 0)
+		{
+			SampleCount = 1;
+		}
+
+		OutTrack.InternalTrack.PosKeys.Reserve(SampleCount);
+		OutTrack.InternalTrack.RotKeys.Reserve(SampleCount);
+		OutTrack.InternalTrack.ScaleKeys.Reserve(SampleCount);
+		OutTrack.InternalTrack.KeyTimes.Reserve(SampleCount);
+
+		const double DeltaSeconds = (SampleCount > 1 && Duration > 0.0) ? Duration / static_cast<double>(SampleCount - 1) : 0.0;
+		for (int32 SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex)
+		{
+			double SampleTimeSeconds = StartSeconds + (SampleIndex * DeltaSeconds);
+			if (SampleTimeSeconds > EndSeconds)
+			{
+				SampleTimeSeconds = EndSeconds;
+			}
+
+			FbxTime SampleTime;
+			SampleTime.SetSecondDouble(SampleTimeSeconds);
+
+			FbxAMatrix LocalMatrix = BoneNode->EvaluateLocalTransform(SampleTime);
+			FbxVector4 Translation = LocalMatrix.GetT();
+			FbxVector4 Scale = LocalMatrix.GetS();
+			FbxQuaternion Rotation = LocalMatrix.GetQ();
+
+			OutTrack.InternalTrack.PosKeys.Add(FVector(static_cast<float>(Translation[0]), static_cast<float>(Translation[1]), static_cast<float>(Translation[2])));
+			OutTrack.InternalTrack.RotKeys.Add(FQuat(static_cast<float>(Rotation[0]), static_cast<float>(Rotation[1]), static_cast<float>(Rotation[2]), static_cast<float>(Rotation[3])));
+			OutTrack.InternalTrack.ScaleKeys.Add(FVector(static_cast<float>(Scale[0]), static_cast<float>(Scale[1]), static_cast<float>(Scale[2])));
+			OutTrack.InternalTrack.KeyTimes.Add(static_cast<float>(SampleTimeSeconds - StartSeconds));
+		}
+	}
+}
 
 UFbxLoader::UFbxLoader()
 {
@@ -53,6 +174,16 @@ void UFbxLoader::PreLoad()
 			{
 				ProcessedFiles.insert(PathStr);
 				FbxLoader.LoadFbxMesh(PathStr);
+
+				// 애니메이션 폴더에 있는 파일인지 확인
+				FString LowerPath = PathStr;
+				std::transform(LowerPath.begin(), LowerPath.end(), LowerPath.begin(),
+					[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+				const bool bIsAnimationAsset = LowerPath.find("/animations/") != FString::npos;
+				if (bIsAnimationAsset)
+				{
+					FbxLoader.LoadFbxAnimSequence(PathStr);
+				}
 				++LoadedCount;
 			}
 		}
@@ -62,6 +193,7 @@ void UFbxLoader::PreLoad()
 		}
 	}
 	RESOURCE.SetSkeletalMeshs();
+	RESOURCE.SetAnimSequences();
 
 	UE_LOG("UFbxLoader::Preload: Loaded %zu .fbx files from %s", LoadedCount, DataDir.string().c_str());
 }
@@ -102,6 +234,141 @@ USkeletalMesh* UFbxLoader::LoadFbxMesh(const FString& FilePath)
 
 	UE_LOG("USkeletalMesh(filename: \'%s\') is successfully crated!", NormalizedPathStr.c_str());
 	return SkeletalMesh;
+}
+
+UAnimSequence* UFbxLoader::LoadFbxAnimSequence(const FString& FilePath)
+{
+	FString NormalizedPathStr = NormalizePath(FilePath);
+	if (NormalizedPathStr.empty())
+	{
+		return nullptr;
+	}
+
+	if (UAnimSequence* Existing = UResourceManager::GetInstance().Get<UAnimSequence>(NormalizedPathStr))
+	{
+		return Existing;
+	}
+
+	FbxImporter* Importer = FbxImporter::Create(SdkManager, "");
+	if (!Importer->Initialize(NormalizedPathStr.c_str(), -1, SdkManager->GetIOSettings()))
+	{
+		UE_LOG("UFbxLoader::LoadFbxAnimSequence: Failed to initialize importer for '%s' (%s)", NormalizedPathStr.c_str(), Importer->GetStatus().GetErrorString());
+		Importer->Destroy();
+		return nullptr;
+	}
+
+	FbxScene* Scene = FbxScene::Create(SdkManager, "AnimScene");
+	if (!Importer->Import(Scene))
+	{
+		UE_LOG("UFbxLoader::LoadFbxAnimSequence: Failed to import scene from '%s'", NormalizedPathStr.c_str());
+		Importer->Destroy();
+		Scene->Destroy();
+		return nullptr;
+	}
+	Importer->Destroy();
+
+	FbxAxisSystem UnrealImportAxis(FbxAxisSystem::eZAxis, FbxAxisSystem::eParityEven, FbxAxisSystem::eLeftHanded);
+	FbxAxisSystem SourceSetup = Scene->GetGlobalSettings().GetAxisSystem();
+	FbxSystemUnit::m.ConvertScene(Scene);
+	if (SourceSetup != UnrealImportAxis)
+	{
+		UnrealImportAxis.DeepConvertScene(Scene);
+	}
+	FbxGeometryConverter GeometryConverter(SdkManager);
+	GeometryConverter.Triangulate(Scene, true);
+
+	if (Scene->GetSrcObjectCount<FbxAnimStack>() == 0)
+	{
+		Scene->Destroy();
+		return nullptr;
+	}
+
+	FbxAnimStack* AnimStack = Scene->GetSrcObject<FbxAnimStack>(0);
+	Scene->SetCurrentAnimationStack(AnimStack);
+	if (!AnimStack->GetMember<FbxAnimLayer>(0))
+	{
+		Scene->Destroy();
+		return nullptr;
+	}
+
+	FbxTimeSpan TimeSpan = AnimStack->GetLocalTimeSpan();
+	if (TimeSpan.GetStop().GetSecondDouble() <= TimeSpan.GetStart().GetSecondDouble())
+	{
+		Scene->GetGlobalSettings().GetTimelineDefaultTimeSpan(TimeSpan);
+	}
+
+	if (TimeSpan.GetStop().GetSecondDouble() <= TimeSpan.GetStart().GetSecondDouble())
+	{
+		Scene->Destroy();
+		return nullptr;
+	}
+
+	double FrameRateHz = FbxTime::GetFrameRate(Scene->GetGlobalSettings().GetTimeMode());
+	if (FrameRateHz <= 0.0)
+	{
+		FrameRateHz = 30.0;
+	}
+
+	TArray<FBoneNodeRecord> BoneInfos;
+	GatherBoneNodesRecursive(Scene->GetRootNode(), -1, BoneInfos);
+	if (BoneInfos.IsEmpty())
+	{
+		Scene->Destroy();
+		return nullptr;
+	}
+
+	TArray<FBoneAnimationTrack> Tracks;
+	Tracks.Reserve(BoneInfos.Num());
+	for (int32 BoneIdx = 0; BoneIdx < BoneInfos.Num(); ++BoneIdx)
+	{
+		const FBoneNodeRecord& BoneRecord = BoneInfos[BoneIdx];
+		if (!BoneRecord.Node)
+		{
+			continue;
+		}
+
+		FBoneAnimationTrack Track;
+		Track.BoneIndex = BoneIdx;
+		Track.BoneName = FName(FString(BoneRecord.Node->GetName()));
+		BuildAnimationTrackForNode(BoneRecord.Node, TimeSpan, FrameRateHz, Track);
+
+		if (Track.InternalTrack.HasAnyKeys())
+		{
+			Tracks.Add(std::move(Track));
+		}
+	}
+
+	if (Tracks.IsEmpty())
+	{
+		Scene->Destroy();
+		return nullptr;
+	}
+
+	auto DataModel = std::make_unique<UAnimDataModel>();
+	DataModel->SetFrameRate(BuildFrameRateFromDouble(FrameRateHz));
+	DataModel->SetBoneTracks(std::move(Tracks));
+
+	UAnimSequence* AnimSequence = NewObject<UAnimSequence>();
+	AnimSequence->SetDataModel(std::move(DataModel));
+	AnimSequence->SetFilePath(NormalizedPathStr);
+	try
+	{
+		std::filesystem::path FsPath(UTF8ToWide(NormalizedPathStr));
+		AnimSequence->SetLastModifiedTime(std::filesystem::last_write_time(FsPath));
+	}
+	catch (...)
+	{
+		AnimSequence->SetLastModifiedTime(std::filesystem::file_time_type::clock::now());
+	}
+
+	if (!UResourceManager::GetInstance().Add<UAnimSequence>(NormalizedPathStr, AnimSequence))
+	{
+		Scene->Destroy();
+		return UResourceManager::GetInstance().Get<UAnimSequence>(NormalizedPathStr);
+	}
+
+	Scene->Destroy();
+	return AnimSequence;
 }
 
 FSkeletalMeshData* UFbxLoader::LoadFbxMeshAsset(const FString& FilePath)
@@ -1135,3 +1402,4 @@ void UFbxLoader::EnsureSingleRootBone(FSkeletalMeshData& MeshData)
 }
 
 #pragma warning(pop) // Restore warning state
+

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "SkinnedMeshComponent.h"
 #include "USkeletalMeshComponent.generated.h"
+#include "Source/Runtime/Engine/Animation/AnimationTypes.h"
 
 // 전방 선언
 class UAnimInstance;
@@ -17,6 +18,7 @@ public:
     USkeletalMeshComponent();
     ~USkeletalMeshComponent() override = default;
 
+    void BeginPlay() override;
     void TickComponent(float DeltaTime) override;
     void SetSkeletalMesh(const FString& PathFileName) override;
 
@@ -31,7 +33,7 @@ public:
 
     void SetBoneWorldTransform(int32 BoneIndex, const FTransform& NewWorldTransform);
     
-    void SetPose(const TArray<FTransform>& Pose);
+    void SetPose(const FPoseContext& Pose);
     /**
      * @brief 특정 뼈의 현재 로컬 트랜스폼을 반환
      */
@@ -42,7 +44,11 @@ public:
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
     void PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop);
+    void PlayBlendAnimation(UAnimSequence* AnimA, UAnimSequence* AnimB);
 
+public:
+    UPROPERTY(EditAnywhere, Category = "SkeletalComponent", Range = "0.0, 1.0")
+    float TestBlend = 0;
 protected:
     /**
      * @brief CurrentLocalSpacePose의 변경사항을 ComponentSpace -> FinalMatrices 계산까지 모두 수행

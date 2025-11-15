@@ -11,18 +11,18 @@
 #define CURRENT_CLASS_GENERATED_BODY \
 public: \
     using Super = UAnimInstance; \
-    using ThisClass_t = UMyAnimInstance; \
+    using ThisClass_t = UAnimBlendInstance; \
     static UClass* StaticClass() \
     { \
-        static UClass Cls{ "UMyAnimInstance", UAnimInstance::StaticClass(), sizeof(UMyAnimInstance) }; \
+        static UClass Cls{ "UAnimBlendInstance", UAnimInstance::StaticClass(), sizeof(UAnimBlendInstance) }; \
         static bool bRegistered = (UClass::SignUpClass(&Cls), true); \
         return &Cls; \
     } \
-    virtual UClass* GetClass() const override { return UMyAnimInstance::StaticClass(); } \
-    UMyAnimInstance(const UMyAnimInstance&) = default; \
-    UMyAnimInstance* Duplicate() const override \
+    virtual UClass* GetClass() const override { return UAnimBlendInstance::StaticClass(); } \
+    UAnimBlendInstance(const UAnimBlendInstance&) = default; \
+    UAnimBlendInstance* Duplicate() const override \
     { \
-        UMyAnimInstance* NewObject = ObjectFactory::DuplicateObject<UMyAnimInstance>(this); \
+        UAnimBlendInstance* NewObject = ObjectFactory::DuplicateObject<UAnimBlendInstance>(this); \
         NewObject->DuplicateSubObjects(); \
         NewObject->PostDuplicate(); \
         return NewObject; \

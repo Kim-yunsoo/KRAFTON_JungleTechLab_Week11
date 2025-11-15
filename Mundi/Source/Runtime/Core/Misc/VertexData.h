@@ -438,15 +438,15 @@ struct FRawAnimSequenceTrack
         float TimeValue = Time * FrameRate;
 
         int PrevIdx = floor(TimeValue);
-        int NextIdx = PrevIdx;
-        NextIdx = NextIdx >= KeyCount ? KeyCount : NextIdx;
+        int NextIdx = PrevIdx + 1;
+        PrevIdx = Clamp(PrevIdx, 0, KeyCount - 1);
+        NextIdx = Clamp(NextIdx, 0, KeyCount - 1);
         float T = TimeValue - PrevIdx;
 
-        FVector Pos = FVector::Lerp(PosKeys[PrevIdx], PosKeys[NextIdx], T);
-        FQuat Rot = FQuat::Slerp(RotKeys[PrevIdx], RotKeys[NextIdx], T);
-        FVector Scale = FVector::Lerp(ScaleKeys[PrevIdx], ScaleKeys[NextIdx], T);
+        FTransform PrevTransform = FTransform(PosKeys[PrevIdx], RotKeys[PrevIdx], ScaleKeys[PrevIdx]);
+        FTransform NextTransform = FTransform(PosKeys[NextIdx], RotKeys[NextIdx], ScaleKeys[NextIdx]);
 
-        return FTransform(Pos, Rot, Scale);
+        return FTransform::Lerp(PrevTransform, NextTransform, T);
     }
 };
 
