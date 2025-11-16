@@ -10,10 +10,11 @@ public:
 	UAnimState() = default;
 	virtual ~UAnimState() = default;
 public:
-	FName Name;
-	UAnimSequence* AnimSequence;
+	FString Name;
+	UAnimSequence* AnimSequence = nullptr;
 
 	float Speed = 1.0f;
+	float StartTime = 0.0f;
 	bool bLoop = true;
 
 	

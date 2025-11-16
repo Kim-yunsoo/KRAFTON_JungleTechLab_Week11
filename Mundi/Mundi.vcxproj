@@ -276,7 +276,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimSequence.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimSequenceBase.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimSingleNodeInstance.cpp" />
-    <ClCompile Include="Source\Runtime\Engine\Animation\AnimBlendInstance.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Animation\MyAnimInstance.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimState.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimStateMachine.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimTransition.cpp" />
@@ -513,7 +513,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Generated\UMovementComponent.generated.cpp" />
     <ClCompile Include="Generated\AInfo.generated.cpp" />
     <ClCompile Include="Generated\USkeletalMeshComponent.generated.cpp" />
-    <ClCompile Include="Generated\UAnimBlendInstance.generated.cpp" />
+    <ClCompile Include="Generated\UMyAnimInstance.generated.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common\LightingBuffers.hlsl">
@@ -686,7 +686,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimSequence.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimSequenceBase.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimSingleNodeInstance.h" />
-    <ClInclude Include="Source\Runtime\Engine\Animation\AnimBlendInstance.h" />
+    <ClInclude Include="Source\Runtime\Engine\Animation\MyAnimInstance.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimState.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimStateMachine.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimTransition.h" />
@@ -904,7 +904,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Generated\UMovementComponent.generated.h" />
     <ClInclude Include="Generated\AInfo.generated.h" />
     <ClInclude Include="Generated\USkeletalMeshComponent.generated.h" />
-    <ClInclude Include="Generated\UAnimBlendInstance.generated.h" />
+    <ClInclude Include="Generated\UMyAnimInstance.generated.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="BuildTools\CodeGenerator\generate.py" />
