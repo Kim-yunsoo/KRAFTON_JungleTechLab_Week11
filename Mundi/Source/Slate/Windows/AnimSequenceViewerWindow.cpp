@@ -516,8 +516,27 @@ void SAnimSequenceViewerWindow::RenderTimeline()
         ImVec2(CanvasPos.x + CanvasSize.x, CanvasPos.y + CanvasSize.y),
         ImGui::ColorConvertFloat4ToU32(bgColor));
 
+    // 적응형 눈금 간격 계산 (화면에 8-12개 눈금 표시)
+    int targetRulerCount = 10;
+    int FrameInterval = (TotalFrames > 0) ? (TotalFrames / targetRulerCount) : 10;
+
+    // 5, 10, 20, 30, 50, 100 등 깔끔한 숫자로 반올림
+    if (FrameInterval <= 5)
+        FrameInterval = 5;
+    else if (FrameInterval <= 10)
+        FrameInterval = 10;
+    else if (FrameInterval <= 20)
+        FrameInterval = 20;
+    else if (FrameInterval <= 30)
+        FrameInterval = 30;
+    else if (FrameInterval <= 50)
+        FrameInterval = 50;
+    else if (FrameInterval <= 100)
+        FrameInterval = 100;
+    else
+        FrameInterval = ((FrameInterval + 99) / 100) * 100; // 100 단위로 올림
+
     // 프레임 눈금 그리기
-    int FrameInterval = 30; // 30프레임마다 큰 눈금
     for (int frame = 0; frame <= TotalFrames; frame += FrameInterval)
     {
         float Time = FrameToTime(frame);
@@ -537,18 +556,22 @@ void SAnimSequenceViewerWindow::RenderTimeline()
             IM_COL32(200, 200, 200, 255), Label);
     }
 
-    // 작은 눈금 (5프레임마다)
-    for (int frame = 0; frame <= TotalFrames; frame += 5)
+    // 작은 눈금 (큰 눈금 간격의 1/5 또는 1/2)
+    int smallInterval = (FrameInterval >= 50) ? (FrameInterval / 5) : (FrameInterval / 2);
+    if (smallInterval > 0)
     {
-        if (frame % FrameInterval == 0) continue; // 큰 눈금은 건너뛰기
+        for (int frame = 0; frame <= TotalFrames; frame += smallInterval)
+        {
+            if (frame % FrameInterval == 0) continue; // 큰 눈금은 건너뛰기
 
-        float Time = FrameToTime(frame);
-        float XPos = CanvasPos.x + TimeToPixel(Time);
+            float Time = FrameToTime(frame);
+            float XPos = CanvasPos.x + TimeToPixel(Time);
 
-        DrawList->AddLine(
-            ImVec2(XPos, CanvasPos.y + CanvasSize.y - 8),
-            ImVec2(XPos, CanvasPos.y + CanvasSize.y),
-            IM_COL32(100, 100, 100, 255), 1.0f);
+            DrawList->AddLine(
+                ImVec2(XPos, CanvasPos.y + CanvasSize.y - 8),
+                ImVec2(XPos, CanvasPos.y + CanvasSize.y),
+                IM_COL32(100, 100, 100, 255), 1.0f);
+        }
     }
 
     // 재생 헤드 (Playhead)
