@@ -18,7 +18,9 @@ public:
 
 	FSkeletalMeshData* LoadFbxMeshAsset(const FString& FilePath);
 	UAnimSequence* LoadFbxAnimSequence(const FString& FilePath);
-	
+
+	// 한 번의 FBX 파싱으로 메시와 애니메이션을 동시에 로드
+	void LoadFbxAsset(const FString& FilePath);
 
 protected:
 	~UFbxLoader() override;
@@ -38,7 +40,10 @@ private:
 	FString ParseTexturePath(FbxProperty& Property);
 
 	void EnsureSingleRootBone(FSkeletalMeshData& MeshData);
-	
+
+	// 메시 노드 존재 여부를 재귀적으로 체크
+	bool HasMeshNodesRecursive(FbxNode* Node);
+
 	// bin파일 저장용
 	TArray<FMaterialInfo> MaterialInfos;
 	FbxManager* SdkManager = nullptr;
