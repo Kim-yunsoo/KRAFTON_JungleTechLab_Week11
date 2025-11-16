@@ -38,5 +38,7 @@ void UMyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		PoseB.SetPose(AnimB, CurrentTimeB);
 		FPoseContext::BlendTwoPoses(PoseA, PoseB, BlendAlpha, PoseA);
 		OwnerComponent->SetPose(PoseA);
+
+
 	}
 }

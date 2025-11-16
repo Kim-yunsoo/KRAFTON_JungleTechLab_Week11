@@ -461,3 +461,62 @@ struct FBoneAnimationTrack
         return BoneIndex >= 0 && InternalTrack.HasAnyKeys();
     }
 };
+
+// === Animation Float Curves ===
+struct FFloatCurveKey
+{
+    float Time = 0.0f;   // seconds
+    float Value = 0.0f;  // scalar
+};
+
+struct FCurveTrack
+{
+    FName CurveName;
+    TArray<FFloatCurveKey> Keys;
+
+    bool HasAnyKeys() const { return !Keys.empty(); }
+
+    // 선형 보간으로 커브 값을 평가합니다. 키가 없으면 0, 한 개면 그 값을 반환합니다.
+    float Evaluate(float InTime) const
+    {
+        if (Keys.empty())
+            return 0.0f;
+        if (Keys.size() == 1)
+            return Keys[0].Value;
+
+        // 시간 범위 클램프
+        if (InTime <= Keys[0].Time)
+            return Keys[0].Value;
+        if (InTime >= Keys.back().Time)
+            return Keys.back().Value;
+
+        // 선형 탐색 (키 수가 많아지면 이진 탐색로 변경 고려)
+        for (size_t i = 0; i + 1 < Keys.size(); ++i)
+        {
+            const float t0 = Keys[i].Time;
+            const float t1 = Keys[i + 1].Time;
+            if (InTime >= t0 && InTime <= t1)
+            {
+                const float v0 = Keys[i].Value;
+                const float v1 = Keys[i + 1].Value;
+                const float span = (t1 - t0);
+                const float alpha = (span > KINDA_SMALL_NUMBER) ? ((InTime - t0) / span) : 0.0f;
+                return FMath::Lerp(v0, v1, alpha);
+            }
+        }
+        return Keys.back().Value; // fallback
+    }
+};
+
+//
+//struct FFloatCurveKey
+//{
+//    float Time;
+//    float Value;
+//};
+//
+//struct FCurveTrack
+//{
+//    FName CurveName;        
+//    TArray<FFloatCurveKey> Keys;
+//};

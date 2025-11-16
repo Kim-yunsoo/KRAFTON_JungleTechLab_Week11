@@ -8,6 +8,7 @@ struct FPoseContext
 {
     FPoseContext() = default;
     TArray<FTransform> Pose;
+    TArray<float> CurveValues;
     UAnimInstance* AnimInstance;
     FPoseContext(UAnimInstance* InAnimInstance);
     void SetPose(UAnimSequence* AnimSequence, const float Time);

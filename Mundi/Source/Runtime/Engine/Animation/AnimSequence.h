@@ -30,6 +30,9 @@ public:
     const FBoneAnimationTrack* FindTrackByBoneName(const FName& BoneName) const;
     const FBoneAnimationTrack* FindTrackByBoneIndex(int32 BoneIndex) const;
 
+    // 커브 트랙 접근
+    const TArray<FCurveTrack>& GetCurveTracks() const;
+
     // DataModel에서 산출한 파생 메타데이터(길이, 키 수, FPS)를 노출한다.
     int32 GetNumberOfFrames() const;
     int32 GetNumberOfKeys() const;

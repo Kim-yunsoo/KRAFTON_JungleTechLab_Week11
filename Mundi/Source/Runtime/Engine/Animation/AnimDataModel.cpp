@@ -28,6 +28,7 @@ void UAnimDataModel::AddBoneTrack(const FBoneAnimationTrack& Track)
 void UAnimDataModel::Reset()
 {
     BoneAnimationTracks.clear();
+    CurveTracks.clear();
     NumberOfFrames = 0;
     NumberOfKeys = 0;
     DataDurationSeconds = 0.f;
