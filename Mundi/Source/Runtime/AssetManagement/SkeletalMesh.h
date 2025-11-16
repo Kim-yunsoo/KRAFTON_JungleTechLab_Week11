@@ -8,7 +8,8 @@ public:
 
     USkeletalMesh();
     virtual ~USkeletalMesh() override;
-    
+
+    void Load(FSkeletalMeshData* InData, ID3D11Device* InDevice);
     void Load(const FString& InFilePath, ID3D11Device* InDevice);
     
     const FSkeletalMeshData* GetSkeletalMeshData() const { return Data; }
