@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #pragma warning(push)
 #pragma warning(disable: 4244) // Disable double to float conversion warning for FBX SDK
 #include "ObjectFactory.h"
@@ -11,6 +11,22 @@
 #include "PathUtils.h"
 #include "Source/Runtime/Engine/Animation/AnimSequence.h"
 #include "Source/Runtime/Engine/Animation/AnimDataModel.h"
+#include "Source/Runtime/Core/Misc/VertexData.h"
+#include <functional>
+
+// Fallback definitions for FBX curve component channel names
+#ifndef FBXSDK_CURVENODE_COMPONENT_X
+#define FBXSDK_CURVENODE_COMPONENT_X "X"
+#endif
+#ifndef FBXSDK_CURVENODE_COMPONENT_Y
+#define FBXSDK_CURVENODE_COMPONENT_Y "Y"
+#endif
+#ifndef FBXSDK_CURVENODE_COMPONENT_Z
+#define FBXSDK_CURVENODE_COMPONENT_Z "Z"
+#endif
+#ifndef FBXSDK_CURVENODE_COMPONENT_W
+#define FBXSDK_CURVENODE_COMPONENT_W "W"
+#endif
 #include <filesystem>
 #include <numeric>
 
@@ -132,6 +148,135 @@ namespace
 			OutTrack.InternalTrack.KeyTimes.Add(static_cast<float>(SampleTimeSeconds - StartSeconds));
 		}
 	}
+
+    // === Helper: Collect float curves from a property ===
+    static void AppendCurveFromFbxAnimCurve(
+        FbxAnimCurve* Curve,
+        const FString& TrackName,
+        TArray<FCurveTrack>& OutCurves)
+    {
+        if (!Curve) return;
+        const int KeyCount = Curve->KeyGetCount();
+        if (KeyCount <= 0) return;
+
+        FCurveTrack Track;
+        Track.CurveName = FName(TrackName);
+        Track.Keys.Reserve(KeyCount);
+        for (int i = 0; i < KeyCount; ++i)
+        {
+            FbxTime T = Curve->KeyGetTime(i);
+            float TimeSec = static_cast<float>(T.GetSecondDouble());
+            float Value = static_cast<float>(Curve->KeyGetValue(i));
+            Track.Keys.Add({ TimeSec, Value });
+        }
+        OutCurves.Add(std::move(Track));
+    }
+
+    static void CollectCurvesFromProperty(
+        FbxNode* Node,
+        FbxAnimLayer* Layer,
+        FbxProperty& Prop,
+        TArray<FCurveTrack>& OutCurves)
+    {
+        if (!Prop.IsValid()) return;
+        // Skip standard TRS which we already sample
+        const char* propNameC = Prop.GetNameAsCStr();
+        FString PropName = FString(propNameC ? propNameC : "");
+        FString NodeName = FString(Node && Node->GetName() ? Node->GetName() : "Node");
+
+        auto MakeTrackName = [&](const char* Suffix) -> FString
+        {
+            if (Suffix && *Suffix)
+                return NodeName + ":" + PropName + "." + Suffix;
+            return NodeName + ":" + PropName;
+        };
+
+        FbxDataType DT = Prop.GetPropertyDataType();
+        auto eType = DT.GetType();
+
+        // Skip TRS (these are already sampled into bone tracks)
+        if (PropName == "Lcl Translation" || PropName == "Lcl Rotation" || PropName == "Lcl Scaling")
+        {
+            return;
+        }
+
+        // Single float/double
+        if (eType == eFbxFloat || eType == eFbxDouble)
+        {
+            FbxAnimCurve* C = Prop.GetCurve(Layer);
+            AppendCurveFromFbxAnimCurve(C, MakeTrackName(nullptr), OutCurves);
+            return;
+        }
+
+        // Vector types: try components X/Y/Z/W
+        if (eType == eFbxDouble2 || eType == eFbxDouble3 || eType == eFbxDouble4)
+        {
+            FbxAnimCurve* Cx = Prop.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_X);
+            FbxAnimCurve* Cy = Prop.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_Y);
+            FbxAnimCurve* Cz = Prop.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_Z);
+            FbxAnimCurve* Cw = Prop.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_W);
+            if (Cx) AppendCurveFromFbxAnimCurve(Cx, MakeTrackName("X"), OutCurves);
+            if (Cy) AppendCurveFromFbxAnimCurve(Cy, MakeTrackName("Y"), OutCurves);
+            if (Cz) AppendCurveFromFbxAnimCurve(Cz, MakeTrackName("Z"), OutCurves);
+            if (Cw) AppendCurveFromFbxAnimCurve(Cw, MakeTrackName("W"), OutCurves);
+            return;
+        }
+    }
+
+    // Collect BlendShape (morph) weight curves for a mesh node
+    static void CollectBlendShapeCurvesForNode(FbxNode* Node, FbxAnimLayer* Layer, TArray<FCurveTrack>& OutCurves)
+    {
+        if (!Node) return;
+        FbxNodeAttribute* Attr = Node->GetNodeAttribute();
+        if (!Attr) return;
+        if (Attr->GetAttributeType() != FbxNodeAttribute::eMesh) return;
+
+        FbxMesh* Mesh = static_cast<FbxMesh*>(Attr);
+        const int DeformerCount = Mesh->GetDeformerCount(FbxDeformer::eBlendShape);
+        if (DeformerCount <= 0) return;
+
+        FString NodeName = FString(Node->GetName());
+        for (int d = 0; d < DeformerCount; ++d)
+        {
+            FbxBlendShape* BlendShape = static_cast<FbxBlendShape*>(Mesh->GetDeformer(d, FbxDeformer::eBlendShape));
+            if (!BlendShape) continue;
+            const int ChannelCount = BlendShape->GetBlendShapeChannelCount();
+            for (int c = 0; c < ChannelCount; ++c)
+            {
+                FbxBlendShapeChannel* Channel = BlendShape->GetBlendShapeChannel(c);
+                if (!Channel) continue;
+                FbxProperty& WeightProp = Channel->DeformPercent;
+                FbxAnimCurve* Curve = WeightProp.GetCurve(Layer);
+                FString ChName = FString(Channel->GetName() ? Channel->GetName() : "Channel") + FString("#") + std::to_string(c);
+                FString TrackName = NodeName + ":BlendShape:" + ChName;
+                AppendCurveFromFbxAnimCurve(Curve, TrackName, OutCurves);
+            }
+        }
+    }
+    static void CollectCurveTracksForScene(FbxScene* Scene, FbxAnimLayer* Layer, TArray<FCurveTrack>& OutCurves)
+    {
+        if (!Scene || !Layer) return;
+        std::function<void(FbxNode*)> Walk = [&](FbxNode* N)
+        {
+            if (!N) return;
+            // Iterate all properties on node
+            FbxProperty Prop = N->GetFirstProperty();
+            while (Prop.IsValid())
+            {
+                CollectCurvesFromProperty(N, Layer, Prop, OutCurves);
+                Prop = N->GetNextProperty(Prop);
+            }
+            // BlendShape weight curves on this node
+            CollectBlendShapeCurvesForNode(N, Layer, OutCurves);
+            // Recurse children
+            const int childCount = N->GetChildCount();
+            for (int i = 0; i < childCount; ++i)
+            {
+                Walk(N->GetChild(i));
+            }
+        };
+        Walk(Scene->GetRootNode());
+    }
 }
 
 UFbxLoader::UFbxLoader()
@@ -236,8 +381,8 @@ USkeletalMesh* UFbxLoader::LoadFbxMesh(const FString& FilePath)
 	return SkeletalMesh;
 }
 
-UAnimSequence* UFbxLoader::LoadFbxAnimSequence(const FString& FilePath)
-{
+	UAnimSequence* UFbxLoader::LoadFbxAnimSequence(const FString& FilePath)
+	{
 	FString NormalizedPathStr = NormalizePath(FilePath);
 	if (NormalizedPathStr.empty())
 	{
@@ -317,8 +462,8 @@ UAnimSequence* UFbxLoader::LoadFbxAnimSequence(const FString& FilePath)
 		return nullptr;
 	}
 
-	TArray<FBoneAnimationTrack> Tracks;
-	Tracks.Reserve(BoneInfos.Num());
+		TArray<FBoneAnimationTrack> Tracks;
+		Tracks.Reserve(BoneInfos.Num());
 	for (int32 BoneIdx = 0; BoneIdx < BoneInfos.Num(); ++BoneIdx)
 	{
 		const FBoneNodeRecord& BoneRecord = BoneInfos[BoneIdx];
@@ -344,9 +489,22 @@ UAnimSequence* UFbxLoader::LoadFbxAnimSequence(const FString& FilePath)
 		return nullptr;
 	}
 
-	auto DataModel = std::make_unique<UAnimDataModel>();
-	DataModel->SetFrameRate(BuildFrameRateFromDouble(FrameRateHz));
-	DataModel->SetBoneTracks(std::move(Tracks));
+		auto DataModel = std::make_unique<UAnimDataModel>();
+		DataModel->SetFrameRate(BuildFrameRateFromDouble(FrameRateHz));
+		DataModel->SetBoneTracks(std::move(Tracks));
+
+        // Curve parsing temporarily disabled (confirmed source FBX has no non-TRS curves)
+        // If needed later, enable the calls below to collect property/blendshape curves
+        // FbxAnimLayer* Layer = AnimStack->GetMember<FbxAnimLayer>(0);
+        // if (Layer)
+        // {
+        //     TArray<FCurveTrack> Curves;
+        //     CollectCurveTracksForScene(Scene, Layer, Curves);
+        //     if (!Curves.IsEmpty())
+        //     {
+        //         DataModel->SetCurveTracks(std::move(Curves));
+        //     }
+        // }
 
 	UAnimSequence* AnimSequence = NewObject<UAnimSequence>();
 	AnimSequence->SetDataModel(std::move(DataModel));
@@ -1402,4 +1560,5 @@ void UFbxLoader::EnsureSingleRootBone(FSkeletalMeshData& MeshData)
 }
 
 #pragma warning(pop) // Restore warning state
+
 

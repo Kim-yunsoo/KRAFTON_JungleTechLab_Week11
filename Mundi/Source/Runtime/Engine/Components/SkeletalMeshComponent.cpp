@@ -20,7 +20,7 @@ USkeletalMeshComponent::~USkeletalMeshComponent()
 
 void USkeletalMeshComponent::BeginPlay()
 {
-    UAnimSequence* AnimWalk = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx");
+    UAnimSequence* AnimWalk = RESOURCE.Get<UAnimSequence>("Data/Animations/MacarenaDance.fbx");
     UAnimSequence* AnimRun = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Run.fbx");
     PlayBlendAnimation(AnimWalk, AnimRun);
 }

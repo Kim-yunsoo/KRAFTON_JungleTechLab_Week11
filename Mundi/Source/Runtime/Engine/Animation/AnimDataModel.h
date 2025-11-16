@@ -5,6 +5,7 @@
 /**
  * @brief FBX에서 변환된 본 트랙 정보를 유지하며 재생 길이/프레임 정보 등을 제공하는 데이터 컨테이너
  */
+// 
 class UAnimDataModel : public UObject
 {
 public:
@@ -38,7 +39,17 @@ private:
     // BoneAnimationTracks 혹은 FrameRate가 바뀔 때 파생값들을 갱신한다.
     void RefreshDerivedData();
 
+    // 본 별 , 프레임 배열이다. 
     TArray<FBoneAnimationTrack> BoneAnimationTracks{}; // FBX에서 추출한 본별 애니메이션 트랙
+    TArray<FCurveTrack> CurveTracks;  
+
+public:
+    // 커브 트랙 접근자/설정자
+    const TArray<FCurveTrack>& GetCurveTracks() const { return CurveTracks; }
+    void SetCurveTracks(const TArray<FCurveTrack>& InCurves) { CurveTracks = InCurves; }
+    void SetCurveTracks(TArray<FCurveTrack>&& InCurves) { CurveTracks = std::move(InCurves); }
+    void AddCurveTrack(const FCurveTrack& Curve) { CurveTracks.Add(Curve); }
+
     FFrameRate FrameRate{};                           // 원본 샘플링 레이트(FPS)
     int32 NumberOfFrames = 0;                         // 한 트랙에서의 최대 키 개수
     int32 NumberOfKeys = 0;                           // 전체 키 개수 합

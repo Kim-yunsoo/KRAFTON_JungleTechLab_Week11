@@ -1,4 +1,4 @@
-#include "pch.h"
+癤�#include "pch.h"
 #include "AnimSequence.h"
 #include "AnimDataModel.h"
 #include "JsonSerializer.h"
@@ -46,14 +46,12 @@ void UAnimSequence::Load(const FString& InFilePath, ID3D11Device* InDevice)
 
 void UAnimSequence::SetDataModel(std::unique_ptr<UAnimDataModel> InDataModel)
 {
-    // 새로운 데이터 모델을 받고 시퀀스 메타데이터를 즉시 맞춘다.
     DataModel = std::move(InDataModel);
     SyncDerivedMetadata();
 }
 
 void UAnimSequence::ResetDataModel()
 {
-    // 모델 소유권을 비우면 재생 길이 역시 0초로 리셋된다.
     DataModel.reset();
     SyncDerivedMetadata();
 }
@@ -65,7 +63,6 @@ const TArray<FBoneAnimationTrack>& UAnimSequence::GetBoneTracks() const
         return DataModel->GetBoneTracks();
     }
 
-    // DataModel이 없을 때 빈 배열 반환 (static 대신 지역 const 사용)
     static const TArray<FBoneAnimationTrack> EmptyTracks;
     return EmptyTracks;
 }
@@ -78,6 +75,16 @@ const FBoneAnimationTrack* UAnimSequence::FindTrackByBoneName(const FName& BoneN
 const FBoneAnimationTrack* UAnimSequence::FindTrackByBoneIndex(int32 BoneIndex) const
 {
     return DataModel ? DataModel->FindTrackByBoneIndex(BoneIndex) : nullptr;
+}
+
+const TArray<FCurveTrack>& UAnimSequence::GetCurveTracks() const
+{
+    if (DataModel)
+    {
+        return DataModel->GetCurveTracks();
+    }
+    static const TArray<FCurveTrack> Empty;
+    return Empty;
 }
 
 int32 UAnimSequence::GetNumberOfFrames() const
@@ -97,28 +104,25 @@ const FFrameRate& UAnimSequence::GetFrameRateStruct() const
         return DataModel->GetFrameRate();
     }
 
-    // DataModel이 없을 때 기본 프레임레이트 반환 (static const로 불변성 보장)
     static const FFrameRate DefaultRate{};
     return DefaultRate;
 }
 
 void UAnimSequence::SyncDerivedMetadata()
 {
-    // DataModel이 존재하면 길이를 계산하고, 없으면 0초로 맞춘다.
     DataModel ? SetSequenceLength(DataModel->GetPlayLengthSeconds()) : SetSequenceLength(0.f);
 }
 
-// AnimSequence.cpp 내부에서만 사용되므로 namespace로 범위를 한정합니다.
 namespace
 {
-    // SerializePrimitiveArray (Object.h)를 활용한 본 트랙 직렬화 헬퍼
+    // === Bone Tracks ===
     JSON SerializeBoneTrack(const FBoneAnimationTrack& Track)
     {
         JSON TrackJson = JSON::Make(JSON::Class::Object);
         TrackJson["BoneName"] = Track.BoneName.ToString().c_str();
         TrackJson["BoneIndex"] = Track.BoneIndex;
 
-        // SerializePrimitiveArray 활용
+        // SerializePrimitiveArray 활占쏙옙
         JSON PosKeysJson = JSON::Make(JSON::Class::Array);
         JSON RotKeysJson = JSON::Make(JSON::Class::Array);
         JSON ScaleKeysJson = JSON::Make(JSON::Class::Array);
@@ -157,7 +161,7 @@ namespace
             }
             FJsonSerializer::ReadInt32(TrackJson, "BoneIndex", Track.BoneIndex, -1, false);
 
-            // SerializePrimitiveArray 활용
+            // SerializePrimitiveArray 활占쏙옙
             if (TrackJson.hasKey("PosKeys"))
             {
                 JSON PosKeysJson = TrackJson.at("PosKeys");
@@ -182,6 +186,64 @@ namespace
             OutTracks.Add(Track);
         }
     }
+
+    // === Curve Tracks ===
+    JSON SerializeCurveTrack(const FCurveTrack& Curve)
+    {
+        JSON CurveJson = JSON::Make(JSON::Class::Object);
+        CurveJson["Name"] = Curve.CurveName.ToString().c_str();
+
+        JSON KeysJson = JSON::Make(JSON::Class::Array);
+        for (const FFloatCurveKey& K : Curve.Keys)
+        {
+            JSON KJson = JSON::Make(JSON::Class::Object);
+            KJson["Time"] = K.Time;
+            KJson["Value"] = K.Value;
+            KeysJson.append(KJson);
+        }
+        CurveJson["Keys"] = KeysJson;
+        return CurveJson;
+    }
+
+    void DeserializeCurveTracks(const JSON& CurvesJson, TArray<FCurveTrack>& OutCurves)
+    {
+        OutCurves.clear();
+        if (CurvesJson.JSONType() != JSON::Class::Array) { return; }
+
+        OutCurves.reserve(static_cast<int32>(CurvesJson.size()));
+        for (size_t Idx = 0; Idx < CurvesJson.size(); ++Idx)
+        {
+            const JSON& CJson = CurvesJson.at(static_cast<unsigned>(Idx));
+            if (CJson.JSONType() != JSON::Class::Object) { continue; }
+
+            FCurveTrack Curve;
+            FString NameString;
+            if (FJsonSerializer::ReadString(CJson, "Name", NameString, "", false))
+            {
+                Curve.CurveName = FName(NameString);
+            }
+
+            if (CJson.hasKey("Keys"))
+            {
+                const JSON& KeysJson = CJson.at("Keys");
+                if (KeysJson.JSONType() == JSON::Class::Array)
+                {
+                    Curve.Keys.reserve(static_cast<int32>(KeysJson.size()));
+                    for (size_t k = 0; k < KeysJson.size(); ++k)
+                    {
+                        const JSON& KJson = KeysJson.at(static_cast<unsigned>(k));
+                        if (KJson.JSONType() != JSON::Class::Object) { continue; }
+                        FFloatCurveKey Key;
+                        FJsonSerializer::ReadFloat(KJson, "Time", Key.Time, Key.Time, false);
+                        FJsonSerializer::ReadFloat(KJson, "Value", Key.Value, Key.Value, false);
+                        Curve.Keys.Add(Key);
+                    }
+                }
+            }
+
+            OutCurves.Add(Curve);
+        }
+    }
 }
 
 void UAnimSequence::Serialize(const bool bInIsLoading, JSON& InOutHandle)
@@ -195,7 +257,6 @@ void UAnimSequence::Serialize(const bool bInIsLoading, JSON& InOutHandle)
             const JSON& ModelJson = InOutHandle.at("DataModel");
             auto NewModel = std::make_unique<UAnimDataModel>();
 
-            // JSON에 저장된 프레임레이트/트랙 정보를 역직렬화한다.
             FFrameRate Rate;
             FJsonSerializer::ReadInt32(ModelJson, "FrameRateNumerator", Rate.Numerator, Rate.Numerator, false);
             FJsonSerializer::ReadInt32(ModelJson, "FrameRateDenominator", Rate.Denominator, Rate.Denominator, false);
@@ -212,6 +273,13 @@ void UAnimSequence::Serialize(const bool bInIsLoading, JSON& InOutHandle)
                 NewModel->Reset();
             }
 
+            if (ModelJson.hasKey("Curves"))
+            {
+                TArray<FCurveTrack> Curves;
+                DeserializeCurveTracks(ModelJson.at("Curves"), Curves);
+                NewModel->SetCurveTracks(std::move(Curves));
+            }
+
             DataModel = std::move(NewModel);
         }
         else
@@ -223,12 +291,10 @@ void UAnimSequence::Serialize(const bool bInIsLoading, JSON& InOutHandle)
     }
     else // Saving
     {
-        // DataModel이 없어도 일관성을 위해 빈 구조를 저장
         JSON ModelJson = JSON::Make(JSON::Class::Object);
 
         if (DataModel)
         {
-            // DataModel 내용을 JSON에 기록해 디스크로 보낸다.
             ModelJson["FrameRateNumerator"] = DataModel->GetFrameRate().Numerator;
             ModelJson["FrameRateDenominator"] = DataModel->GetFrameRate().Denominator;
             ModelJson["NumberOfFrames"] = DataModel->GetNumberOfFrames();
@@ -241,16 +307,23 @@ void UAnimSequence::Serialize(const bool bInIsLoading, JSON& InOutHandle)
                 TrackArray.append(SerializeBoneTrack(Track));
             }
             ModelJson["Tracks"] = TrackArray;
+
+            JSON CurvesArray = JSON::Make(JSON::Class::Array);
+            for (const FCurveTrack& Curve : DataModel->GetCurveTracks())
+            {
+                CurvesArray.append(SerializeCurveTrack(Curve));
+            }
+            ModelJson["Curves"] = CurvesArray;
         }
         else
         {
-            // DataModel이 없을 때 기본값으로 빈 구조 저장
             ModelJson["FrameRateNumerator"] = 30;
             ModelJson["FrameRateDenominator"] = 1;
             ModelJson["NumberOfFrames"] = 0;
             ModelJson["NumberOfKeys"] = 0;
             ModelJson["PlayLength"] = 0.0f;
             ModelJson["Tracks"] = JSON::Make(JSON::Class::Array);
+            ModelJson["Curves"] = JSON::Make(JSON::Class::Array);
         }
 
         InOutHandle["DataModel"] = ModelJson;

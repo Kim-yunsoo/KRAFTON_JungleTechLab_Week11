@@ -44,6 +44,4 @@ protected:
 	bool bPlay = false;
 	USkeletalMeshComponent* OwnerComponent = nullptr;
 private:
-
-
 };
