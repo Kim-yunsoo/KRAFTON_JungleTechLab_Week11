@@ -173,17 +173,11 @@ void UFbxLoader::PreLoad()
 			if (ProcessedFiles.find(PathStr) == ProcessedFiles.end())
 			{
 				ProcessedFiles.insert(PathStr);
-				FbxLoader.LoadFbxMesh(PathStr);
-
-				// 애니메이션 폴더에 있는 파일인지 확인
-				FString LowerPath = PathStr;
-				std::transform(LowerPath.begin(), LowerPath.end(), LowerPath.begin(),
-					[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-				const bool bIsAnimationAsset = LowerPath.find("/animations/") != FString::npos;
-				if (bIsAnimationAsset)
-				{
-					FbxLoader.LoadFbxAnimSequence(PathStr);
-				}
+				// 한 번의 FBX 파싱으로 메시와 애니메이션을 동시에 로드
+				// - 메시가 있으면 SkeletalMesh 생성
+				// - 애니메이션이 있으면 AnimSequence 생성
+				// - 애니메이션만 있는 FBX는 SkeletalMesh로 만들지 않음
+				FbxLoader.LoadFbxAsset(PathStr);
 				++LoadedCount;
 			}
 		}
@@ -369,6 +363,343 @@ UAnimSequence* UFbxLoader::LoadFbxAnimSequence(const FString& FilePath)
 
 	Scene->Destroy();
 	return AnimSequence;
+}
+
+// 한 번의 FBX 파싱으로 메시와 애니메이션을 동시에 로드
+void UFbxLoader::LoadFbxAsset(const FString& FilePath)
+{
+	FString NormalizedPath = NormalizePath(FilePath);
+	if (NormalizedPath.empty()) { return; }
+
+	// 이미 로드된 리소스 체크 (ResourceManager 사용으로 O(1) 조회)
+	bool bMeshAlreadyLoaded = (UResourceManager::GetInstance().Get<USkeletalMesh>(NormalizedPath) != nullptr);
+	bool bAnimAlreadyLoaded = (UResourceManager::GetInstance().Get<UAnimSequence>(NormalizedPath) != nullptr);
+
+	if (bMeshAlreadyLoaded && bAnimAlreadyLoaded) { return; }
+
+	// ========== 메시 캐시 우선 확인 (Scene 로드 전) ==========
+	bool bMeshCacheExists = false;
+
+#ifdef USE_OBJ_CACHE
+	if (!bMeshAlreadyLoaded)
+	{
+		FString CachePathStr = ConvertDataPathToCachePath(NormalizedPath);
+		const FString BinPathFileName = CachePathStr + ".bin";
+
+		if (std::filesystem::exists(BinPathFileName))
+		{
+			try
+			{
+				auto binTime = std::filesystem::last_write_time(BinPathFileName);
+				auto fbxTime = std::filesystem::last_write_time(NormalizedPath);
+
+				// 캐시가 유효하면 기존 LoadFbxMesh 사용 (Scene 로드 없음)
+				if (fbxTime <= binTime)
+				{
+					bMeshCacheExists = true;
+					USkeletalMesh* SkeletalMesh = UResourceManager::GetInstance().Load<USkeletalMesh>(NormalizedPath);
+					if (SkeletalMesh)
+					{
+						bMeshAlreadyLoaded = true;
+						UE_LOG("USkeletalMesh(filename: '%s') loaded from cache (fast path).", NormalizedPath.c_str());
+					}
+				}
+			}
+			catch (...)
+			{
+				bMeshCacheExists = false;
+			}
+		}
+	}
+#endif
+
+	// 메시 캐시로 로드했고 애니메이션도 이미 로드됨 → Scene 로드 불필요
+	if (bMeshAlreadyLoaded && bAnimAlreadyLoaded) { return; }
+
+	// 폴더 기반 최적화: /animations/ 폴더가 아니고 메시 캐시가 있으면 Scene 로드 건너뛰기
+	FString LowerPath = NormalizedPath;
+	std::transform(LowerPath.begin(), LowerPath.end(), LowerPath.begin(),
+		[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+	const bool bIsAnimationFolder = LowerPath.find("/animations/") != FString::npos;
+
+	// 메시 캐시가 있고 애니메이션 폴더가 아니면 Scene 로드 불필요
+	if (bMeshAlreadyLoaded && !bIsAnimationFolder) { return; }
+
+	// ========== Scene 로드 (필요한 경우만) ==========
+	// 메시 캐시가 없거나 애니메이션 폴더인 경우만
+	FbxImporter* Importer = FbxImporter::Create(SdkManager, "");
+	if (!Importer->Initialize(NormalizedPath.c_str(), -1, SdkManager->GetIOSettings()))
+	{
+		UE_LOG("UFbxLoader::LoadFbxAsset: Failed to initialize importer for '%s' (%s)",
+			NormalizedPath.c_str(), Importer->GetStatus().GetErrorString());
+		Importer->Destroy();
+		return;
+	}
+
+	FbxScene* Scene = FbxScene::Create(SdkManager, "AssetScene");
+	if (!Importer->Import(Scene))
+	{
+		UE_LOG("UFbxLoader::LoadFbxAsset: Failed to import scene from '%s'", NormalizedPath.c_str());
+		Importer->Destroy();
+		Scene->Destroy();
+		return;
+	}
+	Importer->Destroy();
+
+	// 축 변환
+	FbxAxisSystem UnrealImportAxis(FbxAxisSystem::eZAxis, FbxAxisSystem::eParityEven, FbxAxisSystem::eLeftHanded);
+	FbxAxisSystem SourceSetup = Scene->GetGlobalSettings().GetAxisSystem();
+	FbxSystemUnit::m.ConvertScene(Scene);
+	if (SourceSetup != UnrealImportAxis)
+	{
+		UnrealImportAxis.DeepConvertScene(Scene);
+	}
+
+	// Triangulate
+	FbxGeometryConverter GeometryConverter(SdkManager);
+	GeometryConverter.Triangulate(Scene, true);
+
+	FbxNode* RootNode = Scene->GetRootNode();
+
+	// 메시 노드 존재 여부 체크
+	bool bHasMesh = false;
+	if (RootNode && !bMeshAlreadyLoaded)
+	{
+		bHasMesh = HasMeshNodesRecursive(RootNode);
+	}
+
+	// 애니메이션 존재 여부 체크
+	bool bHasAnimation = false;
+	if (!bAnimAlreadyLoaded)
+	{
+		bHasAnimation = (Scene->GetSrcObjectCount<FbxAnimStack>() > 0);
+	}
+
+	// ========== 메시 로드 (캐시가 없는 경우만) ==========
+	if (bHasMesh && !bMeshAlreadyLoaded)
+	{
+		// 현재 Scene에서 직접 추출
+		MaterialInfos.clear();
+
+		// FSkeletalMeshData 생성
+		FSkeletalMeshData* MeshData = new FSkeletalMeshData();
+		MeshData->PathFileName = NormalizedPath;
+
+		// 뼈와 머티리얼 인덱스 매핑
+		TMap<FbxNode*, int32> BoneToIndex;
+		TMap<FbxSurfaceMaterial*, int32> MaterialToIndex;
+		TMap<int32, TArray<uint32>> MaterialGroupIndexList;
+
+		// 기본 머티리얼 그룹 설정
+		MaterialGroupIndexList.Add(0, TArray<uint32>());
+		MaterialToIndex.Add(nullptr, 0);
+		MeshData->GroupInfos.Add(FGroupInfo());
+
+		if (RootNode)
+		{
+			// 스켈레톤 로드 (첫 번째 패스)
+			for (int Index = 0; Index < RootNode->GetChildCount(); Index++)
+			{
+				LoadSkeletonFromNode(RootNode->GetChild(Index), *MeshData, -1, BoneToIndex);
+			}
+
+			// 메시 로드 (두 번째 패스)
+			for (int Index = 0; Index < RootNode->GetChildCount(); Index++)
+			{
+				LoadMeshFromNode(RootNode->GetChild(Index), *MeshData, MaterialGroupIndexList, BoneToIndex, MaterialToIndex);
+			}
+
+			// 여러 루트 본이 있으면 가상 루트 생성
+			EnsureSingleRootBone(*MeshData);
+		}
+
+		// 머티리얼 플래그 설정
+		if (MeshData->GroupInfos.Num() > 1)
+		{
+			MeshData->bHasMaterial = true;
+		}
+
+		// 머티리얼 그룹별 인덱스 정리
+		uint32 Count = 0;
+		for (auto& Element : MaterialGroupIndexList)
+		{
+			int32 MaterialIndex = Element.first;
+			const TArray<uint32>& IndexList = Element.second;
+
+			MeshData->Indices.Append(IndexList);
+			MeshData->GroupInfos[MaterialIndex].StartIndex = Count;
+			MeshData->GroupInfos[MaterialIndex].IndexCount = IndexList.Num();
+			Count += IndexList.Num();
+		}
+
+#ifdef USE_OBJ_CACHE
+		// 캐시 저장
+		FString CachePathStr = ConvertDataPathToCachePath(NormalizedPath);
+		const FString BinPathFileName = CachePathStr + ".bin";
+
+		try
+		{
+			// 캐시 디렉토리 생성
+			std::filesystem::path CacheFileDirPath(BinPathFileName);
+			if (CacheFileDirPath.has_parent_path())
+			{
+				std::filesystem::create_directories(CacheFileDirPath.parent_path());
+			}
+
+			FWindowsBinWriter Writer(BinPathFileName);
+			Writer << *MeshData;
+			Writer.Close();
+
+			for (FMaterialInfo& MaterialInfo : MaterialInfos)
+			{
+				const FString MaterialFilePath = ConvertDataPathToCachePath(MaterialInfo.MaterialName + ".mat.bin");
+				FWindowsBinWriter MatWriter(MaterialFilePath);
+				Serialization::WriteAsset<FMaterialInfo>(MatWriter, &MaterialInfo);
+				MatWriter.Close();
+			}
+
+			MeshData->CacheFilePath = BinPathFileName;
+			UE_LOG("Cache saved for FBX '%s'.", NormalizedPath.c_str());
+		}
+		catch (const std::exception& e)
+		{
+			UE_LOG("Failed to save FBX cache: %s", e.what());
+		}
+#endif
+
+		// USkeletalMesh 생성 및 초기화
+		USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>();
+		SkeletalMesh->Load(MeshData, UResourceManager::GetInstance().GetDevice());
+		SkeletalMesh->SetFilePath(NormalizedPath);
+
+		// ResourceManager에 등록
+		if (!UResourceManager::GetInstance().Add<USkeletalMesh>(NormalizedPath, SkeletalMesh))
+		{
+			// 이미 등록된 경우 (다른 곳에서 먼저 로드한 경우)
+			ObjectFactory::DeleteObject(SkeletalMesh);
+			delete MeshData;
+			UE_LOG("USkeletalMesh(filename: '%s') already loaded.", NormalizedPath.c_str());
+		}
+		else
+		{
+			UE_LOG("USkeletalMesh(filename: '%s') loaded from FBX and cached.", NormalizedPath.c_str());
+		}
+	}
+
+	// ========== 애니메이션 로드 ==========
+	if (bHasAnimation)
+	{
+		// AnimStack 검증
+		FbxAnimStack* AnimStack = Scene->GetSrcObject<FbxAnimStack>(0);
+		if (!AnimStack)
+		{
+			Scene->Destroy();
+			return;
+		}
+
+		Scene->SetCurrentAnimationStack(AnimStack);
+		if (!AnimStack->GetMember<FbxAnimLayer>(0))
+		{
+			Scene->Destroy();
+			return;
+		}
+
+		FbxTimeSpan TimeSpan = AnimStack->GetLocalTimeSpan();
+		if (TimeSpan.GetStop().GetSecondDouble() <= TimeSpan.GetStart().GetSecondDouble())
+		{
+			Scene->GetGlobalSettings().GetTimelineDefaultTimeSpan(TimeSpan);
+		}
+
+		if (TimeSpan.GetStop().GetSecondDouble() <= TimeSpan.GetStart().GetSecondDouble())
+		{
+			Scene->Destroy();
+			return;
+		}
+
+		double FrameRateHz = FbxTime::GetFrameRate(Scene->GetGlobalSettings().GetTimeMode());
+		if (FrameRateHz <= 0.0)
+		{
+			FrameRateHz = 30.0;
+		}
+
+		TArray<FBoneNodeRecord> BoneInfos;
+		GatherBoneNodesRecursive(Scene->GetRootNode(), -1, BoneInfos);
+		if (BoneInfos.IsEmpty())
+		{
+			Scene->Destroy();
+			return;
+		}
+
+		TArray<FBoneAnimationTrack> Tracks;
+		Tracks.Reserve(BoneInfos.Num());
+		for (int32 BoneIdx = 0; BoneIdx < BoneInfos.Num(); ++BoneIdx)
+		{
+			const FBoneNodeRecord& BoneRecord = BoneInfos[BoneIdx];
+			if (!BoneRecord.Node) { continue; }
+
+			FBoneAnimationTrack Track;
+			Track.BoneIndex = BoneIdx;
+			Track.BoneName = FName(FString(BoneRecord.Node->GetName()));
+			BuildAnimationTrackForNode(BoneRecord.Node, TimeSpan, FrameRateHz, Track);
+
+			if (Track.InternalTrack.HasAnyKeys())
+			{
+				Tracks.Add(std::move(Track));
+			}
+		}
+
+		if (Tracks.IsEmpty())
+		{
+			Scene->Destroy();
+			return;
+		}
+
+		auto DataModel = std::make_unique<UAnimDataModel>();
+		DataModel->SetFrameRate(BuildFrameRateFromDouble(FrameRateHz));
+		DataModel->SetBoneTracks(std::move(Tracks));
+
+		UAnimSequence* AnimSequence = NewObject<UAnimSequence>();
+		AnimSequence->SetDataModel(std::move(DataModel));
+		AnimSequence->SetFilePath(NormalizedPath);
+		try
+		{
+			std::filesystem::path FsPath(UTF8ToWide(NormalizedPath));
+			AnimSequence->SetLastModifiedTime(std::filesystem::last_write_time(FsPath));
+		}
+		catch (...)
+		{
+			AnimSequence->SetLastModifiedTime(std::filesystem::file_time_type::clock::now());
+		}
+
+		if (UResourceManager::GetInstance().Add<UAnimSequence>(NormalizedPath, AnimSequence))
+		{
+			UE_LOG("UAnimSequence(filename: '%s') loaded from FBX asset.", NormalizedPath.c_str());
+		}
+	}
+
+	// Scene 정리
+	Scene->Destroy();
+}
+
+// 헬퍼 함수: 메시 노드가 있는지 재귀적으로 체크
+bool UFbxLoader::HasMeshNodesRecursive(FbxNode* Node)
+{
+	if (!Node) { return false; }
+
+	// 현재 노드의 속성 체크
+	for (int i = 0; i < Node->GetNodeAttributeCount(); i++)
+	{
+		FbxNodeAttribute* Attribute = Node->GetNodeAttributeByIndex(i);
+		if (Attribute && Attribute->GetAttributeType() == FbxNodeAttribute::eMesh) { return true; }
+	}
+
+	// 자식 노드 재귀 체크
+	for (int i = 0; i < Node->GetChildCount(); i++)
+	{
+		if (HasMeshNodesRecursive(Node->GetChild(i))) { return true; }
+	}
+
+	return false;
 }
 
 FSkeletalMeshData* UFbxLoader::LoadFbxMeshAsset(const FString& FilePath)

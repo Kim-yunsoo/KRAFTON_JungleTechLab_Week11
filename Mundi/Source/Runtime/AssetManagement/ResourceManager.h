@@ -215,6 +215,18 @@ inline T* UResourceManager::Load(const FString& InFilePath, Args && ...InArgs)
 				return nullptr;
 			}
 		}
+
+		// SkeletalMesh 검증 (애니메이션 전용 FBX는 빈 메시 데이터를 가짐)
+		if constexpr (std::is_same_v<T, USkeletalMesh>)
+		{
+			const FSkeletalMeshData* MeshData = Resource->GetSkeletalMeshData();
+			if (!MeshData || MeshData->Vertices.empty() || MeshData->Indices.empty())
+			{
+				ObjectFactory::DeleteObject(Resource);
+				return nullptr;
+			}
+		}
+
 		Resource->SetFilePath(NormalizedPath);
 		Resources[typeIndex][NormalizedPath] = Resource;
 		return Resource;
