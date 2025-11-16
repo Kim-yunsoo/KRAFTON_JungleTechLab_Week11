@@ -1,9 +1,8 @@
 ﻿#include "pch.h"
 #include "SkeletalMeshComponent.h"
 #include "Source/Runtime/Engine/Animation/AnimSingleNodeInstance.h"
-#include "Source/Runtime/Engine/Animation/AnimBlendInstance.h"
-
-
+#include "Source/Runtime/Engine/Animation/MyAnimInstance.h"
+#include <functional>
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
     // 테스트용 기본 메시 설정
@@ -20,9 +19,32 @@ USkeletalMeshComponent::~USkeletalMeshComponent()
 
 void USkeletalMeshComponent::BeginPlay()
 {
-    UAnimSequence* AnimWalk = RESOURCE.Get<UAnimSequence>("Data/Animations/MacarenaDance.fbx");
-    UAnimSequence* AnimRun = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Run.fbx");
-    PlayBlendAnimation(AnimWalk, AnimRun);
+    AnimInstance = NewObject<UAnimInstance>();
+    AnimInstance->SetOwner(this);
+
+    UAnimStateMachine& StateMachine = AnimInstance->GetStateMachine();
+    UAnimState* IdleState = NewObject<UAnimState>();
+    IdleState->Name = "Idle";
+    IdleState->AnimSequence = RESOURCE.Get<UAnimSequence>("Data/Animations/Breathing Idle.fbx");
+    UAnimState* MoveState = NewObject<UAnimState>();
+    MoveState->Name = "Move";
+    MoveState->AnimSequence = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx");
+    StateMachine.AddState(IdleState);
+    StateMachine.AddState(MoveState);
+    StateMachine.StartStateMachine(IdleState);
+
+    UAnimTransition* IdleToMoveTransition = NewObject<UAnimTransition>();
+    IdleToMoveTransition->From = IdleState;
+    IdleToMoveTransition->To = MoveState;
+    IdleToMoveTransition->Condition = [this]()->bool {return bMove; };
+    UAnimTransition* MoveToIdleTransition = NewObject<UAnimTransition>();
+    MoveToIdleTransition->From = MoveState;
+    MoveToIdleTransition->To = IdleState;
+    MoveToIdleTransition->Condition = [this]()->bool {return !bMove; };
+    StateMachine.AddTransition(IdleToMoveTransition);
+    StateMachine.AddTransition(MoveToIdleTransition);
+
+    AnimInstance->SetPlay(true);
 }
 
 void USkeletalMeshComponent::TickComponent(float DeltaTime)
@@ -30,10 +52,6 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime)
     Super::TickComponent(DeltaTime);
     if (AnimInstance)
     {
-        if (UAnimBlendInstance* BlendInstance = Cast<UAnimBlendInstance>(AnimInstance))
-        {
-            BlendInstance->SetBlendAlpha(TestBlend);
-        }
         AnimInstance->Tick(DeltaTime);
     }
 }
@@ -112,6 +130,10 @@ void USkeletalMeshComponent::SetPose(const FPoseContext& Pose)
         CurrentLocalSpacePose = Pose.Pose;
         ForceRecomputePose();
     }
+}
+const TArray<FTransform>& USkeletalMeshComponent::GetPose() const
+{
+    return CurrentLocalSpacePose;
 }
 
 FTransform USkeletalMeshComponent::GetBoneLocalTransform(int32 BoneIndex) const
@@ -197,33 +219,17 @@ void USkeletalMeshComponent::PlayAnimation(UAnimSequence* InAnimSequence, bool b
     }
     else
     {
-        SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance);
+        if (SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance))
+        {
+        }
+        else
+        {
+            DeleteObject(AnimInstance);
+            SingleNode = NewObject<UAnimSingleNodeInstance>();
+            AnimInstance = SingleNode;
+            AnimInstance->SetOwner(this);
+        }
     }
 
     SingleNode->SetAnimSequence(InAnimSequence, bLoop);
-}
-void USkeletalMeshComponent::PlayBlendAnimation(UAnimSequence* AnimA, UAnimSequence* AnimB)
-{
-    if (!AnimA || !AnimB)
-    {
-        return;
-    }
-
-    UAnimBlendInstance* BlendInstance = nullptr;
-    if (AnimInstance == nullptr)
-    {
-        BlendInstance = NewObject<UAnimBlendInstance>();
-        AnimInstance = BlendInstance;
-        AnimInstance->SetOwner(this);
-    }
-    else
-    {
-        BlendInstance = Cast<UAnimBlendInstance>(AnimInstance);
-    }
-
-    BlendInstance->SetBlendAnimation(AnimA, AnimB);
-    BlendInstance->SetLoop(true);
-    BlendInstance->SetTime(0);
-    BlendInstance->SetSpeed(1);
-    BlendInstance->SetPlay(true);
 }

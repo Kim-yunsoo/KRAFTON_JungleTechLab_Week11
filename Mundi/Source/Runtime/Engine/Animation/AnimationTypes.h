@@ -6,6 +6,7 @@ class UAnimSequence;
 
 struct FPoseContext
 {
+    FPoseContext() = default;
     TArray<FTransform> Pose;
     TArray<float> CurveValues;
     UAnimInstance* AnimInstance;
