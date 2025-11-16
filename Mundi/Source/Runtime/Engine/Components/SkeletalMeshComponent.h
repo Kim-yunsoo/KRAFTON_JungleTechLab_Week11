@@ -34,6 +34,7 @@ public:
     void SetBoneWorldTransform(int32 BoneIndex, const FTransform& NewWorldTransform);
     
     void SetPose(const FPoseContext& Pose);
+    const TArray<FTransform>& GetPose() const;
     /**
      * @brief 특정 뼈의 현재 로컬 트랜스폼을 반환
      */
@@ -44,11 +45,14 @@ public:
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
     void PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop);
-    void PlayBlendAnimation(UAnimSequence* AnimA, UAnimSequence* AnimB);
 
 public:
     UPROPERTY(EditAnywhere, Category = "SkeletalComponent", Range = "0.0, 1.0")
     float TestBlend = 0;
+
+    UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
+    bool bMove = false;
+
 protected:
     /**
      * @brief CurrentLocalSpacePose의 변경사항을 ComponentSpace -> FinalMatrices 계산까지 모두 수행
@@ -87,7 +91,6 @@ protected:
 
 private:
     UAnimInstance* AnimInstance = nullptr;
-
 
 // FOR TEST!!!
 private:

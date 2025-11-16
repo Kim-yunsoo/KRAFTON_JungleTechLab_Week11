@@ -15,7 +15,8 @@ public:
 public:
 	UAnimState* From;
 	UAnimState* To;
+	float BlendTime = 0.2f;
 
-	std::is_function<bool()> Condition;
+	std::function<bool()> Condition;
 
 };

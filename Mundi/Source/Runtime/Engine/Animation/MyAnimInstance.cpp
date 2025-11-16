@@ -1,13 +1,13 @@
 ﻿#include "pch.h"
-#include "Source/Runtime/Engine/Animation/AnimBlendInstance.h"
+#include "Source/Runtime/Engine/Animation/MyAnimInstance.h"
 
-void UAnimBlendInstance::SetBlendAnimation(UAnimSequence* SequenceA, UAnimSequence* SequenceB)
+void UMyAnimInstance::SetBlendAnimation(UAnimSequence* SequenceA, UAnimSequence* SequenceB)
 {
 	AnimA = SequenceA;
 	AnimB = SequenceB;
 }
 
-void UAnimBlendInstance::NativeUpdateAnimation(float DeltaSeconds)
+void UMyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	if (AnimA && AnimB)
 	{

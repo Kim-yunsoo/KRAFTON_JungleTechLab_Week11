@@ -11,5 +11,5 @@ public:
 	void SetAnimSequence(UAnimSequence* InAnimSequence, const bool bLoop = false);
 protected:
 	void NativeUpdateAnimation(float DeltaSeconds) override;
-	UAnimSequence* AnimSequence;
+	UAnimSequence* AnimSequence = nullptr;
 };
