@@ -3,15 +3,18 @@
 #include "Source/Runtime/Engine/Animation/AnimSequence.h"
 #include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
+#include "Source/Runtime/Engine/Animation/AnimStateMachine.h"
 
 class UAnimInstance : public UObject
 {
 	DECLARE_CLASS(UAnimInstance, UObject)
 public:
-	UAnimInstance() = default;
+	UAnimInstance();
 	virtual ~UAnimInstance() = default;
 	void TriggerAnimNotifies(float DeltaSeconds);
 	void Tick(float DeltaSeconds);
+	void ChangeState(UAnimState* AnimState, UAnimTransition* AnimTransition);
+	void ChangeState(UAnimState* AnimState, float InTransitionTime);
 
 	void SetOwner(USkeletalMeshComponent* InOwner)
 	{
@@ -33,6 +36,10 @@ public:
 	{
 		bPlay = InPlay;
 	}
+	UAnimStateMachine& GetStateMachine()
+	{
+		return AnimStateMachine;
+	}
 	USkeletalMeshComponent* GetOwner() const { return OwnerComponent; }
 
 protected:
@@ -43,7 +50,13 @@ protected:
 	bool bLoop = false;
 	bool bPlay = false;
 	USkeletalMeshComponent* OwnerComponent = nullptr;
+	UAnimStateMachine AnimStateMachine;
+
 private:
 
+	FPoseContext CachedPose;
+	UAnimState* CurrentState = nullptr;
+	float TransitionTime = 0;
+	float CurTransitionTime = 0;
 
 };
