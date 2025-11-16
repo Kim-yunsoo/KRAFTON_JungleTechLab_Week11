@@ -11,6 +11,7 @@
 #include "PathUtils.h"
 #include "Source/Runtime/Engine/Animation/AnimSequence.h"
 #include "Source/Runtime/Engine/Animation/AnimDataModel.h"
+#include "JsonSerializer.h"
 #include <filesystem>
 #include <numeric>
 
@@ -413,8 +414,69 @@ void UFbxLoader::LoadFbxAsset(const FString& FilePath)
 	}
 #endif
 
-	// 메시 캐시로 로드했고 애니메이션도 이미 로드됨 → Scene 로드 불필요
-	if (bMeshAlreadyLoaded && bAnimAlreadyLoaded) { return; }
+	// ========== 애니메이션 캐시 우선 확인 (JSON 기반) ==========
+#ifdef USE_OBJ_CACHE
+	if (!bAnimAlreadyLoaded)
+	{
+		FString CachePathStr = ConvertDataPathToCachePath(NormalizedPath);
+		const FString AnimJsonPathFileName = CachePathStr + ".anim.json";
+
+		if (std::filesystem::exists(AnimJsonPathFileName))
+		{
+			try
+			{
+				auto jsonTime = std::filesystem::last_write_time(AnimJsonPathFileName);
+				auto fbxTime = std::filesystem::last_write_time(NormalizedPath);
+
+				// 캐시가 유효하면 로드
+				if (fbxTime <= jsonTime)
+				{
+					// JSON 파일에서 직접 로드 (ResourceManager를 거치지 않음)
+					UAnimSequence* AnimSequence = NewObject<UAnimSequence>();
+					AnimSequence->Load(AnimJsonPathFileName, UResourceManager::GetInstance().GetDevice());
+
+					if (AnimSequence && AnimSequence->GetDataModel())
+					{
+						// FilePath를 원본 FBX 경로로 설정
+						AnimSequence->SetFilePath(NormalizedPath);
+
+						// 원본 FBX 수정 시간 설정
+						try
+						{
+							std::filesystem::path FbxPath(UTF8ToWide(NormalizedPath));
+							AnimSequence->SetLastModifiedTime(std::filesystem::last_write_time(FbxPath));
+						}
+						catch (...)
+						{
+							AnimSequence->SetLastModifiedTime(std::filesystem::file_time_type::clock::now());
+						}
+
+						// ResourceManager에 원본 경로로 등록
+						if (UResourceManager::GetInstance().Add<UAnimSequence>(NormalizedPath, AnimSequence))
+						{
+							bAnimAlreadyLoaded = true;
+							UE_LOG("UAnimSequence(filename: '%s') loaded from JSON cache (fast path).", NormalizedPath.c_str());
+						}
+						else
+						{
+							// 등록 실패시 객체 삭제
+							ObjectFactory::DeleteObject(AnimSequence);
+						}
+					}
+					else
+					{
+						// 로드 실패시 객체 삭제
+						ObjectFactory::DeleteObject(AnimSequence);
+					}
+				}
+			}
+			catch (...)
+			{
+				// 캐시 로드 실패시 FBX에서 다시 로드
+			}
+		}
+	}
+#endif
 
 	// 폴더 기반 최적화: /animations/ 폴더가 아니고 메시 캐시가 있으면 Scene 로드 건너뛰기
 	FString LowerPath = NormalizedPath;
@@ -533,14 +595,17 @@ void UFbxLoader::LoadFbxAsset(const FString& FilePath)
 		}
 
 #ifdef USE_OBJ_CACHE
-		// 캐시 저장
-		FString CachePathStr = ConvertDataPathToCachePath(NormalizedPath);
-		const FString BinPathFileName = CachePathStr + ".bin";
-
-		try
+		// 애니메이션 폴더의 파일은 메시 캐싱 하지 않음 (애니메이션만 .anim.json으로 저장)
+		if (!bIsAnimationFolder)
 		{
-			// 캐시 디렉토리 생성
-			std::filesystem::path CacheFileDirPath(BinPathFileName);
+			// 캐시 저장
+			FString CachePathStr = ConvertDataPathToCachePath(NormalizedPath);
+			const FString BinPathFileName = CachePathStr + ".bin";
+
+			try
+			{
+				// 캐시 디렉토리 생성
+				std::filesystem::path CacheFileDirPath(BinPathFileName);
 			if (CacheFileDirPath.has_parent_path())
 			{
 				std::filesystem::create_directories(CacheFileDirPath.parent_path());
@@ -561,9 +626,10 @@ void UFbxLoader::LoadFbxAsset(const FString& FilePath)
 			MeshData->CacheFilePath = BinPathFileName;
 			UE_LOG("Cache saved for FBX '%s'.", NormalizedPath.c_str());
 		}
-		catch (const std::exception& e)
-		{
-			UE_LOG("Failed to save FBX cache: %s", e.what());
+			catch (const std::exception& e)
+			{
+				UE_LOG("Failed to save FBX cache: %s", e.what());
+			}
 		}
 #endif
 
@@ -674,6 +740,41 @@ void UFbxLoader::LoadFbxAsset(const FString& FilePath)
 		if (UResourceManager::GetInstance().Add<UAnimSequence>(NormalizedPath, AnimSequence))
 		{
 			UE_LOG("UAnimSequence(filename: '%s') loaded from FBX asset.", NormalizedPath.c_str());
+
+#ifdef USE_OBJ_CACHE
+			// 애니메이션을 JSON 캐시로 저장
+			FString CachePathStr = ConvertDataPathToCachePath(NormalizedPath);
+			const FString AnimJsonPathFileName = CachePathStr + ".anim.json";
+
+			try
+			{
+				// 캐시 디렉토리 생성
+				std::filesystem::path CacheFileDirPath(AnimJsonPathFileName);
+				if (CacheFileDirPath.has_parent_path())
+				{
+					std::filesystem::create_directories(CacheFileDirPath.parent_path());
+				}
+
+				// JSON으로 직렬화
+				JSON AnimJson = JSON::Make(JSON::Class::Object);
+				AnimSequence->Serialize(false, AnimJson);
+
+				// JSON 파일로 저장
+				FWideString WidePath = UTF8ToWide(AnimJsonPathFileName);
+				if (FJsonSerializer::SaveJsonToFile(AnimJson, WidePath))
+				{
+					UE_LOG("Animation JSON cache saved for '%s'.", NormalizedPath.c_str());
+				}
+				else
+				{
+					UE_LOG("Failed to save animation JSON cache for '%s'.", NormalizedPath.c_str());
+				}
+			}
+			catch (const std::exception& e)
+			{
+				UE_LOG("Failed to save animation JSON cache: %s", e.what());
+			}
+#endif
 		}
 	}
 
@@ -922,29 +1023,42 @@ FSkeletalMeshData* UFbxLoader::LoadFbxMeshAsset(const FString& FilePath)
 	}
 
 #ifdef USE_OBJ_CACHE
-	// 5. 캐시 저장
-	try
-	{
-		FWindowsBinWriter Writer(BinPathFileName);
-		Writer << *MeshData;
-		Writer.Close();
+	// 애니메이션 폴더 체크 (소문자 변환)
+	FString LowerPath = NormalizedPath;
+	std::transform(LowerPath.begin(), LowerPath.end(), LowerPath.begin(),
+		[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+	const bool bIsAnimationFolder = LowerPath.find("/animations/") != FString::npos;
 
-		for (FMaterialInfo& MaterialInfo : MaterialInfos)
+	// 5. 캐시 저장 (애니메이션 폴더가 아닌 경우만)
+	if (!bIsAnimationFolder)
+	{
+		try
 		{
-			
-			const FString MaterialFilePath = ConvertDataPathToCachePath(MaterialInfo.MaterialName + ".mat.bin");
-			FWindowsBinWriter MatWriter(MaterialFilePath);
-			Serialization::WriteAsset<FMaterialInfo>(MatWriter, &MaterialInfo);
-			MatWriter.Close();
+			FWindowsBinWriter Writer(BinPathFileName);
+			Writer << *MeshData;
+			Writer.Close();
+
+			for (FMaterialInfo& MaterialInfo : MaterialInfos)
+			{
+
+				const FString MaterialFilePath = ConvertDataPathToCachePath(MaterialInfo.MaterialName + ".mat.bin");
+				FWindowsBinWriter MatWriter(MaterialFilePath);
+				Serialization::WriteAsset<FMaterialInfo>(MatWriter, &MaterialInfo);
+				MatWriter.Close();
+			}
+
+			MeshData->CacheFilePath = BinPathFileName;
+
+			UE_LOG("Cache regeneration complete for FBX '%s'.", NormalizedPath.c_str());
 		}
-
-		MeshData->CacheFilePath = BinPathFileName;
-
-		UE_LOG("Cache regeneration complete for FBX '%s'.", NormalizedPath.c_str());
+		catch (const std::exception& e)
+		{
+			UE_LOG("Failed to save FBX cache: %s", e.what());
+		}
 	}
-	catch (const std::exception& e)
+	else
 	{
-		UE_LOG("Failed to save FBX cache: %s", e.what());
+		UE_LOG("Skipping mesh cache for animation folder file: '%s'.", NormalizedPath.c_str());
 	}
 #endif // USE_OBJ_CACHE
 
