@@ -19,7 +19,7 @@ public:
 	bool Initialize();
 
 	// 애니메이션 로드
-	//void LoadAnimSquence(UAnimSequence* Sequence);
+	void LoadAnimSquence(UAnimSequence* Sequence);
 
 	// 윈도우 상태
 	bool IsOpen() const { return bIsOpen; }
@@ -78,14 +78,12 @@ private:
 	int32 HoveredNotifyIndex = -1;
 	int32 SelectedNotifyIndex = -1;
 
-	// 현재 보고 있는 애니메이션 시퀀스
-	UAnimSequenceBase* CurrentSequence = nullptr;
-
 private:
-	//// 애니메이션 데이터
-	//void* CurrentSquence = nullptr; // UAnimSquence* 대신 임시
-	//TArray<FString> AvailableAnimationNames; // 임시 목록
+	// 애니메이션 데이터
+	TArray<FString> AvailableAnimationPaths; // 애니메이션 파일 경로 목록
 	int32 SelectedAnimIndex = -1;
+	UAnimSequenceBase* CurrentSequence; // 현재 보고 있는 애니메이션 시퀀스
+	
 	// 재생 상태
 	float CurrentTime = 0.0f;
 	float PlayLength = 5.0f; // 임시 기본값

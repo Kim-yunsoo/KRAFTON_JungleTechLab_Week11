@@ -5,35 +5,41 @@
 
 SAnimSequenceViewerWindow::SAnimSequenceViewerWindow()
 {
-	// 더미 시퀀스 생성 (테스트용)
-	CurrentSequence = NewObject<UAnimSequenceBase>();
-	CurrentSequence->SetSequenceLength(5.0f);
-	CurrentSequence->SetLooping(true);
+    // ResourceManager에서 모든 애니메이션 파일 경로 가져오기
+    UResourceManager& ResourceManager = UResourceManager::GetInstance();
+    AvailableAnimationPaths = ResourceManager.GetAllFilePaths<UAnimSequence>();
+    
+    CurrentSequence = nullptr; // 초기 시퀀스 null (아무것도 선택 안됨)
 
-	// 더미 Notify 데이터 추가
-	FAnimNotifyEvent notify1;
-	notify1.TriggerTime = 1.0f;
-	notify1.Duration = 0.3f;
-	notify1.NotifyName = "Footstep_L";
-	CurrentSequence->AddNotify(notify1);
+	//// 더미 시퀀스 생성 (테스트용)
+	//CurrentSequence = NewObject<UAnimSequenceBase>();
+	//CurrentSequence->SetSequenceLength(5.0f);
+	//CurrentSequence->SetLooping(true);
 
-	FAnimNotifyEvent notify2;
-	notify2.TriggerTime = 2.0f;
-	notify2.Duration = 0.0f;
-	notify2.NotifyName = "Footstep_R";
-	CurrentSequence->AddNotify(notify2);
+	//// 더미 Notify 데이터 추가
+	//FAnimNotifyEvent notify1;
+	//notify1.TriggerTime = 1.0f;
+	//notify1.Duration = 0.3f;
+	//notify1.NotifyName = "Footstep_L";
+	//CurrentSequence->AddNotify(notify1);
 
-	FAnimNotifyEvent notify3;
-	notify3.TriggerTime = 3.5f;
-	notify3.Duration = 0.5f;  // Duration이 있는 경우
-	notify3.NotifyName = "PlaySound";
-	CurrentSequence->AddNotify(notify3);
+	//FAnimNotifyEvent notify2;
+	//notify2.TriggerTime = 2.0f;
+	//notify2.Duration = 0.0f;
+	//notify2.NotifyName = "Footstep_R";
+	//CurrentSequence->AddNotify(notify2);
 
-	FAnimNotifyEvent notify4;
-	notify4.TriggerTime = 4.2f;
-	notify4.Duration = 0.0f;
-	notify4.NotifyName = "SpawnEffect";
-	CurrentSequence->AddNotify(notify4);
+	//FAnimNotifyEvent notify3;
+	//notify3.TriggerTime = 3.5f;
+	//notify3.Duration = 0.5f;  // Duration이 있는 경우
+	//notify3.NotifyName = "PlaySound";
+	//CurrentSequence->AddNotify(notify3);
+
+	//FAnimNotifyEvent notify4;
+	//notify4.TriggerTime = 4.2f;
+	//notify4.Duration = 0.0f;
+	//notify4.NotifyName = "SpawnEffect";
+	//CurrentSequence->AddNotify(notify4);
 }
 
 SAnimSequenceViewerWindow::~SAnimSequenceViewerWindow()
@@ -48,6 +54,31 @@ SAnimSequenceViewerWindow::~SAnimSequenceViewerWindow()
 bool SAnimSequenceViewerWindow::Initialize()
 {
 	return true;
+}
+
+void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
+{
+    if (!Sequence)
+    {
+        UE_LOG("[AnimSequenceViewer] LoadAnimSequence: Sequence is null");
+        return;
+    }
+
+    // 기존 시퀀스 교체
+    CurrentSequence = Sequence;
+
+    // 시퀀스 정보로 타임라인 업데이트
+    PlayLength = Sequence->GetPlayLength();
+    TotalFrames = Sequence->GetNumberOfFrames();
+    bLooping = Sequence->IsLooping();
+
+    // 재생 상태 초기화
+    CurrentTime = 0.0f;
+    CurrentFrame = 0;
+    bIsPlaying = false;
+
+    UE_LOG("[AnimSequenceViewer] Loaded: %s (Length: %.2fs, Frames: %d)",
+        Sequence->GetFilePath().c_str(), PlayLength, TotalFrames);
 }
 
 //void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
@@ -136,49 +167,113 @@ void SAnimSequenceViewerWindow::RenderAnimationList()
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Step 2: 더미 데이터로 목록 표시
     ImGui::Text("Available Animations:");
     ImGui::Spacing();
 
-    // 임시 하드코딩된 애니메이션 목록
-    const char* DummyAnims[] = {
-        "MM_Idle",
-        "MM_Walk",
-        "MM_Run",
-        "MM_Jump"
-    };
-
-    for (int i = 0; i < 4; i++)
+    // 실제 애니메이션 파일 목록 표시
+    for (int i = 0; i < AvailableAnimationPaths.size(); i++)
     {
         bool bIsSelected = (SelectedAnimIndex == i);
 
-        if (ImGui::Selectable(DummyAnims[i], bIsSelected))
+        // 파일 경로에서 파일명만 추출 (확장자 제거)
+        FString FullPath = AvailableAnimationPaths[i];
+
+        // 1. 경로에서 파일명 추출
+        size_t LastSlash = FullPath.find_last_of("/\\");
+        FString FileName = (LastSlash != FString::npos)
+            ? FullPath.substr(LastSlash + 1)
+            : FullPath;
+
+        // 2. 확장자 제거
+        size_t LastDot = FileName.find_last_of(".");
+        if (LastDot != FString::npos)
+        {
+            FileName = FileName.substr(0, LastDot);
+        }
+        if (ImGui::Selectable(FileName.c_str(), bIsSelected))
         {
             SelectedAnimIndex = i;
-            // Step 4+에서 실제 애니메이션 로드
-        }
 
+            // 실제 애니메이션 시퀀스 로드 (선택된 것)
+            UResourceManager& ResourceManager = UResourceManager::GetInstance();
+            UAnimSequence* LoadedAnim = ResourceManager.Load<UAnimSequence>(AvailableAnimationPaths[i]);
+
+            if (LoadedAnim)
+            {
+                // 선택된 애니메이션 시퀀스 로드하기
+                LoadAnimSquence(LoadedAnim);
+            }
+        }
         if (bIsSelected)
         {
             ImGui::SetItemDefaultFocus();
         }
     }
-
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
     // 선택 정보
-    if (SelectedAnimIndex >= 0)
+    if (SelectedAnimIndex >= 0 && SelectedAnimIndex < AvailableAnimationPaths.size())
     {
+        // 파일명 추출 (확장자 제거)
+        FString FullPath = AvailableAnimationPaths[SelectedAnimIndex];
+        size_t LastSlash = FullPath.find_last_of("/\\");
+        FString FileName = (LastSlash != FString::npos)
+            ? FullPath.substr(LastSlash + 1)
+            : FullPath;
+
+        size_t LastDot = FileName.find_last_of(".");
+        if (LastDot != FString::npos)
+            FileName = FileName.substr(0, LastDot);
+
         ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
-            "Selected: %s", DummyAnims[SelectedAnimIndex]);
+            "Selected: %s", FileName.c_str());
     }
     else
     {
         ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
             "No animation selected");
     }
+    //// 임시 하드코딩된 애니메이션 목록
+    //const char* DummyAnims[] = {
+    //    "MM_Idle",
+    //    "MM_Walk",
+    //    "MM_Run",
+    //    "MM_Jump"
+    //};
+    //
+    //for (int i = 0; i < 4; i++)
+    //{
+    //    bool bIsSelected = (SelectedAnimIndex == i);
+    //
+    //    if (ImGui::Selectable(DummyAnims[i], bIsSelected))
+    //    {
+    //        SelectedAnimIndex = i;
+    //        // Step 4+에서 실제 애니메이션 로드
+    //    }
+    //
+    //    if (bIsSelected)
+    //    {
+    //        ImGui::SetItemDefaultFocus();
+    //    }
+    //}
+    //
+    //ImGui::Spacing();
+    //ImGui::Separator();
+    //ImGui::Spacing();
+    //
+    //// 선택 정보
+    //if (SelectedAnimIndex >= 0)
+    //{
+    //    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
+    //        "Selected: %s", DummyAnims[SelectedAnimIndex]);
+    //}
+    //else
+    //{
+    //    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
+    //        "No animation selected");
+    //}
 }
 
 void SAnimSequenceViewerWindow::RenderInfoPanel()
@@ -190,11 +285,29 @@ void SAnimSequenceViewerWindow::RenderInfoPanel()
     // Step 2: 플레이스홀더 정보
     if (SelectedAnimIndex >= 0)
     {
-        // 임시 정보 표시
-        ImGui::Text("Name: MM_Animation_%d", SelectedAnimIndex);
-        ImGui::Text("Length: 2.50 seconds (placeholder)");
-        ImGui::Text("Frames: 75 frames (placeholder)");
-        ImGui::Text("FPS: 30 (placeholder)");
+        // 실제 시퀀스 정보 표시
+        UAnimSequence* AnimSequence = Cast<UAnimSequence>(CurrentSequence);
+
+        // 파일명 추출
+        FString FilePath = CurrentSequence->GetFilePath();
+        size_t LastSlash = FilePath.find_last_of("/\\");
+        FString FileName = (LastSlash != FString::npos)
+            ? FilePath.substr(LastSlash + 1)
+            : FilePath;
+
+        size_t LastDot = FileName.find_last_of(".");
+        if (LastDot != FString::npos)
+            FileName = FileName.substr(0, LastDot);
+
+        ImGui::Text("Name: %s", FileName.c_str());
+        ImGui::Text("Length: %.2f seconds", CurrentSequence->GetPlayLength());
+        if (AnimSequence)
+        {
+            ImGui::Text("Frames: %d frames", AnimSequence->GetNumberOfFrames());
+            ImGui::Text("FPS: %.2f", AnimSequence->GetFrameRate());
+        }
+
+        ImGui::Text("Looping: %s", CurrentSequence->IsLooping() ? "Yes" : "No");
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -202,9 +315,30 @@ void SAnimSequenceViewerWindow::RenderInfoPanel()
 
         // 상세 정보
         ImGui::Text("Details:");
-        ImGui::BulletText("File Path: (not loaded)");
-        ImGui::BulletText("Bone Tracks: 0");
-        ImGui::BulletText("Notify Events: 0");
+        ImGui::BulletText("File Path: %s", FilePath.c_str());
+
+        if (AnimSequence)
+        {
+            ImGui::BulletText("Bone Tracks: %d", AnimSequence->GetBoneTracks().size());
+        }
+
+        ImGui::BulletText("Notify Events: %d", CurrentSequence->GetNotifies().size());
+
+        //// 임시 정보 표시
+        //ImGui::Text("Name: MM_Animation_%d", SelectedAnimIndex);
+        //ImGui::Text("Length: 2.50 seconds (placeholder)");
+        //ImGui::Text("Frames: 75 frames (placeholder)");
+        //ImGui::Text("FPS: 30 (placeholder)");
+
+        //ImGui::Spacing();
+        //ImGui::Separator();
+        //ImGui::Spacing();
+
+        //// 상세 정보
+        //ImGui::Text("Details:");
+        //ImGui::BulletText("File Path: (not loaded)");
+        //ImGui::BulletText("Bone Tracks: 0");
+        //ImGui::BulletText("Notify Events: 0");
     }
     else
     {
