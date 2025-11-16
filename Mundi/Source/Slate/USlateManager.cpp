@@ -480,6 +480,11 @@ void USlateManager::Update(float DeltaSeconds)
         SkeletalViewerWindow->OnUpdate(DeltaSeconds);
     }
 
+    if (AnimSequenceViewerWindow)
+    {
+        AnimSequenceViewerWindow->OnUpdate(DeltaSeconds);
+    }
+
     // 콘솔 애니메이션 업데이트
     if (bIsConsoleAnimating)
     {

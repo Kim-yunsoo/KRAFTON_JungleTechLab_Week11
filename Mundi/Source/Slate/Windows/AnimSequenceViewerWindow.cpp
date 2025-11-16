@@ -157,6 +157,41 @@ void SAnimSequenceViewerWindow::OnRender()
 
 void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
 {
+    UE_LOG("[AnimSequenceViewer] OnUpdate");
+    // 타임라인 자동 재생
+    if (bIsPlaying && CurrentSequence)
+    {
+        // 시간 증가
+        CurrentTime += DeltaSeconds * PlayRate;
+
+        // 디버그: 1초마다 로그 출력
+        static float debugTimer = 0.0f;
+        debugTimer += DeltaSeconds;
+        if (debugTimer >= 1.0f)
+        {
+            UE_LOG("[AnimSequenceViewer] Playing - Time: %.2f / %.2f, Frame: %d / %d",
+                CurrentTime, PlayLength, CurrentFrame, TotalFrames);
+            debugTimer = 0.0f;
+        }
+
+        // 루프 처리
+        if (CurrentTime > PlayLength)
+        {
+            if(bLooping)
+            {
+                // 루프면 처음으로 되돌림
+                CurrentTime = fmod(CurrentTime, PlayLength);
+            }
+            else
+            {
+                // 루프 아님: 끝에서 정지
+                CurrentTime = PlayLength;
+                bIsPlaying = false;
+            }
+        }
+        // 프레임 업데이트
+        CurrentFrame = TimeToFrame(CurrentTime);
+    }
 	// Step 6: SkeletalViewer에 현재 시간 반영
 	ApplyToSkeletalViewer();
 }
@@ -385,8 +420,15 @@ void SAnimSequenceViewerWindow::RenderPlaybackControls()
         const char* playButtonText = bIsPlaying ? "||" : ">";
         if (ImGui::Button(playButtonText, ImVec2(ButtonWidth, 30)))
         {
-            // TODO: 재생/일시정지 토글
-            bIsPlaying = !bIsPlaying;
+            if (CurrentSequence)
+            {
+                bIsPlaying = !bIsPlaying;
+                UE_LOG("[AnimSequenceViewer] Play button clicked. bIsPlaying: %s", bIsPlaying ? "true" : "false");
+            }
+            else
+            {
+                UE_LOG("[AnimSequenceViewer] Cannot play: No animation selected");
+            }
         }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(bIsPlaying ? "Pause" : "Play");
