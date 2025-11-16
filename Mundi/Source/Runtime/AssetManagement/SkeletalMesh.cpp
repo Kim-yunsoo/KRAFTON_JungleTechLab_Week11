@@ -19,6 +19,29 @@ USkeletalMesh::~USkeletalMesh()
     ReleaseResources();
 }
 
+// Anim 정보만 있는 .fbx 파일을 스켈레탈메시로 변하는 것을 방지하기 위해서 오버로드한 함수
+void USkeletalMesh::Load(FSkeletalMeshData* InData, ID3D11Device* InDevice)
+{
+    if (Data) 
+    { 
+        ReleaseResources(); 
+    }
+
+    Data = InData;
+
+    if (!Data || Data->Vertices.empty() || Data->Indices.empty())
+    {
+        UE_LOG("ERROR: InitFromMeshData called with invalid mesh data");
+        return;
+    }
+
+    // GPU 버퍼 생성
+    CreateIndexBuffer(Data, InDevice);
+    VertexCount = static_cast<uint32>(Data->Vertices.size());
+    IndexCount = static_cast<uint32>(Data->Indices.size());
+    VertexStride = sizeof(FVertexDynamic);
+}
+
 void USkeletalMesh::Load(const FString& InFilePath, ID3D11Device* InDevice)
 {
     if (Data)
