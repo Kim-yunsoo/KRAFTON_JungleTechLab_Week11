@@ -114,6 +114,15 @@ void USkeletalMeshComponent::SetPose(const FPoseContext& Pose)
     }
 }
 
+void USkeletalMeshComponent::SetLocalSpacePose(const TArray<FTransform>& InPose)
+{
+    if (InPose.Num() == CurrentLocalSpacePose.Num())
+    {
+        CurrentLocalSpacePose = InPose;
+        ForceRecomputePose();
+    }
+}
+
 FTransform USkeletalMeshComponent::GetBoneLocalTransform(int32 BoneIndex) const
 {
     if (CurrentLocalSpacePose.Num() > BoneIndex)

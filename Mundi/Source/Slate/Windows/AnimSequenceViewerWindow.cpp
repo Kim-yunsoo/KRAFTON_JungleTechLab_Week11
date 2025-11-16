@@ -1,8 +1,11 @@
 ﻿#include "pch.h"
-#include "AnimSequenceViewerWindow.h"
 #include "USlateManager.h"
+#include "AnimSequenceViewerWindow.h"
 #include "Source/Runtime/Engine/SkeletalViewer/ViewerState.h"
-
+#include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
+#include "Source/Runtime/Engine/GameFramework/SkeletalMeshActor.h"
+#include "Source/Runtime/Engine/Animation/AnimSequence.h"
+#include "Source/Runtime/AssetManagement/SkeletalMesh.h"
 SAnimSequenceViewerWindow::SAnimSequenceViewerWindow()
 {
     // ResourceManager에서 모든 애니메이션 파일 경로 가져오기
@@ -845,13 +848,60 @@ ViewerState* SAnimSequenceViewerWindow::GetViewerState()
 
 void SAnimSequenceViewerWindow::ApplyToSkeletalViewer()
 {
-	ViewerState* State = GetViewerState();
-	if (!State)
-		return;
+    if (!CurrentSequence)
+    {
+        return;
+    }
 
-	// 현재 시간을 SkeletalViewer에 반영
+	ViewerState* State = GetViewerState();
+    if (!State)
+    {   
+        return;
+    }
+
+    // ViewerState에 시간 정보 전달
 	State->CurrentTime = CurrentTime;
 	State->bIsPlaying = bIsPlaying;
 	State->PlayRate = PlayRate;
+
+    // 실제 애니메이션 포즈 적용
+    if (State->PreviewActor && State->PreviewActor->GetSkeletalMeshComponent())
+    {
+        USkeletalMeshComponent* SkelComp = State->PreviewActor->GetSkeletalMeshComponent();
+        USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMesh();
+
+        if (SkelMesh && SkelMesh->GetSkeletalMeshData())
+        {
+            const FSkeleton& Skeleton = SkelMesh->GetSkeletalMeshData()->Skeleton;
+            int32 BoneCount = Skeleton.Bones.Num();
+
+            // 애니메이션 시퀀스로부터 포즈 평가
+            UAnimSequence* AnimSeq = Cast<UAnimSequence>(CurrentSequence);
+            if (AnimSeq)
+            {
+                TArray<FTransform> BonePoses;
+                BonePoses.resize(BoneCount);
+
+                // 레퍼런스 포즈로 초기화 (BindPose를 FTransform으로 변환)
+                for (int32 i = 0; i < BoneCount; ++i)
+                {
+                    BonePoses[i] = FTransform(Skeleton.Bones[i].BindPose);
+                }
+
+                // 애니메이션 트랙 데이터로 오버라이드
+                float FrameRate = AnimSeq->GetFrameRate();
+                for (const FBoneAnimationTrack& Track : AnimSeq->GetBoneTracks())
+                {
+                    if (Track.BoneIndex >= 0 && Track.BoneIndex < BoneCount)
+                    {
+                        BonePoses[Track.BoneIndex] = Track.InternalTrack.GetTransform(FrameRate, CurrentTime);
+                    }
+                }
+
+                // SkeletalMeshComponent에 포즈 직접 설정 (뷰어 모드)
+                SkelComp->SetLocalSpacePose(BonePoses);
+            }
+        }
+    }
 }
 
