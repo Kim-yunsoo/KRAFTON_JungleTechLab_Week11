@@ -3,6 +3,14 @@
 #include <d3d11.h>
 #include <dxgi.h>
 
+// Forward declarations to keep this header light
+struct ID2D1Factory1;
+struct ID2D1Device;
+struct ID2D1DeviceContext;
+struct IDWriteFactory;
+struct ID2D1Bitmap1;
+struct ID2D1SolidColorBrush;
+
 class UStatsOverlayD2D
 {
 public:
@@ -45,6 +53,7 @@ private:
 
     void EnsureInitialized();
     void ReleaseD2DTarget();
+    void RecreateTargetBitmapIfNeeded();
 
 private:
     bool bInitialized = false;
@@ -60,4 +69,17 @@ private:
     ID3D11Device* D3DDevice = nullptr;
     ID3D11DeviceContext* D3DContext = nullptr;
     IDXGISwapChain* SwapChain = nullptr;
+
+    // Cached D2D/DWrite resources (created once, reused every frame)
+    ID2D1Factory1* D2dFactory = nullptr;
+    ID2D1Device* D2dDevice = nullptr;
+    ID2D1DeviceContext* D2dCtx = nullptr;
+    IDWriteFactory* Dwrite = nullptr;
+    ID2D1Bitmap1* TargetBmp = nullptr; // Backbuffer-wrapped target bitmap
+    ID2D1SolidColorBrush* BrushFill = nullptr; // reusable brush (color set per use)
+    ID2D1SolidColorBrush* BrushText = nullptr; // reusable brush (color set per use)
+
+    // Track backbuffer size to recreate target on resize
+    UINT BackBufferW = 0;
+    UINT BackBufferH = 0;
 };
