@@ -12,6 +12,20 @@ public:
 	virtual ~UAnimTransition() = default;
 	bool CanEnter() const { return Condition(); }
 
+	void SetRoot(UAnimState* InFrom, UAnimState* InTo)
+	{
+		From = InFrom;
+		To = InTo;
+	}
+
+	void SetBlendTime(const float InBlendTime)
+	{
+		BlendTime = InBlendTime;
+	}
+	void SetCondition(const std::function<bool()> InCondition)
+	{
+		Condition = InCondition;
+	}
 public:
 	UAnimState* From;
 	UAnimState* To;

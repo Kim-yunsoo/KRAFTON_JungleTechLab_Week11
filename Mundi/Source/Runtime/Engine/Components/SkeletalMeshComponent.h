@@ -58,6 +58,9 @@ public:
     UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
     bool bMove = false;
 
+    UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
+    float TestSpeed = 0;
+
 protected:
     /**
      * @brief CurrentLocalSpacePose의 변경사항을 ComponentSpace -> FinalMatrices 계산까지 모두 수행

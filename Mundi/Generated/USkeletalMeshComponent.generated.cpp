@@ -37,6 +37,7 @@ BEGIN_PROPERTIES(USkeletalMeshComponent)
     MARK_AS_COMPONENT("스켈레탈 메시 컴포넌트", "스켈레탈 메시를 렌더링하는 컴포넌트입니다")
     ADD_PROPERTY_RANGE(float, TestBlend, "SkeletalComponent", 0.0f, 1.0f, true)
     ADD_PROPERTY(bool, bMove, "SkeletalComponent", true)
+    ADD_PROPERTY(float, TestSpeed, "SkeletalComponent", true)
 END_PROPERTIES()
 
 // ===== Lua Binding =====

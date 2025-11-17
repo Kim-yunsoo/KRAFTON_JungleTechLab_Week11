@@ -16,6 +16,10 @@ public:
 	void ChangeState(UAnimState* AnimState, UAnimTransition* AnimTransition);
 	void ChangeState(UAnimState* AnimState, float InTransitionTime);
 
+	UAnimState* AddState(const FString& InName, UAnimSequence* Sequence);
+	UAnimTransition* AddTransition(const FString& StartStateName, const FString& EndStateName);
+	void SetStartState(const FString& StartStateName, const float InBlendTime = 0.0f);
+
 	void SetOwner(USkeletalMeshComponent* InOwner)
 	{
 		OwnerComponent = InOwner;
@@ -46,7 +50,7 @@ protected:
 	virtual void NativeUpdateAnimation(float DeltaSeconds);
 	float CurrentTime = 0;
 	float PrevTime = 0;
-	float Speed = 1;
+	float Speed = -1;
 	bool bLoop = false;
 	bool bPlay = false;
 	USkeletalMeshComponent* OwnerComponent = nullptr;
