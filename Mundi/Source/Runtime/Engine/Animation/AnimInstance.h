@@ -1,34 +1,45 @@
 ﻿#pragma once
 #include "Source/Runtime/Core/Object/Object.h"
 #include "Source/Runtime/Engine/Animation/AnimSequence.h"
-#include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
 #include "Source/Runtime/Engine/Animation/AnimStateMachine.h"
 #include "UAnimInstance.generated.h"
+
+class USkeletalMeshComponent;
 
 class UAnimInstance : public UObject
 {
 	GENERATED_REFLECTION_BODY()
 public:
 	UAnimInstance();
-	virtual ~UAnimInstance() = default;
+	virtual ~UAnimInstance();
 	void TriggerAnimNotifies(float DeltaSeconds);
-	void Tick(float DeltaSeconds);
+	virtual void Tick(float DeltaSeconds);
 	void ChangeState(UAnimState* AnimState, UAnimTransition* AnimTransition);
 	void ChangeState(UAnimState* AnimState, float InTransitionTime);
 
 	UAnimState* AddState(const FString& InName, UAnimSequence* Sequence);
+
+	UFUNCTION(LuaBind, DisplayName = "AddState")
+	UAnimState* AddState(const FString& InName, const FString& AnimPath);
+
+	UFUNCTION(LuaBind, DisplayName = "AddTransition")
 	UAnimTransition* AddTransition(const FString& StartStateName, const FString& EndStateName);
-	void SetStartState(const FString& StartStateName, const float InBlendTime = 0.0f);
+
+	UFUNCTION(LuaBind, DisplayName = "SetStartState")
+	void SetStartState(const FString& StartStateName);
 
 	void SetOwner(USkeletalMeshComponent* InOwner)
 	{
 		OwnerComponent = InOwner;
 	}
+
+	UFUNCTION(LuaBind, DisplayName = "SetLoop")
 	void SetLoop(const bool InLoop)
 	{
 		bLoop = InLoop;
 	}
+	UFUNCTION(LuaBind, DisplayName = "SetSpeed")
 	void SetSpeed(const float InSpeed)
 	{
 		Speed = InSpeed;
@@ -37,9 +48,21 @@ public:
 	{
 		CurrentTime = InTime;
 	}
-	void SetPlay(const bool InPlay)
+	UFUNCTION(LuaBind, DisplayName = "Play")
+	void Play()
 	{
-		bPlay = InPlay;
+		bPlay = true;
+	}
+	UFUNCTION(LuaBind, DisplayName = "Pause")
+	void Pause()
+	{
+		bPlay = false;
+	}
+	UFUNCTION(LuaBind, DisplayName = "Replay")
+	void Replay()
+	{
+		bPlay = true;
+		CurrentTime = 0;
 	}
 	UAnimStateMachine& GetStateMachine()
 	{
@@ -51,7 +74,7 @@ protected:
 	virtual void NativeUpdateAnimation(float DeltaSeconds);
 	float CurrentTime = 0;
 	float PrevTime = 0;
-	float Speed = -1;
+	float Speed = 1;
 	bool bLoop = false;
 	bool bPlay = false;
 	USkeletalMeshComponent* OwnerComponent = nullptr;

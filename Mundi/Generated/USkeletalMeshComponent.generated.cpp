@@ -38,6 +38,7 @@ BEGIN_PROPERTIES(USkeletalMeshComponent)
     ADD_PROPERTY_RANGE(float, TestBlend, "SkeletalComponent", 0.0f, 1.0f, true)
     ADD_PROPERTY(bool, bMove, "SkeletalComponent", true)
     ADD_PROPERTY(float, TestSpeed, "SkeletalComponent", true)
+    ADD_PROPERTY(UAnimInstance*, AnimInstance, "SkeletalComponent", true)
 END_PROPERTIES()
 
 // ===== Lua Binding =====
@@ -46,7 +47,9 @@ extern "C" void LuaBind_Anchor_USkeletalMeshComponent() {}
 
 LUA_BIND_BEGIN(USkeletalMeshComponent)
 {
-    // No functions to bind
+    AddMethodR<UAnimInstance*, USkeletalMeshComponent>(
+        T, "GetAnimInstance", &USkeletalMeshComponent::GetAnimInstance);
+    AddAlias<USkeletalMeshComponent, const FString&, bool>(
+        T, "PlayAnimation", &USkeletalMeshComponent::PlayAnimation);
 }
 LUA_BIND_END()
-

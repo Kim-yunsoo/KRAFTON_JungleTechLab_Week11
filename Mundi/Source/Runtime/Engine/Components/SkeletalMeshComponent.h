@@ -1,10 +1,11 @@
 ﻿#pragma once
 #include "SkinnedMeshComponent.h"
-#include "USkeletalMeshComponent.generated.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
+#include "Source/Runtime/Engine/Animation/AnimInstance.h"
+
+#include "USkeletalMeshComponent.generated.h"
 
 // 전방 선언
-class UAnimInstance;
 class UAnimSequence;
 struct FAnimNotifyEvent;
 enum class EAnimationMode : uint8;
@@ -44,7 +45,13 @@ public:
      * @brief 기즈모를 렌더링하기 위해 특정 뼈의 월드 트랜스폼을 계산
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
-    void PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop);
+
+    UFUNCTION(LuaBind, DisplayName = "GetAnimInstance")
+    UAnimInstance* GetAnimInstance();
+
+    UFUNCTION(LuaBind, DisplayName = "PlayAnimation")
+    void PlayAnimation(const FString& AnimPath, bool bLoop);
+    void DuplicateSubObjects() override;
 
 public:
     UPROPERTY(EditAnywhere, Category = "SkeletalComponent", Range = "0.0, 1.0")
@@ -93,6 +100,7 @@ protected:
     TArray<FMatrix> TempFinalSkinningNormalMatrices;
 
 private:
+    UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
     UAnimInstance* AnimInstance = nullptr;
 
 // FOR TEST!!!

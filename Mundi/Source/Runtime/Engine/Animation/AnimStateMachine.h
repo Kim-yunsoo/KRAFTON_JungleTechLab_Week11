@@ -12,7 +12,7 @@ class UAnimStateMachine : public UObject
 
 public:
 	UAnimStateMachine() = default;
-	virtual ~UAnimStateMachine() = default;
+	virtual ~UAnimStateMachine();
 	void SetOwner(UAnimInstance* InOwner)
 	{
 		Owner = InOwner;

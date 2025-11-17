@@ -8,8 +8,8 @@ class UAnimState : public UObject
 {
 	GENERATED_REFLECTION_BODY()
 public:
-	UAnimState() = default;
-	virtual ~UAnimState() = default;
+	UAnimState();
+	virtual ~UAnimState();
 
 	void SetName(const FString& InName)
 	{
