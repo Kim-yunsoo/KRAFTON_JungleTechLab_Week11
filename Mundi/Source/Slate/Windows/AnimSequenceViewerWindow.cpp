@@ -161,6 +161,15 @@ void SAnimSequenceViewerWindow::OnRender()
     // 윈도우 시작 (사용자가 X버튼 누르면 bIsOpen이 false가 됨)
     if (ImGui::Begin("Animation Sequence Viewer", &bIsOpen))
     {
+        // 윈도우 Rect 업데이트 (마우스 이벤트 라우팅용)
+        ImVec2 WindowPos = ImGui::GetWindowPos();
+        ImVec2 WindowSize = ImGui::GetWindowSize();
+        Rect.Left = WindowPos.x;
+        Rect.Top = WindowPos.y;
+        Rect.Right = WindowPos.x + WindowSize.x;
+        Rect.Bottom = WindowPos.y + WindowSize.y;
+        Rect.UpdateMinMax();
+
         ImVec2 ContentAvail = ImGui::GetContentRegionAvail();
         float TotalWidth = ContentAvail.x;
         float TotalHeight = ContentAvail.y;

@@ -633,6 +633,13 @@ void USlateManager::OnMouseMove(FVector2D MousePos)
         return;
     }
 
+    // Route to AnimSequenceViewerWindow if hovered
+    if (AnimSequenceViewerWindow && AnimSequenceViewerWindow->IsOpen() && AnimSequenceViewerWindow->IsHover(MousePos))
+    {
+        AnimSequenceViewerWindow->OnMouseMove(MousePos);
+        return;
+    }
+
     if (ActiveViewport)
     {
         ActiveViewport->OnMouseMove(MousePos);
@@ -650,7 +657,14 @@ void USlateManager::OnMouseDown(FVector2D MousePos, uint32 Button)
         SkeletalViewerWindow->OnMouseDown(MousePos, Button);
         return;
     }
-    
+
+    // Route to AnimSequenceViewerWindow if clicked inside
+    if (AnimSequenceViewerWindow && AnimSequenceViewerWindow->IsOpen() && AnimSequenceViewerWindow->GetRect().Contains(MousePos))
+    {
+        AnimSequenceViewerWindow->OnMouseDown(MousePos, Button);
+        return;
+    }
+
     if (ActiveViewport)
     {
     }
@@ -689,6 +703,13 @@ void USlateManager::OnMouseUp(FVector2D MousePos, uint32 Button)
     if (SkeletalViewerWindow && SkeletalViewerWindow->Rect.Contains(MousePos))
     {
         SkeletalViewerWindow->OnMouseUp(MousePos, Button);
+        // do not return; still allow panels to finish mouse up
+    }
+
+    // Route to AnimSequenceViewerWindow
+    if (AnimSequenceViewerWindow && AnimSequenceViewerWindow->IsOpen() && AnimSequenceViewerWindow->GetRect().Contains(MousePos))
+    {
+        AnimSequenceViewerWindow->OnMouseUp(MousePos, Button);
         // do not return; still allow panels to finish mouse up
     }
 
