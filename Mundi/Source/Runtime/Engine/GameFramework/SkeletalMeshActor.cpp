@@ -45,26 +45,29 @@ void ASkeletalMeshActor::BeginPlay()
             }
         }
 
-        // Sequence-aware dispatch using sequence key (string)
-        Comp->OnAnimNotify.Add([this](const FAnimNotifyEvent& Event, const FString& SeqKey)
-        {
-            if (!SeqKey.empty())
-            {
-                if (auto* MapForSeq = NotifyHandlersBySeq.Find(SeqKey))
-                {
-                    if (auto* Fn = MapForSeq->Find(Event.NotifyName))
-                    {
-                        (*Fn)(Event);
-                    }
-                }
-            }
-        });
+        // Sequence-aware dispatch using member function (clean binding)
+        Comp->OnAnimNotify.AddDynamic(this, &ASkeletalMeshActor::OnAnimNotifyDispatch);
     }
 }
 
 void ASkeletalMeshActor::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+}
+
+void ASkeletalMeshActor::OnAnimNotifyDispatch(const FAnimNotifyEvent& Event, const FString& SeqKey)
+{
+    if (SeqKey.empty())
+    {
+        return;
+    }
+    if (auto* MapForSeq = NotifyHandlersBySeq.Find(SeqKey))
+    {
+        if (auto* Fn = MapForSeq->Find(Event.NotifyName))
+        {
+            (*Fn)(Event);
+        }
+    }
 }
 
 FAABB ASkeletalMeshActor::GetBounds() const

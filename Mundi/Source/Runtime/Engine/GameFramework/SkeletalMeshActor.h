@@ -86,4 +86,7 @@ protected:
 
     // Lazily create viewer-only components (BoneLineComponent, BoneAnchor) if in preview world
     void EnsureViewerComponents();
+
+    // Anim notify dispatcher (bound to component delegate)
+    void OnAnimNotifyDispatch(const struct FAnimNotifyEvent& Event, const FString& SeqKey);
 };
