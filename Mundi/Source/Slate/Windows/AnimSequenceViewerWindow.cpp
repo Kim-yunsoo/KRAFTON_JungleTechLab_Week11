@@ -892,30 +892,42 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
     // ============================================================
     // 2. 스크롤 가능한 트랙 영역 (Notify + Timeline 함께 스크롤)
     // ============================================================
-    ImGui::BeginChild("ScrollableTracks", ImVec2(0, ScrollableHeight), false);
+    // 부모 스크롤 영역 (실제 스크롤바를 표시)
+    ImGui::BeginChild("ScrollableTracks", ImVec2(0, ScrollableHeight), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
     {
         int32 VisibleTrackCount = FMath::Max(NotifyTrackIndices.Num(), 8); // 최소 8개 트랙 높이
+        float ContentHeight = RowHeight * VisibleTrackCount;
+
+        // 부모의 현재 스크롤 위치 가져오기
+        float ScrollY = ImGui::GetScrollY();
 
         // 좌측 Notify 컬럼과 우측 Timeline 컬럼을 같이 렌더링
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-        // 좌측: Notify 트랙 번호 컬럼
-        ImGui::BeginChild("NotifyColumn", ImVec2(NotifyColumnWidth, RowHeight * VisibleTrackCount), true, ImGuiWindowFlags_NoScrollbar);
+        // 화면 위치 고정을 위해 SetCursorScreenPos 사용
+        ImVec2 BasePos = ImGui::GetCursorScreenPos();
+
+        // 좌측: Notify 트랙 번호 컬럼 (고정 위치, 스크롤 오프셋 적용)
+        ImGui::SetCursorScreenPos(ImVec2(BasePos.x, BasePos.y - ScrollY));
+        ImGui::BeginChild("NotifyColumn", ImVec2(NotifyColumnWidth, ContentHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
         {
             RenderNotifyTrackColumn(NotifyColumnWidth, RowHeight, VisibleTrackCount);
         }
         ImGui::EndChild();
 
-        ImGui::SameLine(0, 0);
-
-        // 우측: Timeline 컬럼
-        ImGui::BeginChild("TimelineColumn", ImVec2(TimelineColumnWidth, RowHeight * VisibleTrackCount), true, ImGuiWindowFlags_NoScrollbar);
+        // 우측: Timeline 컬럼 (고정 위치, 스크롤 오프셋 적용)
+        ImGui::SetCursorScreenPos(ImVec2(BasePos.x + NotifyColumnWidth, BasePos.y - ScrollY));
+        ImGui::BeginChild("TimelineColumn", ImVec2(TimelineColumnWidth, ContentHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
         {
             RenderTimelineColumn(TimelineColumnWidth, RowHeight, VisibleTrackCount);
         }
         ImGui::EndChild();
 
         ImGui::PopStyleVar();
+
+        // 더미 아이템으로 스크롤 가능한 영역 설정
+        ImGui::SetCursorPos(ImVec2(0, ContentHeight));
+        ImGui::Dummy(ImVec2(0, 0));
     }
     ImGui::EndChild();
 
