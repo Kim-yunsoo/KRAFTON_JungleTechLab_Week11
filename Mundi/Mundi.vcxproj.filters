@@ -102,6 +102,9 @@
     <ClCompile Include="Source\Runtime\Engine\Components\LuaScriptComponent.cpp">
       <Filter>Source\Runtime\Engine\Components</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Components\InputComponent.cpp">
+      <Filter>Source\Runtime\Engine\Components</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\Components\MovementComponent.cpp">
       <Filter>Source\Runtime\Engine\Components</Filter>
     </ClCompile>
@@ -139,6 +142,9 @@
       <Filter>Source\Runtime\Engine\GameFramework\Camera</Filter>
     </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp">
       <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\GameFramework\GameEngine.cpp">
@@ -672,6 +678,30 @@
       <Filter>Source\Runtime\Engine\Animation</Filter>
     </ClCompile>
   </ItemGroup>
+    <ClCompile Include="Generated\ACharacter.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\AController.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\APawn.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\UInputComponent.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\APlayerController.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\Character.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\Pawn.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\Controller.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Game\JamesCharacter.cpp">
+      <Filter>Source\Runtime\Engine\Game</Filter>
+    </ClCompile>
+  <ClCompile Include="Generated\AJamesCharacter.generated.cpp"><Filter>Generated</Filter></ClCompile><ClCompile Include="Generated\AJamesGameMode.generated.cpp"><Filter>Generated</Filter></ClCompile></ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h">
@@ -705,6 +735,9 @@
       <Filter>Source\Runtime\Engine\Components</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Components\LuaScriptComponent.h">
+      <Filter>Source\Runtime\Engine\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Components\InputComponent.h">
       <Filter>Source\Runtime\Engine\Components</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Components\MovementComponent.h">
@@ -744,6 +777,9 @@
       <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerCameraManager.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h">
       <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\GameFramework\DirectionalLightActor.h">
@@ -1434,6 +1470,30 @@
       <Filter>Source\Runtime\Engine\Animation</Filter>
     </ClInclude>
   </ItemGroup>
+    <ClInclude Include="Generated\ACharacter.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\AController.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\APawn.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\UInputComponent.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\APlayerController.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\Character.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\Pawn.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\Controller.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Game\JamesCharacter.h">
+      <Filter>Source\Runtime\Engine\Game</Filter>
+    </ClInclude>
+  <ClInclude Include="Generated\AJamesCharacter.generated.h"><Filter>Generated</Filter></ClInclude><ClInclude Include="Generated\AJamesGameMode.generated.h"><Filter>Generated</Filter></ClInclude></ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">
       <UniqueIdentifier>{5795df92-1510-45f1-8bda-7ed2d162568b}</UniqueIdentifier>
@@ -1574,7 +1634,10 @@
       <UniqueIdentifier>{01b0aa4d-539f-4b06-821e-02d582bc9577}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Runtime\Engine\Animation">
-      <UniqueIdentifier>{1fbd34eb-285f-42d0-82a8-a1142b0f7a04}</UniqueIdentifier>
+	  <UniqueIdentifier>{1fbd34eb-285f-42d0-82a8-a1142b0f7a04}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Runtime\Engine\Game">
+      <UniqueIdentifier>{76a47ef2-a9dc-4925-9c22-23a8f29a6701}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
