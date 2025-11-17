@@ -3,10 +3,12 @@
 #include "LuaComponentProxy.h"
 #include "GameObject.h"
 #include "ObjectIterator.h"
+#include "Source/Runtime/Engine/Animation/AnimSequenceBase.h"
 #include "CameraActor.h"
 #include "CameraComponent.h"
 #include "PlayerCameraManager.h"
 #include <tuple>
+#include "Source/Runtime/Engine/Animation/NotifyDispatcher.h"
 
 sol::object MakeCompProxy(sol::state_view SolState, void* Instance, UClass* Class) {
     BuildBoundClass(Class);
@@ -593,6 +595,10 @@ void FLuaManager::Tick(double DeltaSeconds)
 
 void FLuaManager::ShutdownBeforeLuaClose()
 {
+    // Ensure no C++ dispatcher holds Lua functions after VM shutdown
+    FNotifyDispatcher::Get().Enable(false);
+    FNotifyDispatcher::Get().Clear();
+
     CoroutineSchedular.ShutdownBeforeLuaClose();
     
     FLuaBindRegistry::Get().Reset();
@@ -617,3 +623,63 @@ sol::protected_function FLuaManager::GetFunc(sol::environment& Env, const char* 
     
     return Func;
 }
+void FLuaManager::LoadNotifyConfig()
+{
+    sol::environment Env = this->CreateEnvironment();
+    const FString ConfigPath = "Data/Scripts/NotifyConfig.lua";
+    // Reset previous handlers to avoid duplicates and to handle hot-reload safely
+    FNotifyDispatcher::Get().Clear();
+    if (!this->LoadScriptInto(Env, ConfigPath))
+    {
+        UE_LOG("[Lua] Failed to load %s", ConfigPath.c_str());
+        return;
+    }
+    sol::object CfgObj = Env["NotifyConfig"];
+    if (!(CfgObj.valid() && CfgObj.get_type() == sol::type::table))
+    {
+        UE_LOG("[Lua] NotifyConfig table missing or invalid in %s", ConfigPath.c_str());
+        return;
+    }
+    sol::table Cfg = CfgObj.as<sol::table>();
+    for (auto& kv : Cfg)
+    {
+        sol::object KeyObj = kv.first;
+        sol::object SubObj = kv.second;
+        if (!KeyObj.is<std::string>() || !SubObj.is<sol::table>()) continue;
+        const std::string SeqKey = KeyObj.as<std::string>();
+        sol::table Sub = SubObj.as<sol::table>();
+        for (auto& subkv : Sub)
+        {
+            sol::object NameObj = subkv.first;
+            sol::object FuncObj = subkv.second;
+            if (!NameObj.is<std::string>() || !FuncObj.is<sol::function>()) continue;
+            const std::string NotifyName = NameObj.as<std::string>();
+            sol::protected_function LuaFunc = FuncObj.as<sol::protected_function>();
+            FNotifyDispatcher::Get().Register(
+                SeqKey,
+                FName(NotifyName.c_str()),
+                [LuaFunc](const FAnimNotifyEvent& Ev) mutable
+                {
+                    // Guard: dispatcher may be disabled during teardown
+                    if (!FNotifyDispatcher::Get().IsEnabled()) { return; }
+                    sol::state_view SV(LuaFunc.lua_state());
+                    sol::table EventTbl = SV.create_table();
+                    EventTbl["TriggerTime"] = Ev.TriggerTime;
+                    EventTbl["Duration"] = Ev.Duration;
+                    EventTbl["Name"] = Ev.NotifyName.ToString();
+                    sol::protected_function_result R = LuaFunc(EventTbl);
+                    if (!R.valid())
+                    {
+                        sol::error Err = R;
+                        UE_LOG("[Lua][error] Notify handler failed: %s", Err.what());
+                    }
+                }
+            );
+        }
+    }
+    UE_LOG("[Lua] NotifyConfig loaded and registered globally");
+    FNotifyDispatcher::Get().Enable(true);
+}
+
+
+

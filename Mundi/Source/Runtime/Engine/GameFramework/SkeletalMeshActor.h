@@ -51,8 +51,6 @@ public:
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
 protected:
-    // Per-sequence notify handlers: SequenceName -> (NotifyName -> Handler(Event))
-    TMap<FString, TMap<FName, std::function<void(const FAnimNotifyEvent&)>>> NotifyHandlersBySeq;
 
     // 스켈레탈 메시를 실제로 렌더링하는 컴포넌트 (미리뷰/프리뷰 액터의 루트로 사용)
     USkeletalMeshComponent* SkeletalMeshComponent = nullptr;
@@ -87,6 +85,8 @@ protected:
     // Lazily create viewer-only components (BoneLineComponent, BoneAnchor) if in preview world
     void EnsureViewerComponents();
 
-    // Anim notify dispatcher (bound to component delegate)
+    // Forward component notify to global dispatcher; actor keeps no logic.
     void OnAnimNotifyDispatch(const struct FAnimNotifyEvent& Event, const FString& SeqKey);
+
+    // (Notify dispatch is handled globally by LuaManager/NotifyDispatcher.)
 };

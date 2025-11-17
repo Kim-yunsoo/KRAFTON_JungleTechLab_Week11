@@ -97,12 +97,18 @@ void UWorld::Initialize()
 		Partition = std::make_unique<UWorldPartitionManager>();
 	}
 
-	// 기본 씬을 생성합니다.
-	CreateLevel();
+    // 기본 씬을 생성합니다.
+    CreateLevel();
 
-	// 에디터 전용 액터들을 초기화합니다.
-	InitializeGrid();
-	InitializeGizmo();
+    // 에디터 전용 액터들을 초기화합니다.
+    InitializeGrid();
+    InitializeGizmo();
+
+    // Load global AnimNotify handlers from Lua once at startup (PIE/game only)
+    if (LuaManager)
+    {
+        LuaManager->LoadNotifyConfig();
+    }
 }
 
 void UWorld::InitializeGrid()

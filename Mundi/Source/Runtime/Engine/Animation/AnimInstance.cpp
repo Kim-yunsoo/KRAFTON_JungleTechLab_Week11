@@ -1,6 +1,8 @@
 ﻿#include "pch.h"
+#include "pch.h"
 #include "Source/Runtime/Engine/Animation/AnimInstance.h"
 
+#include "Source/Runtime/Engine/Animation/NotifyDispatcher.h"
 IMPLEMENT_CLASS(UAnimInstance)
 UAnimInstance::UAnimInstance()
 {
@@ -54,8 +56,9 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 
     for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
     {
-        // Broadcast via component delegate for game-side handling with sequence key
+        // Component-level delegate; actor or systems can forward to dispatcher/blueprints/etc.
         OwnerComponent->OnAnimNotify.Broadcast(Notify, SequenceKey);
+        FNotifyDispatcher::Get().Dispatch(SequenceKey, Notify);
     }
 }
 

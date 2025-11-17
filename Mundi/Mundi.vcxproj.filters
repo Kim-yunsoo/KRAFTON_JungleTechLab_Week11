@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <FxCompile Include="Shaders\Materials\Fireball.hlsl">
@@ -56,6 +56,9 @@
       <Filter>Shaders\UI</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\PostProcess\GammaCorrection_PS.hlsl" />
+    <ClCompile Include="Source\Runtime\Engine\Animation\NotifyDispatcher.cpp">
+      <Filter>Source\Runtime\Engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -671,7 +674,10 @@
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimStateMachine.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimTransition.cpp" />
     <ClCompile Include="Source\Slate\Windows\AnimSequenceViewerWindow.cpp" />
-  <ClCompile Include="Generated\UMyAnimInstance.generated.cpp"><Filter>Generated</Filter></ClCompile></ItemGroup>
+    <ClCompile Include="Generated\UMyAnimInstance.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+  </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\Notifies\AnimNotify.h">
@@ -1433,7 +1439,10 @@
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimStateMachine.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimTransition.h" />
     <ClInclude Include="Source\Slate\Windows\AnimSequenceViewerWindow.h" />
-  <ClInclude Include="Generated\UMyAnimInstance.generated.h"><Filter>Generated</Filter></ClInclude></ItemGroup>
+    <ClInclude Include="Generated\UMyAnimInstance.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+  </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">
       <UniqueIdentifier>{5795df92-1510-45f1-8bda-7ed2d162568b}</UniqueIdentifier>
@@ -1583,13 +1592,15 @@
   <ItemGroup>
     <Text Include="BuildTools\CodeGenerator\requirements.txt" />
   </ItemGroup>
-  
   <ItemGroup>
     <ClCompile Include="Source\Runtime\Core\Misc\CrashHandler.cpp">
       <Filter>Source\Runtime\Core\Misc</Filter>
     </ClCompile>
     <ClInclude Include="Source\Runtime\Core\Misc\CrashHandler.h">
       <Filter>Source\Runtime\Core\Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Animation\NotifyDispatcher.h">
+      <Filter>Source\Runtime\Engine</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
