@@ -75,6 +75,44 @@ bool SAnimSequenceViewerWindow::Initialize(UWorld* InWorld, ID3D11Device* InDevi
 	return true;
 }
 
+void SAnimSequenceViewerWindow::SetSkeletalMeshPath(const char* MeshPath)
+{
+	if (!PreviewState || !MeshPath || MeshPath[0] == '\0')
+	{
+		return;
+	}
+
+	// MeshPathBuffer에 경로 복사
+	strncpy_s(PreviewState->MeshPathBuffer, MeshPath, sizeof(PreviewState->MeshPathBuffer) - 1);
+	PreviewState->MeshPathBuffer[sizeof(PreviewState->MeshPathBuffer) - 1] = '\0';
+
+	// 즉시 스켈레탈 메시 로드
+	if (PreviewState->PreviewActor)
+	{
+		ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
+		if (PreviewActor)
+		{
+			PreviewActor->SetSkeletalMesh(MeshPath);
+			UE_LOG("[AnimSequenceViewer] Skeletal mesh set from outliner: %s", MeshPath);
+
+			// 현재 애니메이션이 있으면 다시 재생
+			if (CurrentSequence)
+			{
+				UAnimSequence* AnimSequence = Cast<UAnimSequence>(CurrentSequence);
+				if (AnimSequence)
+				{
+					USkeletalMeshComponent* SkeletalMeshComp = PreviewActor->GetSkeletalMeshComponent();
+					if (SkeletalMeshComp)
+					{
+						SkeletalMeshComp->SetVisibility(true);
+						SkeletalMeshComp->PlayAnimation(AnimSequence, bLooping);
+					}
+				}
+			}
+		}
+	}
+}
+
 void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
 {
     if (!Sequence)
@@ -99,35 +137,24 @@ void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
     UE_LOG("[AnimSequenceViewer] Loaded: %s (Length: %.2fs, Frames: %d)",
         Sequence->GetFilePath().c_str(), PlayLength, TotalFrames);
 
-    // PreviewActor에 스켈레탈 메시 및 애니메이션 설정
+    // PreviewActor에 애니메이션 재생
+    // 참고: 스켈레탈 메시는 이미 SetSkeletalMeshPath()에서 설정되어 있음
     if (PreviewState && PreviewState->PreviewActor)
     {
         ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
         if (PreviewActor)
         {
-            // 스켈레탈 메시 설정 (X Bot 사용)
-            // TODO: 애니메이션에서 참조하는 스켈레탈 메시 경로를 가져오도록 개선 필요
-            PreviewActor->SetSkeletalMesh("Data/X Bot.fbx");
-            UE_LOG("[AnimSequenceViewer] Set skeletal mesh: Data/X Bot.fbx");
-
             USkeletalMeshComponent* SkeletalMeshComp = PreviewActor->GetSkeletalMeshComponent();
             if (SkeletalMeshComp)
             {
-                // 가시성 확인
-                SkeletalMeshComp->SetVisibility(true);
-                UE_LOG("[AnimSequenceViewer] SkeletalMeshComponent visibility set to true");
-
-                // 애니메이션 재생 설정
+                // 애니메이션 재생
                 SkeletalMeshComp->PlayAnimation(Sequence, bLooping);
-                UE_LOG("[AnimSequenceViewer] Play animation started");
-
-                // 액터 위치 확인
-                FVector ActorLoc = PreviewActor->GetActorLocation();
-                UE_LOG("[AnimSequenceViewer] PreviewActor location: (%.2f, %.2f, %.2f)", ActorLoc.X, ActorLoc.Y, ActorLoc.Z);
+                SkeletalMeshComp->SetVisibility(true);
+                UE_LOG("[AnimSequenceViewer] Playing animation on existing skeletal mesh");
             }
             else
             {
-                UE_LOG("[AnimSequenceViewer] ERROR: SkeletalMeshComponent is null");
+                UE_LOG("[AnimSequenceViewer] WARNING: No skeletal mesh loaded. Please select a skeletal mesh from the outliner first.");
             }
         }
         else
@@ -140,11 +167,6 @@ void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
         UE_LOG("[AnimSequenceViewer] ERROR: PreviewState or PreviewActor is null");
     }
 }
-
-//void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
-//{
-//	
-//}
 
 void SAnimSequenceViewerWindow::OnRender()
 {

@@ -27,6 +27,9 @@ public:
 	// 애니메이션 로드
 	void LoadAnimSquence(UAnimSequence* Sequence);
 
+	// 스켈레탈 메시 경로 설정
+	void SetSkeletalMeshPath(const char* MeshPath);
+
 	// 윈도우 상태
 	bool IsOpen() const { return bIsOpen; }
 	void Close() { bIsOpen = false; }

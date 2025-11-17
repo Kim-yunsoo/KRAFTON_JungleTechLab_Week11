@@ -224,6 +224,21 @@ void USlateManager::OpenAnimSequenceViewer()
     }
 }
 
+void USlateManager::OpenAnimSequenceViewerWithMesh(const char* MeshPath)
+{
+    if (!AnimSequenceViewerWindow)
+    {
+        AnimSequenceViewerWindow = new SAnimSequenceViewerWindow();
+        AnimSequenceViewerWindow->Initialize(World, Device);
+    }
+
+    // Set the skeletal mesh path for the viewer
+    if (AnimSequenceViewerWindow && MeshPath && MeshPath[0] != '\0')
+    {
+        AnimSequenceViewerWindow->SetSkeletalMeshPath(MeshPath);
+    }
+}
+
 void USlateManager::CloseAnimSequenceViewer()
 {
     if (AnimSequenceViewerWindow)
