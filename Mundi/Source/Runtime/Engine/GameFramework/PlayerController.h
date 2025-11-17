@@ -8,12 +8,12 @@ class APlayerController : public AController
 public:
 	GENERATED_REFLECTION_BODY()
 
-	APlayerController();
+	APlayerController() = default;
+
+	// 매 프레임 호출 - InputComponent 처리
+	virtual void Tick(float DeltaTime) override;
 
 protected:
-	virtual ~APlayerController() override;
-
-private:
-
+	virtual ~APlayerController() override = default;
 };
 

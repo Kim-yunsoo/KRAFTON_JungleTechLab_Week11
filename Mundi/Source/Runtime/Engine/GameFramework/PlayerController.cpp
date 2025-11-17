@@ -1,12 +1,15 @@
 ﻿#include "pch.h"
 #include "PlayerController.h"
+#include "Pawn.h"
+#include "InputComponent.h"
 
-APlayerController::APlayerController()
+void APlayerController::Tick(float DeltaTime)
 {
+	Super::Tick(DeltaTime);
 
-}
-
-APlayerController::~APlayerController()
-{
-
+	// Pawn의 InputComponent 처리
+	if (Pawn && Pawn->InputComponent)
+	{
+		Pawn->InputComponent->ProcessInput();
+	}
 }
