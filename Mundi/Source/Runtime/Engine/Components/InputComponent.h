@@ -2,6 +2,13 @@
 #include "Object.h"
 #include "UInputComponent.generated.h"
 
+// TODO: 해당 클래스의 바인딩 로직은 모든 상황에 대하여 커버를 하지 않습니다.
+// - 일반 함수: 8바이트
+// - virtual 함수: 16바이트 (지원)
+// - virtual inheritance: 24바이트 이상 (지원 X)
+// - 컴파일러마다 최대 32바이트까지 변형이 존재할 수도 있음.
+constexpr size_t MAX_MEMBER_FUNC_PTR_SIZE = 16;
+
 UCLASS(DisplayName = "인풋컴포넌트", Description = "사용자의 제어를 입력받는 오브젝트입니다.")
 class UInputComponent : public UObject
 {
@@ -14,6 +21,11 @@ public:
 	template<class UserClass>
 	void BindAxis(const FString& AxisName, int KeyCode, float Scale, UserClass* Object, void(UserClass::*Func)(float))
 	{
+		// 컴파일 타임 크기 검증
+		static_assert(sizeof(Func) <= MAX_MEMBER_FUNC_PTR_SIZE,
+			"Member function pointer too large! "
+			"Do NOT use virtual inheritance. Virtual functions are supported.");
+
 		// 중복 제거: 같은 KeyCode + 같은 Object 조합이면 기존 바인딩 삭제
 		AxisBindings.erase(std::remove_if(AxisBindings.begin(), AxisBindings.end(),
 			[&](const FAxisBinding& B) {return B.KeyCode == KeyCode && B.Object == Object;}),
@@ -27,12 +39,12 @@ public:
 		Binding.Object = Object;
 		Binding.FunctionName = "";  // C++에서는 함수 이름 불필요
 
-		// 타입 소거: 멤버 함수 포인터를 void*로 저장
-		Binding.FunctionPtr = *reinterpret_cast<void**>(&Func);
+		// 안전하게 버퍼에 저장
+		memcpy(Binding.FunctionPtrStorage, &Func, sizeof(Func));
 
-		// 호출 래퍼: 타입을 복원해서 실제 함수 호출
-		Binding.ExecuteAxis = [](UObject* Obj, void* FuncPtr, float Value) {
-			auto TypedFunc = *reinterpret_cast<void(UserClass::**)(float)>(&FuncPtr);
+		// 호출 래퍼: 버퍼에서 타입을 복원해서 실제 함수 호출
+		Binding.ExecuteAxis = [](UObject* Obj, const char* Storage, float Value) {
+			auto TypedFunc = *reinterpret_cast<const void(UserClass::**)(float)>(Storage);
 			(static_cast<UserClass*>(Obj)->*TypedFunc)(Value);
 		};
 
@@ -42,6 +54,11 @@ public:
 	template<class UserClass>
 	void BindAction(const FString& ActionName, int KeyCode, UserClass* Object, void(UserClass::* Func)())
 	{
+		// 컴파일 타임 크기 검증
+		static_assert(sizeof(Func) <= MAX_MEMBER_FUNC_PTR_SIZE,
+			"Member function pointer too large! "
+			"Do NOT use virtual inheritance. Virtual functions are supported.");
+
 		// 중복 제거: 같은 KeyCode + 같은 Object 조합이면 기존 바인딩 삭제
 		ActionBindings.erase(std::remove_if(ActionBindings.begin(), ActionBindings.end(),
 			[&](const FActionBinding& B) {return B.KeyCode == KeyCode && B.Object == Object;}),
@@ -54,12 +71,12 @@ public:
 		Binding.Object = Object;
 		Binding.FunctionName = "";  // C++에서는 함수 이름 불필요
 
-		// 타입 소거
-		Binding.FunctionPtr = *reinterpret_cast<void**>(&Func);
+		// 안전하게 버퍼에 저장
+		memcpy(Binding.FunctionPtrStorage, &Func, sizeof(Func));
 
-		// 호출 래퍼
-		Binding.ExecuteAction = [](UObject* Obj, void* FuncPtr) {
-			auto TypedFunc = *reinterpret_cast<void(UserClass::**)()>(&FuncPtr);
+		// 호출 래퍼: 버퍼에서 타입을 복원해서 실제 함수 호출
+		Binding.ExecuteAction = [](UObject* Obj, const char* Storage) {
+			auto TypedFunc = *reinterpret_cast<const void(UserClass::**)()>(Storage);
 			(static_cast<UserClass*>(Obj)->*TypedFunc)();
 		};
 
@@ -96,10 +113,10 @@ private:
 		FString AxisName;
 		int KeyCode;
 		float Scale;
-		UObject* Object;										// 콜백 호출할 객체
-		FString FunctionName;									// 루아용
-		void* FunctionPtr = nullptr;							// C++용 
-		void (*ExecuteAxis)(UObject*, void*, float) = nullptr;  // 호출 래퍼
+		UObject* Object;  // 콜백 호출할 객체
+		FString FunctionName;  // 루아용: 함수 이름 문자열
+		alignas(16) char FunctionPtrStorage[MAX_MEMBER_FUNC_PTR_SIZE] = {0}; // C++
+		void (*ExecuteAxis)(UObject*, const char*, float) = nullptr;  // 호출 래퍼
 	};
 
 	// 키가 눌린 순간, 1회성 처리를 위한 구조체
@@ -107,10 +124,10 @@ private:
 	{
 		FString ActionName;
 		int KeyCode;
-		UObject* Object;								   // 콜백 호출할 객체
-		FString FunctionName;							   // 루아용
-		void* FunctionPtr = nullptr;					   // C++용
-		void (*ExecuteAction)(UObject*, void*) = nullptr;  // 호출 래퍼
+		UObject* Object;  // 콜백 호출할 객체
+		FString FunctionName;  // 루아용: 함수 이름 문자열
+		alignas(16) char FunctionPtrStorage[MAX_MEMBER_FUNC_PTR_SIZE] = {0};  // C++
+		void (*ExecuteAction)(UObject*, const char*) = nullptr;  // 호출 래퍼
 	};
 
 	TArray<FAxisBinding> AxisBindings;

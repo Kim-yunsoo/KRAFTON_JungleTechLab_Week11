@@ -25,9 +25,9 @@ void UInputComponent::ProcessInput()
 			if (Binding.Object)
 			{
 				// C++ 바인딩: 함수 포인터로 직접 호출
-				if (Binding.ExecuteAxis && Binding.FunctionPtr)
+				if (Binding.ExecuteAxis)
 				{
-					Binding.ExecuteAxis(Binding.Object, Binding.FunctionPtr, Binding.Scale);
+					Binding.ExecuteAxis(Binding.Object, Binding.FunctionPtrStorage, Binding.Scale);
 				}
 				// 루아 바인딩: 함수 이름으로 호출
 				else if (!Binding.FunctionName.empty())
@@ -77,9 +77,9 @@ void UInputComponent::ProcessInput()
 			if (Binding.Object)
 			{
 				// C++ 바인딩: 함수 포인터로 직접 호출
-				if (Binding.ExecuteAction && Binding.FunctionPtr)
+				if (Binding.ExecuteAction)
 				{
-					Binding.ExecuteAction(Binding.Object, Binding.FunctionPtr);
+					Binding.ExecuteAction(Binding.Object, Binding.FunctionPtrStorage);
 				}
 				// 루아 바인딩: 함수 이름으로 호출
 				else if (!Binding.FunctionName.empty())
