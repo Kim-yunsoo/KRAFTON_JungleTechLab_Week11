@@ -20,7 +20,6 @@ public:
 	// 이동 함수들 - InputComponent에서 호출됨
 	virtual void MoveForward(float Value);
 	virtual void MoveRight(float Value);
-	virtual void Turn(float Value);
 
 	// 컴포넌트 접근자
 	USkeletalMeshComponent* GetMesh() const { return Mesh; }

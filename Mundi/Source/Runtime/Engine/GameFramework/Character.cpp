@@ -25,18 +25,11 @@ void ACharacter::SetupPlayerInputComponent()
 {
 	Super::SetupPlayerInputComponent();
 
-	// InputComponent가 없으면 리턴
-	if (!InputComponent) { return; }
-
 	// 이동 입력 바인딩 (WASD)
-	InputComponent->BindAxis("MoveForward", 'W', 1.0f, this, &ACharacter::MoveForward);
-	InputComponent->BindAxis("MoveForward", 'S', -1.0f, this, &ACharacter::MoveForward);
-	InputComponent->BindAxis("MoveRight", 'D', 1.0f, this, &ACharacter::MoveRight);
-	InputComponent->BindAxis("MoveRight", 'A', -1.0f, this, &ACharacter::MoveRight);
-
-	// 회전 입력 바인딩 (화살표 키)
-	InputComponent->BindAxis("Turn", VK_RIGHT, 1.0f, this, &ACharacter::Turn);
-	InputComponent->BindAxis("Turn", VK_LEFT, -1.0f, this, &ACharacter::Turn);
+	InputComponent->BindAxis("MoveForward", VK_UP, 1.0f, this, &ACharacter::MoveForward);
+	InputComponent->BindAxis("MoveForward", VK_DOWN, -1.0f, this, &ACharacter::MoveForward);
+	InputComponent->BindAxis("MoveRight", VK_RIGHT, 1.0f, this, &ACharacter::MoveRight);
+	InputComponent->BindAxis("MoveRight", VK_LEFT, -1.0f, this, &ACharacter::MoveRight);
 }
 
 void ACharacter::MoveForward(float Value)
@@ -62,16 +55,6 @@ void ACharacter::MoveRight(float Value)
 		// Right 방향 (임시로 X축 사용)
 		CurrentVelocity.X = Value * 100.0f;
 		MovementComponent->SetVelocity(CurrentVelocity);
-	}
-}
-
-void ACharacter::Turn(float Value)
-{
-	if (Value != 0.0f)
-	{
-		// TODO: Rotation 업데이트
-		// 임시 구현: BaseTurnRate * Value * DeltaTime만큼 회전
-		// DeltaTime은 Tick에서 받아와야 함
 	}
 }
 

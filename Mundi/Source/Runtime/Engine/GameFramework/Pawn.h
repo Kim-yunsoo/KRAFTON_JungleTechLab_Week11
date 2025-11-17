@@ -19,7 +19,7 @@ public:
 	AController* GetController() const { return Controller; }
 
 	// 입력 설정 - 서브클래스에서 오버라이드하여 입력 바인딩
-	virtual void SetupPlayerInputComponent() {};
+	virtual void SetupPlayerInputComponent();
 
 	// Tick 함수
 	virtual void Tick(float DeltaTime) override;
@@ -28,17 +28,15 @@ public:
 	void DuplicateSubObjects() override;
 	void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
+	// 입력 컴포넌트
+	UInputComponent* InputComponent = nullptr;
+	// 이동 컴포넌트
+	UMovementComponent* MovementComponent = nullptr;
+
 protected:
 	virtual ~APawn() override = default;
 
 	// 현재 제어 중인 Controller
 	AController* Controller = nullptr;
-
-public:
-	// 입력 컴포넌트
-	UInputComponent* InputComponent = nullptr;
-
-	// 이동 컴포넌트
-	UMovementComponent* MovementComponent = nullptr;
 };
 

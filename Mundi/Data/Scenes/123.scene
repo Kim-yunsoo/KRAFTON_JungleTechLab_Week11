@@ -1,6 +1,6 @@
 {
   "Actors" : {
-    "262" : {
+    "890" : {
       "ObjectName" : "ADirectionalLightActor_1",
       "OwnedComponents" : [{
           "CascadedAreaColorDebugValue" : 0.000000,
@@ -8,7 +8,7 @@
           "CascadedCount" : 4,
           "CascadedLinearBlendingValue" : 0.500000,
           "CascadedOverlapValue" : 0.200000,
-          "Id" : 263,
+          "Id" : 892,
           "Intensity" : 1.000000,
           "LightColor" : [1.000000, 1.000000, 1.000000, 1.000000],
           "ObjectName" : "UDirectionalLightComponent_1",
@@ -29,16 +29,16 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 263,
+      "RootComponentId" : 892,
       "Tag" : "",
       "Type" : "ADirectionalLightActor",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "264" : {
+    "893" : {
       "ObjectName" : "AAmbientLightActor_1",
       "OwnedComponents" : [{
-          "Id" : 265,
+          "Id" : 895,
           "Intensity" : 0.100000,
           "LightColor" : [1.000000, 1.000000, 1.000000, 1.000000],
           "ObjectName" : "UAmbientLightComponent_1",
@@ -58,16 +58,16 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 265,
+      "RootComponentId" : 895,
       "Tag" : "",
       "Type" : "AAmbientLightActor",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "272" : {
+    "896" : {
       "ObjectName" : "APlayerCameraManager_1",
       "OwnedComponents" : [{
-          "Id" : 273,
+          "Id" : 897,
           "ObjectName" : "USceneComponent_1",
           "ParentId" : 0,
           "RelativeLocation" : [0.000000, 0.000000, 0.000000],
@@ -79,77 +79,35 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 273,
+      "RootComponentId" : 897,
       "Tag" : "",
       "Type" : "APlayerCameraManager",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "887" : {
-      "ObjectName" : "캐릭터_0",
+    "911" : {
+      "ObjectName" : "제임스 게임모드_0",
       "OwnedComponents" : [{
-          "ObjectName" : "UInputComponent_1",
-          "Type" : "UInputComponent",
-          "bHiddenInGame" : false,
-          "bIsActive" : true,
-          "bTickEnabled" : true
-        }, {
-          "CapsuleHalfHeight" : 1.000000,
-          "CapsuleRadius" : 0.500000,
-          "Id" : 889,
-          "ObjectName" : "UCapsuleComponent_1",
+          "Id" : 912,
+          "ObjectName" : "USceneComponent_5",
           "ParentId" : 0,
-          "RelativeLocation" : [1.532815, -1.532815, 1.173166],
+          "RelativeLocation" : [-3.921803, -1.402859, 1.148532],
           "RelativeRotationEuler" : [0.000000, -0.000000, 0.000000],
           "RelativeScale" : [1.000000, 1.000000, 1.000000],
-          "Type" : "UCapsuleComponent",
-          "bBlockComponent" : false,
-          "bGenerateOverlapEvents" : true,
+          "Type" : "USceneComponent",
           "bHiddenInGame" : false,
           "bIsActive" : true,
           "bIsVisible" : true,
-          "bShapeHiddenInGame" : true,
-          "bShapeIsVisible" : true,
-          "bTickEnabled" : true
-        }, {
-          "Id" : 890,
-          "MaterialSlots" : [{
-              "Type" : "None"
-            }, {
-              "AssetPath" : "Ch06_body",
-              "Type" : "UMaterial"
-            }, {
-              "AssetPath" : "Ch06_eyelashes",
-              "Type" : "UMaterial"
-            }, {
-              "AssetPath" : "Ch06_body1",
-              "Type" : "UMaterial"
-            }],
-          "ObjectName" : "USkeletalMeshComponent_1",
-          "ParentId" : 889,
-          "RelativeLocation" : [0.000000, 0.000000, -1.200000],
-          "RelativeRotationEuler" : [0.000000, 0.000000, 0.000000],
-          "RelativeScale" : [2.000000, 2.000000, 2.000000],
-          "SkeletalMesh" : "Data/James/James.fbx",
-          "TestBlend" : 0.000000,
-          "Type" : "USkeletalMeshComponent",
-          "bBlockComponent" : false,
-          "bCastShadows" : true,
-          "bGenerateOverlapEvents" : true,
-          "bHiddenInGame" : false,
-          "bIsActive" : true,
-          "bIsVisible" : true,
-          "bMove" : false,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 889,
+      "RootComponentId" : 912,
       "Tag" : "",
-      "Type" : "ACharacter",
+      "Type" : "AJamesGameMode",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     }
   },
-  "NextUUID" : 891,
+  "NextUUID" : 914,
   "PerspectiveCamera" : {
     "FOV" : [60.000000],
     "FarClip" : [2000.000000],

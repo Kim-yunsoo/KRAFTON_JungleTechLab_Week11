@@ -14,6 +14,11 @@ void APawn::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
+void APawn::SetupPlayerInputComponent()
+{
+	if (!InputComponent) { return; }
+}
+
 void APawn::DuplicateSubObjects()
 {
 	Super::DuplicateSubObjects();
