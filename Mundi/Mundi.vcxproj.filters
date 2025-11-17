@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <FxCompile Include="Shaders\Materials\Fireball.hlsl">
@@ -653,9 +653,6 @@
     <ClCompile Include="Generated\USkeletalMeshComponent.generated.cpp">
       <Filter>Generated</Filter>
     </ClCompile>
-    <ClCompile Include="Generated\UAnimBlendInstance.generated.cpp">
-      <Filter>Generated</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimAsset.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimationTypes.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimDataModel.cpp" />
@@ -668,7 +665,13 @@
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimStateMachine.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimTransition.cpp" />
     <ClCompile Include="Source\Slate\Windows\AnimSequenceViewerWindow.cpp" />
-  <ClCompile Include="Generated\UMyAnimInstance.generated.cpp"><Filter>Generated</Filter></ClCompile></ItemGroup>
+    <ClCompile Include="Generated\UMyAnimInstance.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Animation\AnimSequenceViewerBootstrap.cpp">
+      <Filter>Source\Runtime\Engine\Animation</Filter>
+    </ClCompile>
+  </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h">
@@ -1412,9 +1415,6 @@
     <ClInclude Include="Generated\USkeletalMeshComponent.generated.h">
       <Filter>Generated</Filter>
     </ClInclude>
-    <ClInclude Include="Generated\UAnimBlendInstance.generated.h">
-      <Filter>Generated</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimAsset.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimationTypes.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimDataModel.h" />
@@ -1427,7 +1427,13 @@
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimStateMachine.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimTransition.h" />
     <ClInclude Include="Source\Slate\Windows\AnimSequenceViewerWindow.h" />
-  <ClInclude Include="Generated\UMyAnimInstance.generated.h"><Filter>Generated</Filter></ClInclude></ItemGroup>
+    <ClInclude Include="Generated\UMyAnimInstance.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Animation\AnimSequenceViewerBootstrap.h">
+      <Filter>Source\Runtime\Engine\Animation</Filter>
+    </ClInclude>
+  </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">
       <UniqueIdentifier>{5795df92-1510-45f1-8bda-7ed2d162568b}</UniqueIdentifier>
@@ -1567,6 +1573,9 @@
     <Filter Include="Generated">
       <UniqueIdentifier>{01b0aa4d-539f-4b06-821e-02d582bc9577}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Runtime\Engine\Animation">
+      <UniqueIdentifier>{1fbd34eb-285f-42d0-82a8-a1142b0f7a04}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="BuildTools\CodeGenerator\generate.py" />
@@ -1577,7 +1586,6 @@
   <ItemGroup>
     <Text Include="BuildTools\CodeGenerator\requirements.txt" />
   </ItemGroup>
-  
   <ItemGroup>
     <ClCompile Include="Source\Runtime\Core\Misc\CrashHandler.cpp">
       <Filter>Source\Runtime\Core\Misc</Filter>

@@ -220,7 +220,7 @@ void USlateManager::OpenAnimSequenceViewer()
     if (!AnimSequenceViewerWindow)
     {
         AnimSequenceViewerWindow = new SAnimSequenceViewerWindow();
-        AnimSequenceViewerWindow->Initialize();
+        AnimSequenceViewerWindow->Initialize(World, Device);
     }
 }
 
