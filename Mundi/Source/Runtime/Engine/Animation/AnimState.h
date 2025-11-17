@@ -1,11 +1,12 @@
 ﻿#pragma once
 #include "Source/Runtime/Core/Object/Object.h"
+#include "UAnimState.generated.h"
 
 class UAnimSequence;
 
 class UAnimState : public UObject
 {
-	DECLARE_CLASS(UAnimState, UObject)
+	GENERATED_REFLECTION_BODY()
 public:
 	UAnimState() = default;
 	virtual ~UAnimState() = default;

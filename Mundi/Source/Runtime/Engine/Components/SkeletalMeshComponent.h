@@ -54,7 +54,7 @@ public:
     bool bMove = false;
 
     UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
-    float TestSpeed = 0;
+    float TestSpeed = 1;
 
 protected:
     /**

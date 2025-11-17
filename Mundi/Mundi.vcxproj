@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug_StandAlone|x64">
@@ -514,7 +514,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Generated\AInfo.generated.cpp" />
     <ClCompile Include="Generated\USkeletalMeshComponent.generated.cpp" />
     <ClCompile Include="Generated\UMyAnimInstance.generated.cpp" />
-  </ItemGroup>
+  <ClCompile Include="Generated\UAnimInstance.generated.cpp" /><ClCompile Include="Generated\UAnimSingleNodeInstance.generated.cpp" /><ClCompile Include="Generated\UAnimState.generated.cpp" /><ClCompile Include="Generated\UAnimStateMachine.generated.cpp" /><ClCompile Include="Generated\UAnimTransition.generated.cpp" /></ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common\LightingBuffers.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -905,7 +905,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Generated\AInfo.generated.h" />
     <ClInclude Include="Generated\USkeletalMeshComponent.generated.h" />
     <ClInclude Include="Generated\UMyAnimInstance.generated.h" />
-  </ItemGroup>
+  <ClInclude Include="Generated\UAnimInstance.generated.h" /><ClInclude Include="Generated\UAnimSingleNodeInstance.generated.h" /><ClInclude Include="Generated\UAnimState.generated.h" /><ClInclude Include="Generated\UAnimStateMachine.generated.h" /><ClInclude Include="Generated\UAnimTransition.generated.h" /></ItemGroup>
   <ItemGroup>
     <None Include="BuildTools\CodeGenerator\generate.py" />
     <None Include="BuildTools\CodeGenerator\lua_generator.py" />

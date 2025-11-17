@@ -1,11 +1,12 @@
 ﻿#pragma once
 #include "Source/Runtime/Core/Object/Object.h"
+#include "UAnimTransition.generated.h"
 
 class UAnimState;
 
 class UAnimTransition : public UObject
 {
-	DECLARE_CLASS(UAnimTransition, UObject)
+	GENERATED_REFLECTION_BODY()
 
 public:
 	UAnimTransition() = default;

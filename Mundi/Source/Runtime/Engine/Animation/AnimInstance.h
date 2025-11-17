@@ -4,10 +4,11 @@
 #include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
 #include "Source/Runtime/Engine/Animation/AnimStateMachine.h"
+#include "UAnimInstance.generated.h"
 
 class UAnimInstance : public UObject
 {
-	DECLARE_CLASS(UAnimInstance, UObject)
+	GENERATED_REFLECTION_BODY()
 public:
 	UAnimInstance();
 	virtual ~UAnimInstance() = default;

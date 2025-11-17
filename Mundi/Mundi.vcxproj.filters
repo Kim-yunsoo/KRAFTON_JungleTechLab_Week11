@@ -668,7 +668,7 @@
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimStateMachine.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimTransition.cpp" />
     <ClCompile Include="Source\Slate\Windows\AnimSequenceViewerWindow.cpp" />
-  <ClCompile Include="Generated\UMyAnimInstance.generated.cpp"><Filter>Generated</Filter></ClCompile></ItemGroup>
+  <ClCompile Include="Generated\UMyAnimInstance.generated.cpp"><Filter>Generated</Filter></ClCompile><ClCompile Include="Generated\UAnimInstance.generated.cpp"><Filter>Generated</Filter></ClCompile><ClCompile Include="Generated\UAnimSingleNodeInstance.generated.cpp"><Filter>Generated</Filter></ClCompile><ClCompile Include="Generated\UAnimState.generated.cpp"><Filter>Generated</Filter></ClCompile><ClCompile Include="Generated\UAnimStateMachine.generated.cpp"><Filter>Generated</Filter></ClCompile><ClCompile Include="Generated\UAnimTransition.generated.cpp"><Filter>Generated</Filter></ClCompile></ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h">
@@ -1427,7 +1427,7 @@
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimStateMachine.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimTransition.h" />
     <ClInclude Include="Source\Slate\Windows\AnimSequenceViewerWindow.h" />
-  <ClInclude Include="Generated\UMyAnimInstance.generated.h"><Filter>Generated</Filter></ClInclude></ItemGroup>
+  <ClInclude Include="Generated\UMyAnimInstance.generated.h"><Filter>Generated</Filter></ClInclude><ClInclude Include="Generated\UAnimInstance.generated.h"><Filter>Generated</Filter></ClInclude><ClInclude Include="Generated\UAnimSingleNodeInstance.generated.h"><Filter>Generated</Filter></ClInclude><ClInclude Include="Generated\UAnimState.generated.h"><Filter>Generated</Filter></ClInclude><ClInclude Include="Generated\UAnimStateMachine.generated.h"><Filter>Generated</Filter></ClInclude><ClInclude Include="Generated\UAnimTransition.generated.h"><Filter>Generated</Filter></ClInclude></ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">
       <UniqueIdentifier>{5795df92-1510-45f1-8bda-7ed2d162568b}</UniqueIdentifier>
