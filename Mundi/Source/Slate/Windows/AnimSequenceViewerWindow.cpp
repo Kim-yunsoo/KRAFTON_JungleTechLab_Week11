@@ -662,7 +662,7 @@ void SAnimSequenceViewerWindow::RenderTimeline()
 
 void SAnimSequenceViewerWindow::RenderNotifyTrackPanel()
 {
-	// === 헤더: "노티파이" + 추가 버튼 ===
+	// === 헤더: "노티파이" + 추가/삭제 버튼 ===
 	ImGui::Text("Notify");
 	ImGui::SameLine();
 
@@ -670,6 +670,30 @@ void SAnimSequenceViewerWindow::RenderNotifyTrackPanel()
 	if (ImGui::Button("[+] Add Track"))
 	{
 		ImGui::OpenPopup("AddNotifyTrackMenu");
+	}
+
+	ImGui::SameLine();
+
+	// Delete Track 버튼 (선택된 트랙이 있을 때만 활성화)
+	bool bCanDelete = (SelectedTrackIndex >= 0 && SelectedTrackIndex < NotifyTrackIndices.Num());
+	if (!bCanDelete)
+	{
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::Button("[-] Delete Track"))
+	{
+		if (bCanDelete)
+		{
+			// 선택된 트랙 삭제
+			NotifyTrackIndices.RemoveAt(SelectedTrackIndex);
+			SelectedTrackIndex = -1; // 선택 해제
+		}
+	}
+
+	if (!bCanDelete)
+	{
+		ImGui::EndDisabled();
 	}
 
 	// 드롭다운 메뉴
@@ -702,17 +726,22 @@ void SAnimSequenceViewerWindow::RenderNotifyTrackPanel()
 			char Label[32];
 			sprintf_s(Label, "%d", TrackNumber);
 
-			// 트랙 번호 표시 (클릭 가능하게)
-			bool bSelected = (i == HoveredTrackIndex);
+			// 트랙 번호 표시 (클릭해서 선택 가능)
+			bool bSelected = (i == SelectedTrackIndex);
 			if (ImGui::Selectable(Label, bSelected, 0, ImVec2(0, 25)))
 			{
-				HoveredTrackIndex = i;
+				// 클릭하면 선택
+				SelectedTrackIndex = i;
 			}
 
-			// 호버 감지
+			// 호버 감지 (시각적 피드백용)
 			if (ImGui::IsItemHovered())
 			{
 				HoveredTrackIndex = i;
+			}
+			else if (HoveredTrackIndex == i)
+			{
+				HoveredTrackIndex = -1;
 			}
 		}
 

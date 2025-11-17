@@ -92,6 +92,7 @@ private:
 	// === Notify 트랙 관리 ===
 	TArray<int32> NotifyTrackIndices; // 추가된 노티파이 트랙 번호 목록 (1, 2, 3...)
 	int32 NextNotifyTrackNumber = 1;  // 다음 트랙 번호
+	int32 SelectedTrackIndex = -1;    // 클릭해서 선택된 트랙 인덱스
 	int32 HoveredTrackIndex = -1;     // 마우스 오버된 트랙 인덱스
 	int32 RightClickedTrackIndex = -1; // 우클릭된 트랙 인덱스
 
