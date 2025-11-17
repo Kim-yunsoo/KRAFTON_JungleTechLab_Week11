@@ -45,12 +45,11 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
     TArray<FAnimNotifyEvent> TriggeredNotifies;
     CurrentSequence->GetAnimNotifiesInRange(PrevTime, CurrentTime, TriggeredNotifies);
 
-    // Build sequence key once (asset name preferred, else file path)
+    // Build sequence key once (use file path only for consistency)
     FString SequenceKey;
     if (CurrentSequence)
     {
-        const FString& AssetName = CurrentSequence->GetAssetName();
-        SequenceKey = AssetName.empty() ? CurrentSequence->GetFilePath() : AssetName;
+        SequenceKey = CurrentSequence->GetFilePath();
     }
 
     for (const FAnimNotifyEvent& Notify : TriggeredNotifies)

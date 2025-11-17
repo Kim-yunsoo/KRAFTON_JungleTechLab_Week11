@@ -24,32 +24,25 @@ void ASkeletalMeshActor::BeginPlay()
         // Enter Move state so Standard Walk plays and triggers TEST at 0.3s
         Comp->bMove = true;
 
-        // Register TEST handler for Standard Walk sequence by sequence name (file path key)
+        // Register TEST handler for Standard Walk using file path key only
         {
-            // Register TEST handler under both asset name and file path to avoid key mismatch
             const FString WalkFileKey = "Data/Animations/Standard Walk.fbx";
-            const FString WalkNameKey = "Standard Walk";
-            auto RegisterForKey = [this](const FString& Key)
+            if (auto* MapPtr = NotifyHandlersBySeq.Find(WalkFileKey))
             {
-                if (auto* MapPtr = NotifyHandlersBySeq.Find(Key))
+                MapPtr->Add("TEST", [this](const FAnimNotifyEvent& Ev)
                 {
-                    MapPtr->Add("TEST", [this](const FAnimNotifyEvent& Ev)
-                    {
-                        UE_LOG("ASkeletalMeshActor: TEST notify received at %.3f sec", Ev.TriggerTime);
-                    });
-                }
-                else
+                    UE_LOG("ASkeletalMeshActor: TEST notify received at %.3f sec", Ev.TriggerTime);
+                });
+            }
+            else
+            {
+                TMap<FName, std::function<void(const FAnimNotifyEvent&)>> NewMap;
+                NewMap.Add("TEST", [this](const FAnimNotifyEvent& Ev)
                 {
-                    TMap<FName, std::function<void(const FAnimNotifyEvent&)>> NewMap;
-                    NewMap.Add("TEST", [this](const FAnimNotifyEvent& Ev)
-                    {
-                        UE_LOG("ASkeletalMeshActor123: TEST notify received at %.3f sec", Ev.TriggerTime);
-                    });
-                    NotifyHandlersBySeq.Add(Key, NewMap);
-                }
-            };
-            RegisterForKey(WalkFileKey);
-            RegisterForKey(WalkNameKey);
+                    UE_LOG("ASkeletalMeshActor: TEST notify received at %.3f sec", Ev.TriggerTime);
+                });
+                NotifyHandlersBySeq.Add(WalkFileKey, NewMap);
+            }
         }
 
         // Sequence-aware dispatch using sequence key (string)
