@@ -243,7 +243,6 @@ void USlateManager::CloseAnimSequenceViewer()
 {
     if (AnimSequenceViewerWindow)
     {
-        AnimSequenceViewerWindow->Close();
         delete AnimSequenceViewerWindow;
         AnimSequenceViewerWindow = nullptr;
     }
@@ -793,6 +792,13 @@ void USlateManager::Shutdown()
     {
         delete SkeletalViewerWindow;
         SkeletalViewerWindow = nullptr;
+    }
+
+    if (AnimSequenceViewerWindow)
+    {
+        delete AnimSequenceViewerWindow;
+        AnimSequenceViewerWindow = nullptr;
+        UE_LOG("USlateManager: AnimSequenceViewerWindow destroyed");
     }
 }
 

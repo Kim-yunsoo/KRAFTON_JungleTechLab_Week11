@@ -53,7 +53,7 @@ SAnimSequenceViewerWindow::~SAnimSequenceViewerWindow()
 	// ViewerState 파괴
 	AnimSequenceViewerBootstrap::DestroyViewerState(PreviewState);
 
-	// 더미 시퀀스 정리
+	// 시퀀스 정리
 	if (CurrentSequence)
 	{
 		CurrentSequence = nullptr;
@@ -259,7 +259,7 @@ void SAnimSequenceViewerWindow::OnRender()
     // 윈도우가 닫히면 정리
     if (!bIsOpen)
     {
-        // USlateManager에 알림 (나중에 구현)
+        // USlateManager::OnRender()에서 처리됨
     }
 }
 
@@ -277,7 +277,7 @@ void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
         PreviewState->Client->Tick(DeltaSeconds);
     }
 
-    // 타임라인 UI 업데이트 및 애니메이션 포즈 적용
+    // 타임라인 UI 업데이트
     if (bIsPlaying && CurrentSequence)
     {
         // 시간 증가
@@ -300,10 +300,10 @@ void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
         }
         // 프레임 업데이트
         CurrentFrame = TimeToFrame(CurrentTime);
-    }
 
-    // 애니메이션 포즈를 직접 평가하여 SkeletalMeshComponent에 적용
-    ApplyAnimationPose();
+        // 애니메이션 포즈를 직접 평가하여 SkeletalMeshComponent에 적용 (재생 중일 때만)
+        ApplyAnimationPose();
+    }
 }
 
 void SAnimSequenceViewerWindow::ApplyAnimationPose()

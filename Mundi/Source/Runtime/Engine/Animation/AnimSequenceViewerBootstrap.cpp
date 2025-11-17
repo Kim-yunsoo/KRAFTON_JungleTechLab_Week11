@@ -62,8 +62,15 @@ ViewerState* AnimSequenceViewerBootstrap::CreateViewerState(const char* Name, UW
 void AnimSequenceViewerBootstrap::DestroyViewerState(ViewerState*& State)
 {
     if (!State) return;
+
+    // Viewport와 Client 정리
     if (State->Viewport) { delete State->Viewport; State->Viewport = nullptr; }
     if (State->Client) { delete State->Client; State->Client = nullptr; }
+
+    // World 정리 (내부적으로 모든 액터를 DestroyActor()로 정리함)
     if (State->World) { ObjectFactory::DeleteObject(State->World); State->World = nullptr; }
-    delete State; State = nullptr;
+
+    // ViewerState 자체 삭제
+    delete State;
+    State = nullptr;
 }
