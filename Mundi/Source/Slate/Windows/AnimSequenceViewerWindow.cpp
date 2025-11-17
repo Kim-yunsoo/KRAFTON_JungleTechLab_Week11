@@ -833,7 +833,7 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 
     // 레이아웃 설정
     float HeaderHeight = 60.0f;         // "Notify [+] [-]" 헤더 영역
-    float PlaybackHeight = 110.0f;      // Playback Controls 영역
+    float PlaybackHeight = 80.0f;       // Playback Controls 영역 (줄임)
     float ScrollableHeight = PanelHeight - HeaderHeight - PlaybackHeight;
 
     float NotifyColumnWidth = PanelWidth * 0.15f;  // Notify 트랙 번호 컬럼 15%
@@ -895,8 +895,20 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
     // 부모 스크롤 영역 (실제 스크롤바를 표시)
     ImGui::BeginChild("ScrollableTracks", ImVec2(0, ScrollableHeight), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
     {
-        int32 VisibleTrackCount = FMath::Max(NotifyTrackIndices.Num(), 8); // 최소 8개 트랙 높이
-        float ContentHeight = RowHeight * VisibleTrackCount;
+        // 실제 트랙 개수
+        int32 ActualTrackCount = NotifyTrackIndices.Num();
+
+        // 화면을 채우기 위한 최소 트랙 개수 계산
+        int32 MinVisibleTracks = std::max(1, (int32)std::ceil(ScrollableHeight / RowHeight));
+
+        // 화면 표시용 트랙 개수 (최소 MinVisibleTracks개는 표시)
+        int32 DisplayTrackCount = std::max(ActualTrackCount, MinVisibleTracks);
+
+        // 실제 스크롤 가능한 콘텐츠 높이 (실제 트랙 개수만큼만)
+        float ScrollContentHeight = RowHeight * std::max(ActualTrackCount, 1);
+
+        // 화면 표시용 높이 (빈 공간 포함)
+        float DisplayHeight = RowHeight * DisplayTrackCount;
 
         // 부모의 현재 스크롤 위치 가져오기
         float ScrollY = ImGui::GetScrollY();
@@ -908,26 +920,27 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
         ImVec2 BasePos = ImGui::GetCursorScreenPos();
 
         // 좌측: Notify 트랙 번호 컬럼 (고정 위치, 스크롤 오프셋 적용)
-        ImGui::SetCursorScreenPos(ImVec2(BasePos.x, BasePos.y - ScrollY));
-        ImGui::BeginChild("NotifyColumn", ImVec2(NotifyColumnWidth, ContentHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+        ImGui::SetCursorScreenPos(ImVec2(BasePos.x, BasePos.y));
+        ImGui::BeginChild("NotifyColumn", ImVec2(NotifyColumnWidth, DisplayHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
         {
-            RenderNotifyTrackColumn(NotifyColumnWidth, RowHeight, VisibleTrackCount);
+            ImGui::SetCursorPosY(-ScrollY);
+            RenderNotifyTrackColumn(NotifyColumnWidth, RowHeight, DisplayTrackCount);
         }
         ImGui::EndChild();
 
         // 우측: Timeline 컬럼 (고정 위치, 스크롤 오프셋 적용)
-        ImGui::SetCursorScreenPos(ImVec2(BasePos.x + NotifyColumnWidth, BasePos.y - ScrollY));
-        ImGui::BeginChild("TimelineColumn", ImVec2(TimelineColumnWidth, ContentHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+        ImGui::SetCursorScreenPos(ImVec2(BasePos.x + NotifyColumnWidth, BasePos.y));
+        ImGui::BeginChild("TimelineColumn", ImVec2(TimelineColumnWidth, DisplayHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
         {
-            RenderTimelineColumn(TimelineColumnWidth, RowHeight, VisibleTrackCount);
+            ImGui::SetCursorPosY(-ScrollY);
+            RenderTimelineColumn(TimelineColumnWidth, RowHeight, DisplayTrackCount);
         }
         ImGui::EndChild();
 
         ImGui::PopStyleVar();
 
-        // 더미 아이템으로 스크롤 가능한 영역 설정
-        ImGui::SetCursorPos(ImVec2(0, ContentHeight));
-        ImGui::Dummy(ImVec2(0, 0));
+        // 더미 아이템으로 스크롤 가능한 영역 설정 (실제 트랙 개수만큼만)
+        ImGui::Dummy(ImVec2(0, ScrollContentHeight));
     }
     ImGui::EndChild();
 
