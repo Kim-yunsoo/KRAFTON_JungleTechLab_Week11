@@ -50,7 +50,7 @@ protected:
 	virtual void NativeUpdateAnimation(float DeltaSeconds);
 	float CurrentTime = 0;
 	float PrevTime = 0;
-	float Speed = 1;
+	float Speed = -1;
 	bool bLoop = false;
 	bool bPlay = false;
 	USkeletalMeshComponent* OwnerComponent = nullptr;
