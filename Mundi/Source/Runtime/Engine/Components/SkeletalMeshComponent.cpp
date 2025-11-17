@@ -22,27 +22,11 @@ void USkeletalMeshComponent::BeginPlay()
     AnimInstance = NewObject<UAnimInstance>();
     AnimInstance->SetOwner(this);
 
-    UAnimStateMachine& StateMachine = AnimInstance->GetStateMachine();
-    UAnimState* IdleState = NewObject<UAnimState>();
-    IdleState->Name = "Idle";
-    IdleState->AnimSequence = RESOURCE.Get<UAnimSequence>("Data/Animations/Breathing Idle.fbx");
-    UAnimState* MoveState = NewObject<UAnimState>();
-    MoveState->Name = "Move";
-    MoveState->AnimSequence = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx");
-    StateMachine.AddState(IdleState);
-    StateMachine.AddState(MoveState);
-    StateMachine.StartStateMachine(IdleState);
-
-    UAnimTransition* IdleToMoveTransition = NewObject<UAnimTransition>();
-    IdleToMoveTransition->From = IdleState;
-    IdleToMoveTransition->To = MoveState;
-    IdleToMoveTransition->Condition = [this]()->bool {return bMove; };
-    UAnimTransition* MoveToIdleTransition = NewObject<UAnimTransition>();
-    MoveToIdleTransition->From = MoveState;
-    MoveToIdleTransition->To = IdleState;
-    MoveToIdleTransition->Condition = [this]()->bool {return !bMove; };
-    StateMachine.AddTransition(IdleToMoveTransition);
-    StateMachine.AddTransition(MoveToIdleTransition);
+    AnimInstance->AddState("Idle", RESOURCE.Get<UAnimSequence>("Data/Animations/Breathing Idle.fbx"));
+    AnimInstance->AddState("Move", RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx"));
+    AnimInstance->SetStartState("Idle");
+    AnimInstance->AddTransition("Idle", "Move")->SetCondition([this]()->bool {return bMove; });
+    AnimInstance->AddTransition("Move", "Idle")->SetCondition([this]()->bool {return !bMove; });
 
     AnimInstance->SetPlay(true);
 }

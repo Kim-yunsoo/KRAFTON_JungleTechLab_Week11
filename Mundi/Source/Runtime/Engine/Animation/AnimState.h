@@ -9,6 +9,27 @@ class UAnimState : public UObject
 public:
 	UAnimState() = default;
 	virtual ~UAnimState() = default;
+
+	void SetName(const FString& InName)
+	{
+		Name = InName;
+	}
+	void SetSequence(UAnimSequence* InSequence)
+	{
+		AnimSequence = InSequence;
+	}
+	void SetSpeed(const float InSpeed)
+	{
+		Speed = InSpeed;
+	}
+	void SetStartTime(const float InStartTime)
+	{
+		StartTime = InStartTime;
+	}
+	void SetLoop(const bool InLoop)
+	{
+		bLoop = InLoop;
+	}
 public:
 	FString Name;
 	UAnimSequence* AnimSequence = nullptr;
