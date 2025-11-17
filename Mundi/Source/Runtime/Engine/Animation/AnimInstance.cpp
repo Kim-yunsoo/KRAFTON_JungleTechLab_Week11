@@ -45,10 +45,18 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
     TArray<FAnimNotifyEvent> TriggeredNotifies;
     CurrentSequence->GetAnimNotifiesInRange(PrevTime, CurrentTime, TriggeredNotifies);
 
+    // Build sequence key once (asset name preferred, else file path)
+    FString SequenceKey;
+    if (CurrentSequence)
+    {
+        const FString& AssetName = CurrentSequence->GetAssetName();
+        SequenceKey = AssetName.empty() ? CurrentSequence->GetFilePath() : AssetName;
+    }
+
     for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
     {
-        // Broadcast via component delegate for game-side handling
-        OwnerComponent->OnAnimNotify.Broadcast(Notify);
+        // Broadcast via component delegate for game-side handling with sequence key
+        OwnerComponent->OnAnimNotify.Broadcast(Notify, SequenceKey);
     }
 }
 

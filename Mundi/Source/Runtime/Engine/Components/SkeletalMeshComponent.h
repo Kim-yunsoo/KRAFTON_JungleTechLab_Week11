@@ -47,8 +47,8 @@ public:
     FTransform GetBoneWorldTransform(int32 BoneIndex);
     void PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop);
 
-    // AnimNotify event delegate (broadcasts FAnimNotifyEvent to listeners)
-    DECLARE_DELEGATE_TYPE_OneParam(FOnAnimNotify, const FAnimNotifyEvent&);
+    // AnimNotify event delegate: broadcasts Event and SequenceKey (asset name or file path)
+    DECLARE_DELEGATE_TYPE_TwoParam(FOnAnimNotify, const FAnimNotifyEvent&, const FString&);
     FOnAnimNotify OnAnimNotify;
 
     // AnimNotify routing

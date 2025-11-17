@@ -24,12 +24,46 @@ void ASkeletalMeshActor::BeginPlay()
         // Enter Move state so Standard Walk plays and triggers TEST at 0.3s
         Comp->bMove = true;
 
-        // Log when TEST notify is received
-        Comp->OnAnimNotify.Add([this](const FAnimNotifyEvent& Event)
+        // Register TEST handler for Standard Walk sequence by sequence name (file path key)
         {
-            if (Event.NotifyName == "TEST")
+            // Register TEST handler under both asset name and file path to avoid key mismatch
+            const FString WalkFileKey = "Data/Animations/Standard Walk.fbx";
+            const FString WalkNameKey = "Standard Walk";
+            auto RegisterForKey = [this](const FString& Key)
             {
-                UE_LOG("ASkeletalMeshActor: TEST notify received at %.3f sec", Event.TriggerTime);
+                if (auto* MapPtr = NotifyHandlersBySeq.Find(Key))
+                {
+                    MapPtr->Add("TEST", [this](const FAnimNotifyEvent& Ev)
+                    {
+                        UE_LOG("ASkeletalMeshActor: TEST notify received at %.3f sec", Ev.TriggerTime);
+                    });
+                }
+                else
+                {
+                    TMap<FName, std::function<void(const FAnimNotifyEvent&)>> NewMap;
+                    NewMap.Add("TEST", [this](const FAnimNotifyEvent& Ev)
+                    {
+                        UE_LOG("ASkeletalMeshActor123: TEST notify received at %.3f sec", Ev.TriggerTime);
+                    });
+                    NotifyHandlersBySeq.Add(Key, NewMap);
+                }
+            };
+            RegisterForKey(WalkFileKey);
+            RegisterForKey(WalkNameKey);
+        }
+
+        // Sequence-aware dispatch using sequence key (string)
+        Comp->OnAnimNotify.Add([this](const FAnimNotifyEvent& Event, const FString& SeqKey)
+        {
+            if (!SeqKey.empty())
+            {
+                if (auto* MapForSeq = NotifyHandlersBySeq.Find(SeqKey))
+                {
+                    if (auto* Fn = MapForSeq->Find(Event.NotifyName))
+                    {
+                        (*Fn)(Event);
+                    }
+                }
             }
         });
     }
@@ -587,3 +621,4 @@ int32 ASkeletalMeshActor::PickBone(const FRay& Ray, float& OutDistance) const
 
     return ClosestBoneIndex;
 }
+

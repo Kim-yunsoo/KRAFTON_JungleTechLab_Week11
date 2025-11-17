@@ -4,6 +4,10 @@
 #include "SkeletalMeshComponent.h"
 #include "BoneAnchorComponent.h"
 #include "ASkeletalMeshActor.generated.h"
+#include <functional>
+
+struct FAnimNotifyEvent;
+class UAnimSequenceBase;
 
 UCLASS(DisplayName="스켈레탈 메시", Description="스켈레탈 메시를 배치하는 액터입니다")
 
@@ -47,6 +51,9 @@ public:
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
 protected:
+    // Per-sequence notify handlers: SequenceName -> (NotifyName -> Handler(Event))
+    TMap<FString, TMap<FName, std::function<void(const FAnimNotifyEvent&)>>> NotifyHandlersBySeq;
+
     // 스켈레탈 메시를 실제로 렌더링하는 컴포넌트 (미리뷰/프리뷰 액터의 루트로 사용)
     USkeletalMeshComponent* SkeletalMeshComponent = nullptr;
     
