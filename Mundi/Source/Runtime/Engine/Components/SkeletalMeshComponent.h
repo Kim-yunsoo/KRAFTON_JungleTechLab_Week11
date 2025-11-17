@@ -2,6 +2,7 @@
 #include "SkinnedMeshComponent.h"
 #include "USkeletalMeshComponent.generated.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
+#include "Source/Runtime/Core/Misc/Delegates.h"
 
 // 전방 선언
 class UAnimInstance;
@@ -45,6 +46,10 @@ public:
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
     void PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop);
+
+    // AnimNotify event delegate (broadcasts FAnimNotifyEvent to listeners)
+    DECLARE_DELEGATE_TYPE_OneParam(FOnAnimNotify, const FAnimNotifyEvent&);
+    FOnAnimNotify OnAnimNotify;
 
     // AnimNotify routing
     void HandleAnimNotify(const FAnimNotifyEvent& Notify);

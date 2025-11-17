@@ -47,7 +47,8 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 
     for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
     {
-        OwnerComponent->HandleAnimNotify(Notify);
+        // Broadcast via component delegate for game-side handling
+        OwnerComponent->OnAnimNotify.Broadcast(Notify);
     }
 }
 

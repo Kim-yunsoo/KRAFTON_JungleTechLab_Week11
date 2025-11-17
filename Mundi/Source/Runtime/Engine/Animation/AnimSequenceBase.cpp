@@ -52,7 +52,10 @@ void UAnimSequenceBase::GetAnimNotifiesInRange(float StartTime, float EndTime, T
     {
         for (auto It = Notifies.rbegin(); It != Notifies.rend(); ++It)
         {
-            if (It->IsWithin(EndTime, StartTime)) { OutNotifies.Add(*It); }
+            if (It->IsWithin(EndTime, StartTime)) 
+            {
+                OutNotifies.Add(*It); 
+            }
         }
     }
 }
