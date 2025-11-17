@@ -694,27 +694,27 @@ void USkinnedMeshComponent::ReleaseGPUQueryResources()
 
 void USkinnedMeshComponent::BeginGPUQuery()
 {
-   UE_LOG("[DEBUG] BeginGPUQuery 호출 (모드: %s, Delay: %d)", bUseGPUSkinning ? "GPU" : "CPU", GPUQueryFrameDelay);
+   //UE_LOG("[DEBUG] BeginGPUQuery 호출 (모드: %s, Delay: %d)", bUseGPUSkinning ? "GPU" : "CPU", GPUQueryFrameDelay);
 
    // GPU Query 중복 방지: 이미 대기 중인 Query가 있으면 스킵
    if (GPUQueryFrameDelay > 0)
    {
-      UE_LOG("[DEBUG] BeginGPUQuery: 이미 대기 중 (Delay: %d), 스킵", GPUQueryFrameDelay);
+      //UE_LOG("[DEBUG] BeginGPUQuery: 이미 대기 중 (Delay: %d), 스킵", GPUQueryFrameDelay);
       return;
    }
 
-   UE_LOG("[DEBUG] BeginGPUQuery 시작 (모드: %s)", bUseGPUSkinning ? "GPU" : "CPU");
+   //UE_LOG("[DEBUG] BeginGPUQuery 시작 (모드: %s)", bUseGPUSkinning ? "GPU" : "CPU");
 
    if (!GPUDisjointQuery || !GPUTimestampStartQuery || !GPUTimestampEndQuery)
    {
-      UE_LOG("[DEBUG] BeginGPUQuery: GPU Query 리소스 없음, 생성 시도");
+      //UE_LOG("[DEBUG] BeginGPUQuery: GPU Query 리소스 없음, 생성 시도");
       CreateGPUQueryResources();
       if (!GPUDisjointQuery || !GPUTimestampStartQuery || !GPUTimestampEndQuery)
       {
-         UE_LOG("[ERROR] BeginGPUQuery: GPU Query 리소스 생성 실패!");
+         //UE_LOG("[ERROR] BeginGPUQuery: GPU Query 리소스 생성 실패!");
          return;
       }
-      UE_LOG("[DEBUG] BeginGPUQuery: GPU Query 리소스 생성 성공");
+      //UE_LOG("[DEBUG] BeginGPUQuery: GPU Query 리소스 생성 성공");
    }
 
    ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
@@ -724,27 +724,27 @@ void USkinnedMeshComponent::BeginGPUQuery()
    }
 
    // DrawIndexed의 GPU 실행 시간 측정 시작 (CPU/GPU 스키닝 모두 적용)
-   UE_LOG("[DEBUG] BeginGPUQuery: Context->Begin(GPUDisjointQuery) 호출");
+   //UE_LOG("[DEBUG] BeginGPUQuery: Context->Begin(GPUDisjointQuery) 호출");
    Context->Begin(GPUDisjointQuery);
-   UE_LOG("[DEBUG] BeginGPUQuery: Context->End(GPUTimestampStartQuery) 호출");
+   //UE_LOG("[DEBUG] BeginGPUQuery: Context->End(GPUTimestampStartQuery) 호출");
    Context->End(GPUTimestampStartQuery);
-   UE_LOG("[DEBUG] BeginGPUQuery: Query Begin 완료");
+   //UE_LOG("[DEBUG] BeginGPUQuery: Query Begin 완료");
 }
 
 void USkinnedMeshComponent::EndGPUQuery()
 {
-   UE_LOG("[DEBUG] EndGPUQuery 호출 (모드: %s, Delay: %d)", bUseGPUSkinning ? "GPU" : "CPU", GPUQueryFrameDelay);
+   //UE_LOG("[DEBUG] EndGPUQuery 호출 (모드: %s, Delay: %d)", bUseGPUSkinning ? "GPU" : "CPU", GPUQueryFrameDelay);
 
    // GPU Query 리소스 확인 및 중복 방지
    if (!GPUDisjointQuery || !GPUTimestampEndQuery || GPUQueryFrameDelay > 0)
    {
       if (GPUQueryFrameDelay > 0)
       {
-         UE_LOG("[DEBUG] EndGPUQuery: 이미 종료됨 (Delay: %d), 스킵", GPUQueryFrameDelay);
+         //UE_LOG("[DEBUG] EndGPUQuery: 이미 종료됨 (Delay: %d), 스킵", GPUQueryFrameDelay);
       }
       else
       {
-         UE_LOG("[DEBUG] EndGPUQuery: Query 리소스 없음");
+         //UE_LOG("[DEBUG] EndGPUQuery: Query 리소스 없음");
       }
       return;
    }
@@ -752,20 +752,20 @@ void USkinnedMeshComponent::EndGPUQuery()
    ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
    if (!Context)
    {
-      UE_LOG("[ERROR] EndGPUQuery: Context is nullptr!");
+      //UE_LOG("[ERROR] EndGPUQuery: Context is nullptr!");
       return;
    }
 
-   UE_LOG("[DEBUG] EndGPUQuery 실행 (모드: %s)", bUseGPUSkinning ? "GPU" : "CPU");
+   //UE_LOG("[DEBUG] EndGPUQuery 실행 (모드: %s)", bUseGPUSkinning ? "GPU" : "CPU");
 
    // DrawIndexed의 GPU 실행 시간 측정 종료 (CPU/GPU 스키닝 모두 적용)
-   UE_LOG("[DEBUG] EndGPUQuery: Context->End(GPUTimestampEndQuery) 호출");
+   //UE_LOG("[DEBUG] EndGPUQuery: Context->End(GPUTimestampEndQuery) 호출");
    Context->End(GPUTimestampEndQuery);
-   UE_LOG("[DEBUG] EndGPUQuery: Context->End(GPUDisjointQuery) 호출");
+   //UE_LOG("[DEBUG] EndGPUQuery: Context->End(GPUDisjointQuery) 호출");
    Context->End(GPUDisjointQuery);
    GPUQueryFrameDelay = 5;  // 5프레임 후 결과 읽기 (GPU 작업 완료 대기)
 
-   UE_LOG("[DEBUG] EndGPUQuery 완료, %d 프레임 후 결과 읽기", GPUQueryFrameDelay);
+   //UE_LOG("[DEBUG] EndGPUQuery 완료, %d 프레임 후 결과 읽기", GPUQueryFrameDelay);
 }
 
 void USkinnedMeshComponent::ReadGPUQueryResults()
@@ -773,7 +773,7 @@ void USkinnedMeshComponent::ReadGPUQueryResults()
    // GPU Query 결과 대기 중인지 확인
    if (GPUQueryFrameDelay <= 0)
    {
-      UE_LOG("[DEBUG] ReadGPUQueryResults: GPUQueryFrameDelay <= 0, 스킵");
+      //UE_LOG("[DEBUG] ReadGPUQueryResults: GPUQueryFrameDelay <= 0, 스킵");
       return;
    }
 
@@ -781,24 +781,24 @@ void USkinnedMeshComponent::ReadGPUQueryResults()
 
    if (GPUQueryFrameDelay > 0)
    {
-      UE_LOG("[DEBUG] ReadGPUQueryResults: 대기 중... (남은 프레임: %d)", GPUQueryFrameDelay);
+      //UE_LOG("[DEBUG] ReadGPUQueryResults: 대기 중... (남은 프레임: %d)", GPUQueryFrameDelay);
       return;
    }
 
-   UE_LOG("[DEBUG] ReadGPUQueryResults: GPU Query 결과 읽기 시작 (모드: %s)", bUseGPUSkinning ? "GPU" : "CPU");
+   //UE_LOG("[DEBUG] ReadGPUQueryResults: GPU Query 결과 읽기 시작 (모드: %s)", bUseGPUSkinning ? "GPU" : "CPU");
 
    // Query 객체 유효성 검사
    if (!GPUDisjointQuery || !GPUTimestampStartQuery || !GPUTimestampEndQuery)
    {
-      UE_LOG("[ERROR] ReadGPUQueryResults: Query 객체가 nullptr! (Disjoint: %p, Start: %p, End: %p)",
-             GPUDisjointQuery, GPUTimestampStartQuery, GPUTimestampEndQuery);
+      //UE_LOG("[ERROR] ReadGPUQueryResults: Query 객체가 nullptr! (Disjoint: %p, Start: %p, End: %p)",
+            // GPUDisjointQuery, GPUTimestampStartQuery, GPUTimestampEndQuery);
       return;
    }
 
    ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
    if (!Context)
    {
-      UE_LOG("[ERROR] ReadGPUQueryResults: Context is nullptr!");
+      //UE_LOG("[ERROR] ReadGPUQueryResults: Context is nullptr!");
       return;
    }
 
@@ -806,32 +806,32 @@ void USkinnedMeshComponent::ReadGPUQueryResults()
    D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData;
    memset(&disjointData, 0, sizeof(disjointData));
 
-   UE_LOG("[DEBUG] ReadGPUQueryResults: GetData 호출 시도... (GPUDisjointQuery: %p)", GPUDisjointQuery);
+  // UE_LOG("[DEBUG] ReadGPUQueryResults: GetData 호출 시도... (GPUDisjointQuery: %p)", GPUDisjointQuery);
    HRESULT hr = Context->GetData(GPUDisjointQuery, &disjointData, sizeof(disjointData), 0);
-   UE_LOG("[DEBUG] ReadGPUQueryResults: GetData 결과 - HRESULT: 0x%08X (%s)",
-          hr,
-          hr == S_OK ? "S_OK" : (hr == S_FALSE ? "S_FALSE" : "ERROR"));
+  // UE_LOG("[DEBUG] ReadGPUQueryResults: GetData 결과 - HRESULT: 0x%08X (%s)",
+   //       hr,
+    //      hr == S_OK ? "S_OK" : (hr == S_FALSE ? "S_FALSE" : "ERROR"));
 
    if (hr != S_OK)
    {
       if (hr == S_FALSE)
       {
-         UE_LOG("[DEBUG] ReadGPUQueryResults: GPU 아직 작업 중 (S_FALSE), 1프레임 더 대기");
+       //  UE_LOG("[DEBUG] ReadGPUQueryResults: GPU 아직 작업 중 (S_FALSE), 1프레임 더 대기");
       }
       else
       {
-         UE_LOG("[ERROR] ReadGPUQueryResults: Disjoint Query GetData 실패 (HRESULT: 0x%08X)", hr);
+       //  UE_LOG("[ERROR] ReadGPUQueryResults: Disjoint Query GetData 실패 (HRESULT: 0x%08X)", hr);
       }
       GPUQueryFrameDelay = 1;
       return;
    }
 
-   UE_LOG("[DEBUG] ReadGPUQueryResults: GetData 성공! Disjoint: %d, Frequency: %llu",
-          disjointData.Disjoint, disjointData.Frequency);
+   //UE_LOG("[DEBUG] ReadGPUQueryResults: GetData 성공! Disjoint: %d, Frequency: %llu",
+     //     disjointData.Disjoint, disjointData.Frequency);
 
    if (disjointData.Disjoint)
    {
-      UE_LOG("[DEBUG] ReadGPUQueryResults: Disjoint 오류 발생, 측정 무효");
+     // UE_LOG("[DEBUG] ReadGPUQueryResults: Disjoint 오류 발생, 측정 무효");
       return;
    } 
 
@@ -863,8 +863,8 @@ void USkinnedMeshComponent::ReadGPUQueryResults()
       // GPU 스키닝: CPU 작업(상수 버퍼 업데이트) + GPU 작업(스키닝 계산 + 그리기)
       double totalTimeMS = LastGPUSkinningCpuTime + gpuDrawTimeMS;
 
-      UE_LOG("[DEBUG] [GPU 스키닝] DrawIndexed(GPU): %.6f ms, 상수버퍼(CPU): %.6f ms, 총합: %.6f ms",
-             gpuDrawTimeMS, LastGPUSkinningCpuTime, totalTimeMS);
+     // UE_LOG("[DEBUG] [GPU 스키닝] DrawIndexed(GPU): %.6f ms, 상수버퍼(CPU): %.6f ms, 총합: %.6f ms",
+       //      gpuDrawTimeMS, LastGPUSkinningCpuTime, totalTimeMS);
        
       FSkinningStats::GetInstance().RecordGPUSkinningTime(totalTimeMS);
    }
@@ -873,8 +873,8 @@ void USkinnedMeshComponent::ReadGPUQueryResults()
       // CPU 스키닝: CPU 작업(정점 계산 + 버퍼 업로드) + GPU 작업(그리기만)
       double totalTimeMS = LastCPUSkinningCpuTime + gpuDrawTimeMS;
 
-      UE_LOG("[DEBUG] [CPU 스키닝] DrawIndexed(GPU): %.6f ms, 정점계산+업로드(CPU): %.6f ms, 총합: %.6f ms",
-             gpuDrawTimeMS, LastCPUSkinningCpuTime, totalTimeMS);
+    //  UE_LOG("[DEBUG] [CPU 스키닝] DrawIndexed(GPU): %.6f ms, 정점계산+업로드(CPU): %.6f ms, 총합: %.6f ms",
+          //   gpuDrawTimeMS, LastCPUSkinningCpuTime, totalTimeMS);
 
       FSkinningStats::GetInstance().RecordCPUSkinningTime(totalTimeMS);
    }
