@@ -280,24 +280,47 @@ void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
     // 타임라인 UI 업데이트
     if (bIsPlaying && CurrentSequence)
     {
-        // 시간 증가
+        // 시간 증가/감소 (PlayRate에 따라 정재생/역재생)
         CurrentTime += DeltaSeconds * PlayRate;
 
-        // 루프 처리
-        if (CurrentTime > PlayLength)
+        // 정재생 (PlayRate > 0): 앞으로 재생
+        if (PlayRate > 0.0f)
         {
-            if(bLooping)
+            if (CurrentTime > PlayLength)
             {
-                // 루프면 처음으로 되돌림
-                CurrentTime = fmod(CurrentTime, PlayLength);
-            }
-            else
-            {
-                // 루프 아님: 끝에서 정지
-                CurrentTime = PlayLength;
-                bIsPlaying = false;
+                if (bLooping)
+                {
+                    // 루프: 처음으로 되돌림
+                    // ex) CurrentTime = 5.3, PlayLength = 5.0 -> 0.3 (나머지 반환)
+                    CurrentTime = fmod(CurrentTime, PlayLength);
+                }
+                else
+                {
+                    // 루프 아님: 끝에서 정지
+                    CurrentTime = PlayLength;
+                    bIsPlaying = false;
+                }
             }
         }
+        // 역재생 (PlayRate < 0): 뒤로 재생
+        else if (PlayRate < 0.0f)
+        {
+            if (CurrentTime < 0.0f)
+            {
+                if (bLooping)
+                {
+                    // 루프: 끝으로 이동
+                    CurrentTime = PlayLength + fmod(CurrentTime, PlayLength);
+                }
+                else
+                {
+                    // 루프 아님: 처음에서 정지
+                    CurrentTime = 0.0f;
+                    bIsPlaying = false;
+                }
+            }
+        }
+
         // 프레임 업데이트
         CurrentFrame = TimeToFrame(CurrentTime);
 
@@ -653,7 +676,7 @@ void SAnimSequenceViewerWindow::RenderPlaybackControls()
 
     // 재생 속도 슬라이더
     ImGui::SetNextItemWidth(200.0f);
-    ImGui::SliderFloat("Playback Speed", &PlayRate, 0.1f, 2.0f, "%.2fx");
+    ImGui::SliderFloat("Playback Speed", &PlayRate, -1.0f, 2.0f, "%.2fx");
 }
 
 void SAnimSequenceViewerWindow::RenderTimeline()
