@@ -38,6 +38,9 @@ void AJamesGameMode::BeginPlay()
 	{
 		UE_LOG("[JamesGameMode] Possessing");
 		PlayerController->Possess(PlayerCharacter);
+
+		PlayerCharacter->BeginPlay();
+		PlayerController->BeginPlay();
 	}
 }
 

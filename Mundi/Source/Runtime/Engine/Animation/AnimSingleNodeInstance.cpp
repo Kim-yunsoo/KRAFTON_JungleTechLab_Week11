@@ -12,6 +12,15 @@ void UAnimSingleNodeInstance::SetAnimSequence(UAnimSequence* InAnimSequence, con
 	SetPlay(true);
 }
 
+void UAnimSingleNodeInstance::Tick(float DeltaSeconds)
+{
+	if (OwnerComponent && bPlay && Speed != 0 && AnimSequence)
+	{
+		PrevTime = CurrentTime;
+		CurrentTime += DeltaSeconds * Speed;
+		NativeUpdateAnimation(DeltaSeconds);
+	}
+}
 
 void UAnimSingleNodeInstance::NativeUpdateAnimation(float DeltaSeconds)
 {

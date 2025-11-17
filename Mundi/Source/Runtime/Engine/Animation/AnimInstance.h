@@ -12,7 +12,7 @@ public:
 	UAnimInstance();
 	virtual ~UAnimInstance() = default;
 	void TriggerAnimNotifies(float DeltaSeconds);
-	void Tick(float DeltaSeconds);
+	virtual void Tick(float DeltaSeconds);
 	void ChangeState(UAnimState* AnimState, UAnimTransition* AnimTransition);
 	void ChangeState(UAnimState* AnimState, float InTransitionTime);
 
