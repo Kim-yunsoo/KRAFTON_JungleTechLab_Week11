@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "SkeletalMeshActor.h"
 #include "World.h"
+#include "Source/Runtime/Engine/Animation/AnimSequenceBase.h"
 
 ASkeletalMeshActor::ASkeletalMeshActor()
 {
@@ -13,6 +14,26 @@ ASkeletalMeshActor::ASkeletalMeshActor()
 }
 
 ASkeletalMeshActor::~ASkeletalMeshActor() = default;
+
+void ASkeletalMeshActor::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (USkeletalMeshComponent* Comp = GetSkeletalMeshComponent())
+    {
+        // Enter Move state so Standard Walk plays and triggers TEST at 0.3s
+        Comp->bMove = true;
+
+        // Log when TEST notify is received
+        Comp->OnAnimNotify.Add([this](const FAnimNotifyEvent& Event)
+        {
+            if (Event.NotifyName == "TEST")
+            {
+                UE_LOG("ASkeletalMeshActor: TEST notify received at %.3f sec", Event.TriggerTime);
+            }
+        });
+    }
+}
 
 void ASkeletalMeshActor::Tick(float DeltaTime)
 {

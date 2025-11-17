@@ -16,6 +16,7 @@ public:
     ~ASkeletalMeshActor() override;
 
     // AActor
+    void BeginPlay() override;
     void Tick(float DeltaTime) override;
     FAABB GetBounds() const override;
 

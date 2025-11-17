@@ -30,6 +30,16 @@ void USkeletalMeshComponent::BeginPlay()
     UAnimState* MoveState = NewObject<UAnimState>();
     MoveState->Name = "Move";
     MoveState->AnimSequence = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx");
+    // Inject a temporary TEST notify at 0.3s for quick verification
+    if (MoveState->AnimSequence)
+    {
+        FAnimNotifyEvent TestNotify;
+        TestNotify.TriggerTime = 0.3f;
+        TestNotify.Duration = 0.0f;
+        TestNotify.NotifyName = "TEST";
+        MoveState->AnimSequence->AddNotify(TestNotify);
+        UE_LOG("Inserted TEST AnimNotify at 0.3s on Standard Walk");
+    }
     StateMachine.AddState(IdleState);
     StateMachine.AddState(MoveState);
     StateMachine.StartStateMachine(IdleState);

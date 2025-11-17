@@ -1,9 +1,9 @@
 {
   "Actors" : {
-    "883" : {
+    "898" : {
       "ObjectName" : "APlayerCameraManager_2",
       "OwnedComponents" : [{
-          "Id" : 884,
+          "Id" : 899,
           "ObjectName" : "USceneComponent_3",
           "ParentId" : 0,
           "RelativeLocation" : [0.000000, 0.000000, 0.000000],
@@ -15,63 +15,13 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 884,
+      "RootComponentId" : 899,
       "Tag" : "",
       "Type" : "APlayerCameraManager",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "891" : {
-      "ObjectName" : "빈 액터_0",
-      "OwnedComponents" : [{
-          "Id" : 892,
-          "ObjectName" : "USceneComponent_4",
-          "ParentId" : 0,
-          "RelativeLocation" : [1.532815, -1.532815, 1.173166],
-          "RelativeRotationEuler" : [0.000000, -0.000000, 0.000000],
-          "RelativeScale" : [1.000000, 1.000000, 1.000000],
-          "Type" : "USceneComponent",
-          "bHiddenInGame" : false,
-          "bIsActive" : true,
-          "bIsVisible" : true,
-          "bTickEnabled" : true
-        }, {
-          "Id" : 900,
-          "MaterialSlots" : [{
-              "Type" : "None"
-            }, {
-              "AssetPath" : "Ch06_body",
-              "Type" : "UMaterial"
-            }, {
-              "AssetPath" : "Ch06_eyelashes",
-              "Type" : "UMaterial"
-            }, {
-              "AssetPath" : "Ch06_body1",
-              "Type" : "UMaterial"
-            }],
-          "ObjectName" : "USkeletalMeshComponent_1",
-          "ParentId" : 892,
-          "RelativeLocation" : [0.000000, 0.000000, 0.000000],
-          "RelativeRotationEuler" : [0.000000, -0.000000, 166.324295],
-          "RelativeScale" : [1.000000, 1.000000, 1.000000],
-          "SkeletalMesh" : "Data/James/James.fbx",
-          "TestBlend" : 0.000000,
-          "Type" : "USkeletalMeshComponent",
-          "bBlockComponent" : false,
-          "bCastShadows" : true,
-          "bGenerateOverlapEvents" : true,
-          "bHiddenInGame" : false,
-          "bIsActive" : true,
-          "bIsVisible" : true,
-          "bTickEnabled" : true
-        }],
-      "RootComponentId" : 892,
-      "Tag" : "",
-      "Type" : "AEmptyActor",
-      "bActorHiddenInGame" : false,
-      "bActorIsActive" : true
-    },
-    "894" : {
+    "903" : {
       "ObjectName" : "방향성 라이트_0",
       "OwnedComponents" : [{
           "CascadedAreaColorDebugValue" : 0.000000,
@@ -79,7 +29,7 @@
           "CascadedCount" : 4,
           "CascadedLinearBlendingValue" : 0.500000,
           "CascadedOverlapValue" : 0.200000,
-          "Id" : 895,
+          "Id" : 905,
           "Intensity" : 1.000000,
           "LightColor" : [1.000000, 1.000000, 1.000000, 1.000000],
           "ObjectName" : "UDirectionalLightComponent_2",
@@ -100,20 +50,59 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 895,
+      "RootComponentId" : 905,
       "Tag" : "",
       "Type" : "ADirectionalLightActor",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
+    },
+    "912" : {
+      "ObjectName" : "스켈레탈 메시_0",
+      "OwnedComponents" : [{
+          "Id" : 913,
+          "MaterialSlots" : [{
+              "Type" : "None"
+            }, {
+              "AssetPath" : "Ch06_body",
+              "Type" : "UMaterial"
+            }, {
+              "AssetPath" : "Ch06_eyelashes",
+              "Type" : "UMaterial"
+            }, {
+              "AssetPath" : "Ch06_body1",
+              "Type" : "UMaterial"
+            }],
+          "ObjectName" : "USkeletalMeshComponent_2",
+          "ParentId" : 0,
+          "RelativeLocation" : [8.271131, -3.611464, 0.896132],
+          "RelativeRotationEuler" : [0.000000, -0.000000, -161.474243],
+          "RelativeScale" : [1.000000, 1.000000, 1.000000],
+          "SkeletalMesh" : "Data/James/James.fbx",
+          "TestBlend" : 0.000000,
+          "Type" : "USkeletalMeshComponent",
+          "bBlockComponent" : false,
+          "bCastShadows" : true,
+          "bGenerateOverlapEvents" : true,
+          "bHiddenInGame" : false,
+          "bIsActive" : true,
+          "bIsVisible" : true,
+          "bMove" : false,
+          "bTickEnabled" : true
+        }],
+      "RootComponentId" : 913,
+      "Tag" : "",
+      "Type" : "ASkeletalMeshActor",
+      "bActorHiddenInGame" : false,
+      "bActorIsActive" : true
     }
   },
-  "NextUUID" : 901,
+  "NextUUID" : 914,
   "PerspectiveCamera" : {
     "FOV" : [60.000000],
     "FarClip" : [2000.000000],
-    "Location" : [-0.677925, -1.112838, 2.984255],
+    "Location" : [5.716642, -4.560468, 2.079780],
     "NearClip" : [0.100000],
-    "Rotation" : [0.000000, 21.700001, -15.600027]
+    "Rotation" : [0.000000, 5.899956, 20.099997]
   },
   "Version" : 1
 }
