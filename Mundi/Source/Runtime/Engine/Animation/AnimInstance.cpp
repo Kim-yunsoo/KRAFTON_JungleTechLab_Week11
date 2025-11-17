@@ -56,7 +56,7 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	float TransitionBlendFactor = Clamp((TransitionTime - CurTransitionTime) / TransitionTime);
-	CurTransitionTime -= CurrentTime - PrevTime;
+	CurTransitionTime -= abs(CurrentTime - PrevTime);
 	UAnimSequence* AnimSequence = CurrentState->AnimSequence;
 	float SequenceTime = AnimSequence->GetSequenceLength();
 	if (bLoop)
