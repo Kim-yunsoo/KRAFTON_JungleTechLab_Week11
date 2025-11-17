@@ -144,27 +144,18 @@ void SAnimSequenceViewerWindow::OnRender()
         RenderPreviewViewport(TopPreviewHeightPixels);
 
         // ============================================================
-        // 하단: 3개 열로 분할 (Notify Tracks + Playback | Timeline | Info+List)
+        // 하단: 좌측 (통합 Notify+Timeline) | 우측 (Info+List)
         // ============================================================
 
         // 스타일: 패널 간 간격 제거
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-        // --- 좌측: Notify 트랙 패널 + Playback Controls (30%) ---
-        ImGui::BeginChild("NotifyTrackPanel", ImVec2(LeftNotifyWidthPixels, BottomPanelHeightPixels), true);
+        // --- 좌측: 통합 Notify+Timeline 패널 (70%) ---
+        float LeftCombinedWidth = TotalWidth * 0.70f; // Notify+Timeline 합쳐서 70%
+        ImGui::BeginChild("CombinedNotifyTimelinePanel", ImVec2(LeftCombinedWidth, BottomPanelHeightPixels), true);
         {
-            // Notify 트랙 목록 + Playback Controls (내부에서 처리)
-            RenderNotifyTrackPanel();
-        }
-        ImGui::EndChild();
-
-        ImGui::SameLine(0, 0);
-
-        // --- 중앙: 타임라인 UI (55%) ---
-        ImGui::BeginChild("TimelinePanel", ImVec2(CenterTimelineWidthPixels, BottomPanelHeightPixels), true);
-        {
-            // 타임라인 렌더링
-            RenderTimeline();
+            // Notify 트랙과 Timeline을 합친 새로운 레이아웃
+            RenderCombinedNotifyTimeline();
         }
         ImGui::EndChild();
 
@@ -717,9 +708,13 @@ void SAnimSequenceViewerWindow::RenderNotifyTrackPanel()
 	float PlaybackControlsHeight = 110.0f; // Playback Controls 높이
 	float TrackListHeight = PanelHeight - HeaderHeight - PlaybackControlsHeight - 20.0f; // 여유 공간
 
-	// 트랙 목록 (상단, 스크롤 가능)
-	ImGui::BeginChild("NotifyTrackList", ImVec2(0, TrackListHeight), false);
+	// 트랙 목록 (상단, 스크롤 가능) - Timeline과 스크롤 동기화
+	ImGui::BeginChild("NotifyTrackList", ImVec2(0, TrackListHeight), false, ImGuiWindowFlags_NoScrollbar);
 	{
+		// 최소 높이 보장 (트랙이 없어도 전체 높이 채우기)
+		float TrackHeight = 25.0f;
+
+		// 실제 트랙 표시
 		for (int i = 0; i < NotifyTrackIndices.Num(); i++)
 		{
 			int32 TrackNumber = NotifyTrackIndices[i];
@@ -728,7 +723,7 @@ void SAnimSequenceViewerWindow::RenderNotifyTrackPanel()
 
 			// 트랙 번호 표시 (클릭해서 선택 가능)
 			bool bSelected = (i == SelectedTrackIndex);
-			if (ImGui::Selectable(Label, bSelected, 0, ImVec2(0, 25)))
+			if (ImGui::Selectable(Label, bSelected, 0, ImVec2(0, TrackHeight)))
 			{
 				// 클릭하면 선택
 				SelectedTrackIndex = i;
@@ -824,5 +819,275 @@ void SAnimSequenceViewerWindow::RenderPreviewViewport(float Height)
     }
 
     ImGui::EndChild();
+}
+
+// ============================================================
+// 통합 Notify+Timeline 패널 (언리얼 스타일)
+// ============================================================
+
+void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
+{
+    // 전체 패널 크기
+    float PanelWidth = ImGui::GetContentRegionAvail().x;
+    float PanelHeight = ImGui::GetContentRegionAvail().y;
+
+    // 레이아웃 설정
+    float HeaderHeight = 60.0f;         // "Notify [+] [-]" 헤더 영역
+    float PlaybackHeight = 110.0f;      // Playback Controls 영역
+    float ScrollableHeight = PanelHeight - HeaderHeight - PlaybackHeight;
+
+    float NotifyColumnWidth = PanelWidth * 0.15f;  // Notify 트랙 번호 컬럼 15%
+    float TimelineColumnWidth = PanelWidth * 0.85f; // Timeline 컬럼 85%
+    float RowHeight = 25.0f; // 각 트랙 행 높이
+
+    // ============================================================
+    // 1. 헤더 영역 (고정, 스크롤 안됨)
+    // ============================================================
+    ImGui::Text("Notify");
+    ImGui::SameLine();
+
+    // Add Track 버튼
+    if (ImGui::Button("[+] Add Track"))
+    {
+        ImGui::OpenPopup("AddNotifyTrackMenu");
+    }
+
+    ImGui::SameLine();
+
+    // Delete Track 버튼
+    bool bCanDelete = (SelectedTrackIndex >= 0 && SelectedTrackIndex < NotifyTrackIndices.Num());
+    if (!bCanDelete)
+    {
+        ImGui::BeginDisabled();
+    }
+
+    if (ImGui::Button("[-] Delete Track"))
+    {
+        if (bCanDelete)
+        {
+            NotifyTrackIndices.RemoveAt(SelectedTrackIndex);
+            SelectedTrackIndex = -1;
+        }
+    }
+
+    if (!bCanDelete)
+    {
+        ImGui::EndDisabled();
+    }
+
+    // 드롭다운 메뉴
+    if (ImGui::BeginPopup("AddNotifyTrackMenu"))
+    {
+        if (ImGui::MenuItem("Add Notify Track"))
+        {
+            NotifyTrackIndices.Add(NextNotifyTrackNumber);
+            NextNotifyTrackNumber++;
+        }
+        ImGui::EndPopup();
+    }
+
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // ============================================================
+    // 2. 스크롤 가능한 트랙 영역 (Notify + Timeline 함께 스크롤)
+    // ============================================================
+    ImGui::BeginChild("ScrollableTracks", ImVec2(0, ScrollableHeight), false);
+    {
+        int32 VisibleTrackCount = FMath::Max(NotifyTrackIndices.Num(), 8); // 최소 8개 트랙 높이
+
+        // 좌측 Notify 컬럼과 우측 Timeline 컬럼을 같이 렌더링
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
+        // 좌측: Notify 트랙 번호 컬럼
+        ImGui::BeginChild("NotifyColumn", ImVec2(NotifyColumnWidth, RowHeight * VisibleTrackCount), true, ImGuiWindowFlags_NoScrollbar);
+        {
+            RenderNotifyTrackColumn(NotifyColumnWidth, RowHeight, VisibleTrackCount);
+        }
+        ImGui::EndChild();
+
+        ImGui::SameLine(0, 0);
+
+        // 우측: Timeline 컬럼
+        ImGui::BeginChild("TimelineColumn", ImVec2(TimelineColumnWidth, RowHeight * VisibleTrackCount), true, ImGuiWindowFlags_NoScrollbar);
+        {
+            RenderTimelineColumn(TimelineColumnWidth, RowHeight, VisibleTrackCount);
+        }
+        ImGui::EndChild();
+
+        ImGui::PopStyleVar();
+    }
+    ImGui::EndChild();
+
+    // ============================================================
+    // 3. Playback Controls (하단 고정, 스크롤 안됨)
+    // ============================================================
+    ImGui::Separator();
+    RenderPlaybackControls();
+}
+
+void SAnimSequenceViewerWindow::RenderNotifyTrackColumn(float ColumnWidth, float RowHeight, int32 VisibleTrackCount)
+{
+    // Notify 트랙 번호 표시 (좌측 컬럼)
+    for (int i = 0; i < NotifyTrackIndices.Num(); i++)
+    {
+        int32 TrackNumber = NotifyTrackIndices[i];
+        char Label[32];
+        sprintf_s(Label, "%d", TrackNumber);
+
+        // 트랙 선택 가능
+        bool bSelected = (i == SelectedTrackIndex);
+        if (ImGui::Selectable(Label, bSelected, 0, ImVec2(0, RowHeight)))
+        {
+            SelectedTrackIndex = i;
+        }
+
+        // 호버 감지
+        if (ImGui::IsItemHovered())
+        {
+            HoveredTrackIndex = i;
+        }
+    }
+
+    // 트랙이 없으면 안내 메시지
+    if (NotifyTrackIndices.Num() == 0)
+    {
+        ImGui::TextDisabled("No tracks");
+        ImGui::TextDisabled("Click [+]");
+    }
+}
+
+void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float RowHeight, int32 VisibleTrackCount)
+{
+    // Timeline 영역 계산
+    TimelineWidth = ColumnWidth - 20.0f;
+    float RulerHeight = 35.0f; // 하단 프레임 눈금 영역
+    float TotalHeight = (VisibleTrackCount * RowHeight) + RulerHeight;
+
+    ImVec2 CanvasPos = ImGui::GetCursorScreenPos();
+    ImVec2 CanvasSize(TimelineWidth, TotalHeight);
+
+    ImDrawList* DrawList = ImGui::GetWindowDrawList();
+
+    // 타임라인 배경
+    ImVec4 bgColor = ImVec4(0.2f, 0.2f, 0.2f, 1.0f);
+    DrawList->AddRectFilled(CanvasPos,
+        ImVec2(CanvasPos.x + CanvasSize.x, CanvasPos.y + CanvasSize.y),
+        ImGui::ColorConvertFloat4ToU32(bgColor));
+
+    // 각 트랙별 구분선 그리기
+    for (int i = 0; i <= VisibleTrackCount; i++)
+    {
+        float YPos = CanvasPos.y + (i * RowHeight);
+        DrawList->AddLine(
+            ImVec2(CanvasPos.x, YPos),
+            ImVec2(CanvasPos.x + CanvasSize.x, YPos),
+            IM_COL32(80, 80, 80, 255), 1.0f);
+    }
+
+    // 적응형 눈금 간격 계산
+    int targetRulerCount = 10;
+    int FrameInterval = (TotalFrames > 0) ? (TotalFrames / targetRulerCount) : 10;
+
+    if (FrameInterval <= 5)
+        FrameInterval = 5;
+    else if (FrameInterval <= 10)
+        FrameInterval = 10;
+    else if (FrameInterval <= 20)
+        FrameInterval = 20;
+    else if (FrameInterval <= 30)
+        FrameInterval = 30;
+    else if (FrameInterval <= 50)
+        FrameInterval = 50;
+    else if (FrameInterval <= 100)
+        FrameInterval = 100;
+    else
+        FrameInterval = ((FrameInterval + 99) / 100) * 100;
+
+    // 프레임 눈금 그리기 (세로선)
+    for (int frame = 0; frame <= TotalFrames; frame += FrameInterval)
+    {
+        float Time = FrameToTime(frame);
+        float XPos = CanvasPos.x + TimeToPixel(Time);
+
+        // 큰 눈금선 (전체 높이)
+        DrawList->AddLine(
+            ImVec2(XPos, CanvasPos.y),
+            ImVec2(XPos, CanvasPos.y + CanvasSize.y),
+            IM_COL32(100, 100, 100, 255), 1.0f);
+
+        // 프레임 번호 표시 (하단)
+        char Label[16];
+        sprintf_s(Label, "%d", frame);
+        DrawList->AddText(
+            ImVec2(XPos - 10, CanvasPos.y + CanvasSize.y - 30),
+            IM_COL32(200, 200, 200, 255), Label);
+    }
+
+    // 작은 눈금
+    int smallInterval = (FrameInterval >= 50) ? (FrameInterval / 5) : (FrameInterval / 2);
+    if (smallInterval > 0)
+    {
+        for (int frame = 0; frame <= TotalFrames; frame += smallInterval)
+        {
+            if (frame % FrameInterval == 0) continue;
+
+            float Time = FrameToTime(frame);
+            float XPos = CanvasPos.x + TimeToPixel(Time);
+
+            DrawList->AddLine(
+                ImVec2(XPos, CanvasPos.y),
+                ImVec2(XPos, CanvasPos.y + CanvasSize.y - RulerHeight),
+                IM_COL32(60, 60, 60, 255), 1.0f);
+        }
+    }
+
+    // 재생 헤드 (Playhead)
+    float PlayheadX = CanvasPos.x + TimeToPixel(CurrentTime);
+
+    // 재생 헤드 라인
+    DrawList->AddLine(
+        ImVec2(PlayheadX, CanvasPos.y),
+        ImVec2(PlayheadX, CanvasPos.y + CanvasSize.y),
+        IM_COL32(255, 100, 100, 255), 3.0f);
+
+    // 재생 헤드 상단 삼각형
+    ImVec2 triangle[3] = {
+        ImVec2(PlayheadX, CanvasPos.y),
+        ImVec2(PlayheadX - 6, CanvasPos.y + 10),
+        ImVec2(PlayheadX + 6, CanvasPos.y + 10)
+    };
+    DrawList->AddTriangleFilled(triangle[0], triangle[1], triangle[2],
+        IM_COL32(255, 100, 100, 255));
+
+    // 타임라인 클릭/드래그 감지
+    ImGui::SetCursorScreenPos(CanvasPos);
+    ImGui::InvisibleButton("TimelineButton", CanvasSize);
+
+    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
+    {
+        bIsDraggingPlayhead = true;
+        ImVec2 MousePos = ImGui::GetMousePos();
+        float ClickX = MousePos.x - CanvasPos.x;
+        CurrentTime = PixelToTime(ClickX);
+        CurrentFrame = TimeToFrame(CurrentTime);
+        bIsPlaying = false;
+    }
+    else if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+    {
+        ImVec2 MousePos = ImGui::GetMousePos();
+        float ClickX = MousePos.x - CanvasPos.x;
+        CurrentTime = PixelToTime(ClickX);
+        CurrentFrame = TimeToFrame(CurrentTime);
+        bIsPlaying = false;
+    }
+    else
+    {
+        bIsDraggingPlayhead = false;
+    }
+
+    // 커서 이동
+    ImGui::SetCursorScreenPos(ImVec2(CanvasPos.x, CanvasPos.y + CanvasSize.y + 5));
+    ImGui::Spacing();
 }
 

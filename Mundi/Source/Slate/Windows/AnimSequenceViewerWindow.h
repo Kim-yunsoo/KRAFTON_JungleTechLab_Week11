@@ -43,16 +43,23 @@ private:
 
 	/** 상단: 3D 프리뷰 뷰포트 */
 	void RenderPreviewViewport(float Height);
-	/** 하단 좌측: Notify 트랙 패널 */
-	void RenderNotifyTrackPanel();
-	/** 하단 중앙: 재생 컨트롤 */
+	/** 하단 좌측: 통합 Notify+Timeline 패널 (언리얼 스타일) */
+	void RenderCombinedNotifyTimeline();
+	/** Notify 트랙 목록 (좌측 컬럼) */
+	void RenderNotifyTrackColumn(float ColumnWidth, float RowHeight, int32 VisibleTrackCount);
+	/** Timeline (우측 컬럼, 트랙별 타임라인 행) */
+	void RenderTimelineColumn(float ColumnWidth, float RowHeight, int32 VisibleTrackCount);
+	/** 재생 컨트롤 */
 	void RenderPlaybackControls();
-	/** 하단 중앙: 타임라인 (프레임 눈금, 재생 헤드, Notify 마커) */
-	void RenderTimeline();
 	/** 하단 우측 상단: 애니메이션 정보 패널 */
 	void RenderInfoPanel();
 	/** 하단 우측 하단: 애니메이션 목록 */
 	void RenderAnimationList();
+
+	/** [DEPRECATED] 하단 좌측: Notify 트랙 패널 (레거시) */
+	void RenderNotifyTrackPanel();
+	/** [DEPRECATED] 하단 중앙: 타임라인 (레거시) */
+	void RenderTimeline();
 
 private:
 	// === 타임라인 UI 헬퍼 메서드 ===
@@ -114,6 +121,7 @@ private:
 	// UI 상태
 	float TimelineWidth = 800.0f;
 	bool bIsDraggingPlayhead = false; // 재생 헤드 드래그 중
+	float SharedScrollY = 0.0f; // Notify와 Timeline 패널 공유 스크롤 Y
 
 	bool bInitialPlacementDone = false;
 	bool bIsOpen = true;
