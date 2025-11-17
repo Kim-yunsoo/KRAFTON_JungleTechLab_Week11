@@ -46,11 +46,35 @@ public:
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
 
-    UFUNCTION(LuaBind, DisplayName = "GetAnimInstance")
-    UAnimInstance* GetAnimInstance();
-
     UFUNCTION(LuaBind, DisplayName = "PlayAnimation")
     void PlayAnimation(const FString& AnimPath, bool bLoop);
+
+
+    //----------------
+    //UAnimInstance 루아 바인딩 안되서 임시로 스켈레탈메쉬에서 호출
+    UFUNCTION(LuaBind, DisplayName = "AddState")
+    void AddState(const FString& InName, const FString& AnimPath);
+
+    UFUNCTION(LuaBind, DisplayName = "AddTransition")
+    void AddTransition(const FString& StartStateName, const FString& EndStateName, const float InBlendTime, std::function<bool()> func);
+
+    UFUNCTION(LuaBind, DisplayName = "SetStartState")
+    void SetStartState(const FString& StartStateName);
+
+    UFUNCTION(LuaBind, DisplayName = "SetSpeed")
+    void SetSpeed(const float InSpeed);
+
+    UFUNCTION(LuaBind, DisplayName = "Play")
+    void Play();
+
+    UFUNCTION(LuaBind, DisplayName = "Pause")
+    void Pause();
+
+    UFUNCTION(LuaBind, DisplayName = "Replay")
+    void Replay();
+
+    //------------------------
+
     void DuplicateSubObjects() override;
 
 public:

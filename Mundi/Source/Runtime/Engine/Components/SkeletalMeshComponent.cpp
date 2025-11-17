@@ -189,11 +189,6 @@ void USkeletalMeshComponent::UpdateFinalSkinningMatrices()
     }
 }
 
-UAnimInstance* USkeletalMeshComponent::GetAnimInstance()
-{ 
-    return AnimInstance; 
-}
-
 void USkeletalMeshComponent::PlayAnimation(const FString& AnimPath, bool bLoop)
 {
     UAnimSequence* AnimSequence = RESOURCE.Get<UAnimSequence>(AnimPath);
@@ -231,4 +226,64 @@ void USkeletalMeshComponent::DuplicateSubObjects()
     Super::DuplicateSubObjects();
     AnimInstance = NewObject<UAnimInstance>();
     AnimInstance->SetOwner(this);
+}
+
+
+
+void USkeletalMeshComponent::AddState(const FString& InName, const FString& AnimPath)
+{
+    if (AnimInstance)
+    {
+        AnimInstance->AddState(InName, AnimPath);
+    }
+}
+
+void USkeletalMeshComponent::AddTransition(const FString& StartStateName, const FString& EndStateName, const float InBlendTime, std::function<bool()> func)
+{ 
+    if (AnimInstance)
+    {
+        UAnimTransition* Transition = AnimInstance->AddTransition(StartStateName, EndStateName);
+        Transition->SetBlendTime(InBlendTime);
+        Transition->SetCondition(func);
+    }
+}
+
+void USkeletalMeshComponent::SetStartState(const FString& StartStateName)
+{ 
+    if (AnimInstance)
+    {
+        AnimInstance->SetStartState(StartStateName);
+    }
+}
+
+void USkeletalMeshComponent::SetSpeed(const float InSpeed)
+{ 
+    if (AnimInstance)
+    {
+        AnimInstance->SetSpeed(InSpeed);
+    }
+}
+
+void USkeletalMeshComponent::Play()
+{ 
+    if (AnimInstance)
+    {
+        AnimInstance->Play();
+    }
+}
+
+void USkeletalMeshComponent::Pause()
+{ 
+    if (AnimInstance)
+    {
+        AnimInstance->Pause();
+    }
+}
+
+void USkeletalMeshComponent::Replay()
+{
+    if (AnimInstance)
+    {
+        AnimInstance->Replay();
+    }
 }

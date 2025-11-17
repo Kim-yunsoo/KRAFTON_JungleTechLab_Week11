@@ -2,21 +2,18 @@
 local SkeletalComp
 local AnimInstance
 
+local bWalk = true
+
+
+
 function BeginPlay()
 print("Begin")
 SkeletalComp = GetComponent(Obj, "USkeletalMeshComponent")
-SkeletalComp:PlayAnimation("Data/Animations/Breathing Idle.fbx", true)
-AnimInstance = SkeletalComp:GetAnimInstance()
-if AnimInstance == nil then
-print("없")
-else
-print("잇")
-end
---AnimInstance:SetStartState("Test")
-
---SkeletalComp:PlayAnimation("Data/Animations/Standard Walk.fbx", true)
---SkeletalComp.AnimInstance:AddState("Walk", "Data/Animations/Standard Walk.fbx")
-
+SkeletalComp:AddState("Idle", "Data/Animations/Breathing Idle.fbx")
+SkeletalComp:AddState("Walk", "Data/Animations/Standard Walk.fbx")
+SkeletalComp:AddTransition("Idle","Walk", 0.2, function() return bWalk end)
+SkeletalComp:AddTransition("Walk","Idle", 0.2, function() return bWalk==false end)
+SkeletalComp:SetStartState("Idle")
 end
 
 function EndPlay()
@@ -24,5 +21,10 @@ function EndPlay()
 end
 
 function Tick(dt)
+    if InputManager:IsKeyDown('W') then
+    bWalk = true
+    else
+    bWalk = false
+    end
 
 end

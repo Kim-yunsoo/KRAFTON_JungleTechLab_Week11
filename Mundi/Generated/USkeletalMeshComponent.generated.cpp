@@ -47,9 +47,21 @@ extern "C" void LuaBind_Anchor_USkeletalMeshComponent() {}
 
 LUA_BIND_BEGIN(USkeletalMeshComponent)
 {
-    AddMethodR<UAnimInstance*, USkeletalMeshComponent>(
-        T, "GetAnimInstance", &USkeletalMeshComponent::GetAnimInstance);
     AddAlias<USkeletalMeshComponent, const FString&, bool>(
         T, "PlayAnimation", &USkeletalMeshComponent::PlayAnimation);
+    AddAlias<USkeletalMeshComponent, const FString&, const FString&>(
+        T, "AddState", &USkeletalMeshComponent::AddState);
+    AddAlias<USkeletalMeshComponent, const FString&, const FString&, const float, std::function<bool()>>(
+        T, "AddTransition", &USkeletalMeshComponent::AddTransition);
+    AddAlias<USkeletalMeshComponent, const FString&>(
+        T, "SetStartState", &USkeletalMeshComponent::SetStartState);
+    AddAlias<USkeletalMeshComponent, const float>(
+        T, "SetSpeed", &USkeletalMeshComponent::SetSpeed);
+    AddAlias<USkeletalMeshComponent>(
+        T, "Play", &USkeletalMeshComponent::Play);
+    AddAlias<USkeletalMeshComponent>(
+        T, "Pause", &USkeletalMeshComponent::Pause);
+    AddAlias<USkeletalMeshComponent>(
+        T, "Replay", &USkeletalMeshComponent::Replay);
 }
 LUA_BIND_END()
