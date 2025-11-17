@@ -26,8 +26,23 @@ void UAnimStateMachine::SetCurrentState(UAnimState* InAnimState, UAnimTransition
 	CurrentState = InAnimState;
 	Owner->ChangeState(CurrentState, InTransition);
 }
+UAnimState* UAnimStateMachine::GetState(const FString& StateName)
+{
+	for (UAnimState* State : States)
+	{
+		if (State->Name == StateName)
+		{
+			return State;
+		}
+	}
+	return nullptr;
+}
 
-void UAnimStateMachine::StartStateMachine(UAnimState* StartState)
+void UAnimStateMachine::StartStateMachine(const FString& StateName, const float InBlendTime)
+{
+	StartStateMachine(GetState(StateName), InBlendTime);
+}
+void UAnimStateMachine::StartStateMachine(UAnimState* StartState, const float InBlendTime)
 {
 	if (States.Contains(StartState) == false)
 	{
@@ -35,37 +50,88 @@ void UAnimStateMachine::StartStateMachine(UAnimState* StartState)
 		return;
 	}
 	CurrentState = StartState;
-	Owner->ChangeState(CurrentState, 0.2f);
+	Owner->ChangeState(CurrentState, InBlendTime);
 }
 
-void UAnimStateMachine::AddState(UAnimState* InState)
+UAnimState* UAnimStateMachine::AddState(const FString& InName, UAnimSequence* Sequence)
 {
-	if (States.Contains(InState) == false)
+	if (HasState(InName))
 	{
-		States.Push(InState);
+		return nullptr;
+	}
+
+	UAnimState* AnimState = NewObject<UAnimState>();
+	AnimState->SetSequence(Sequence);
+	AnimState->SetName(InName);
+	States.Push(AnimState);
+	return AnimState;
+}
+
+void UAnimStateMachine::RemoveState(const FString& InName)
+{
+	int StateNum = States.Num();
+	for (int i = StateNum - 1; i >= 0; --i)
+	{
+		if (States[i]->Name == InName)
+		{
+			RemoveStateTransition(States[i]);
+			States.RemoveAt(i);
+			DeleteObject(States[i]);
+		}
 	}
 }
-void UAnimStateMachine::RemoveState(UAnimState* InState)
+
+UAnimTransition* UAnimStateMachine::AddTransition(const FString& StartStateName, const FString& EndStateName)
 {
-	States.Remove(InState);
+	UAnimState* StartState = GetState(StartStateName);
+	UAnimState* EndState = GetState(EndStateName);
+	if (StartState && EndState)
+	{
+		return AddTransition(StartState, EndState);
+	}
+	return nullptr;
+}
+UAnimTransition* UAnimStateMachine::AddTransition(UAnimState* StartState, UAnimState* EndState)
+{
+	if (States.Contains(StartState) && States.Contains(EndState))
+	{
+		UAnimTransition* Transition = NewObject<UAnimTransition>();
+		Transition->SetRoot(StartState, EndState);
+		Transitions.Push(Transition);
+		return Transition;
+	}
+	return nullptr;
+}
+
+void UAnimStateMachine::RemoveTransition(UAnimTransition* InTransition)
+{
+	Transitions.Remove(InTransition);
+	DeleteObject(InTransition);
+}
+
+
+bool UAnimStateMachine::HasState(const FString& InName)
+{
+	for (UAnimState* State : States)
+	{
+		if (State->Name == InName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UAnimStateMachine::RemoveStateTransition(UAnimState* RemoveState)
+{
 	int TransitionCount = Transitions.Num();
 	for (int i = TransitionCount - 1; i >= 0; i--)
 	{
 		UAnimTransition* Transition = Transitions[i];
-		if (Transition->To == InState || Transition->From == InState)
+		if (Transition->To == RemoveState || Transition->From == RemoveState)
 		{
 			Transitions.RemoveAt(i);
+			DeleteObject(Transitions[i]);
 		}
 	}
-}
-void UAnimStateMachine::AddTransition(UAnimTransition* InTransition)
-{
-	if (Transitions.Contains(InTransition) == false)
-	{
-		Transitions.Push(InTransition);
-	}
-}
-void UAnimStateMachine::RemoveTransition(UAnimTransition* InTransition)
-{
-	Transitions.Remove(InTransition);
 }

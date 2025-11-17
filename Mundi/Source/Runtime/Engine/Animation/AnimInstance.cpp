@@ -35,6 +35,19 @@ void UAnimInstance::ChangeState(UAnimState* AnimState, float InTransitionTime)
 	SetPlay(true);
 }
 
+UAnimState* UAnimInstance::AddState(const FString& InName, UAnimSequence* Sequence)
+{
+	return AnimStateMachine.AddState(InName, Sequence);;
+}
+UAnimTransition* UAnimInstance::AddTransition(const FString& StartStateName, const FString& EndStateName)
+{
+	return AnimStateMachine.AddTransition(StartStateName, EndStateName);
+}
+void UAnimInstance::SetStartState(const FString& StartStateName, const float InBlendTime)
+{
+	AnimStateMachine.StartStateMachine(StartStateName, InBlendTime);
+}
+
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 {
 
