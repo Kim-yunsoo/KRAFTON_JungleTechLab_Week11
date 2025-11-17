@@ -83,6 +83,7 @@ public:
 
     // Anim Sequnce Viewer
     void OpenAnimSequenceViewer();
+    void OpenAnimSequenceViewerWithMesh(const char* MeshPath);
     void CloseAnimSequenceViewer();
     bool IsAnimSequenceViewerOpen() const;
 private:

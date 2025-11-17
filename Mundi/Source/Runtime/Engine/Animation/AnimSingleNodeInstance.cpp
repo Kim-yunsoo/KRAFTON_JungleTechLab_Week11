@@ -15,7 +15,7 @@ void UAnimSingleNodeInstance::SetAnimSequence(UAnimSequence* InAnimSequence, con
 
 void UAnimSingleNodeInstance::Tick(float DeltaSeconds)
 {
-	if (OwnerComponent && bPlay && Speed != 0)
+	if (OwnerComponent && bPlay && Speed != 0 && AnimSequence)
 	{
 		PrevTime = CurrentTime;
 		CurrentTime += DeltaSeconds * Speed;
@@ -23,6 +23,8 @@ void UAnimSingleNodeInstance::Tick(float DeltaSeconds)
 		TriggerAnimNotifies(DeltaSeconds);
 	}
 }
+
+
 void UAnimSingleNodeInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	float SequenceTime = AnimSequence->GetPlayLength();

@@ -2,13 +2,19 @@
 #include "SWindow.h"
 #include "AnimSequence.h"
 #include "AnimSequenceBase.h"
-#include "SSkeletalMeshViewerWindow.h"
+
+// Forward declarations
+class ViewerState;
+class UWorld;
+struct ID3D11Device;
+
 /**
 * @brief 애니메이션 시퀀스 뷰어 윈도우
-* - 타임라인 UI (프레임 눈금, 재생 헤드)
-* - 재생 컨트롤 (Play/Pause/Stop, 프레임 이동)
-* - Notify 트랙 (마커 표시, 드래그 편집, 추가/삭제)
-* - SkeletalViewer와 실시간 연동
+* - 상단: 3D 프리뷰 뷰포트 (자체 ViewerState)
+* - 하단 좌측: Notify 트랙 (Add Notify 버튼)
+* - 하단 중앙: 타임라인 UI (재생 컨트롤, 프레임 눈금)
+* - 하단 우측 상단: Animation Info
+* - 하단 우측 하단: Animation List
 */
 class SAnimSequenceViewerWindow : public SWindow
 {
@@ -16,10 +22,13 @@ public:
 	SAnimSequenceViewerWindow();
 	virtual ~SAnimSequenceViewerWindow();
 
-	bool Initialize();
+	bool Initialize(UWorld* InWorld, ID3D11Device* InDevice);
 
 	// 애니메이션 로드
-	//void LoadAnimSquence(UAnimSequence* Sequence);
+	void LoadAnimSquence(UAnimSequence* Sequence);
+
+	// 스켈레탈 메시 경로 설정
+	void SetSkeletalMeshPath(const char* MeshPath);
 
 	// 윈도우 상태
 	bool IsOpen() const { return bIsOpen; }
@@ -28,36 +37,38 @@ public:
 	// SWindow 오버라이드
 	virtual void OnRender() override;
 	virtual void OnUpdate(float DeltaSeconds) override;
-	//virtual void OnMouseMove(FVector2D MousePos) override;
-	//virtual void OnMouseDown(FVector2D MousePos, uint32 Button) override;
-	//virtual void OnMouseUp(FVector2D MousePos, uint32 Button) override;
+	virtual void OnMouseMove(FVector2D MousePos) override;
+	virtual void OnMouseDown(FVector2D MousePos, uint32 Button) override;
+	virtual void OnMouseUp(FVector2D MousePos, uint32 Button) override;
+
+	// 뷰포트 렌더링 (ImGui 렌더링 전에 호출됨)
+	void OnRenderViewport();
 
 private:
 	// === UI 렌더링 메서드 ===
-	
-	/** 좌측: 애니메이션 목록 */
-	void RenderAnimationList();
-	/** 우측: 애니메이션 정보 패널*/
-	void RenderInfoPanel();
-	/** 재생 컨트롤*/
+
+	/** 상단: 3D 프리뷰 뷰포트 */
+	void RenderPreviewViewport(float Height);
+	/** 하단 좌측: 통합 Notify+Timeline 패널 (언리얼 스타일) */
+	void RenderCombinedNotifyTimeline();
+	/** Notify 트랙 목록 (좌측 컬럼) */
+	void RenderNotifyTrackColumn(float ColumnWidth, float RowHeight, int32 VisibleTrackCount);
+	/** Timeline (우측 컬럼, 트랙별 타임라인 행) */
+	void RenderTimelineColumn(float ColumnWidth, float RowHeight, int32 VisibleTrackCount);
+	/** 재생 컨트롤 */
 	void RenderPlaybackControls();
-	/** 타임라인 (프레임 눈금, 재생 헤드) */
+	/** 하단 우측 상단: 애니메이션 정보 패널 */
+	void RenderInfoPanel();
+	/** 하단 우측 하단: 애니메이션 목록 */
+	void RenderAnimationList();
+
+	/** 애니메이션 포즈를 평가하여 SkeletalMeshComponent에 적용 */
+	void ApplyAnimationPose();
+
+	/** [DEPRECATED] 하단 좌측: Notify 트랙 패널 (레거시) */
+	void RenderNotifyTrackPanel();
+	/** [DEPRECATED] 하단 중앙: 타임라인 (레거시) */
 	void RenderTimeline();
-	/** Notify 트랙 (마커, 드래그, 편집) */
-	void RenderNotifyMarkers();
-
-private:
-
-	// === Skeletal Mesh Viewer 연동 ===
-	// Comment: 나중에 스켈레탈 메시 뷰어로 연동하는게 아니라 직접 이 애니메이션 시퀀스 뷰어에서 직접 프리뷰가 가능하도록 수정하는 것이 궁극적 목표
-	/** SkeletalViewer에 현재 시간 반영 (실시간 동기화) */
-	void ApplyToSkeletalViewer();
-	
-	/** SkeletalViewer 가져오기 */
-	SSkeletalMeshViewerWindow* GetSkeletalViewer();
-	
-	/** ViewerState 가져오기 */
-	ViewerState* GetViewerState();
 
 private:
 	// === 타임라인 UI 헬퍼 메서드 ===
@@ -74,18 +85,39 @@ private:
 	int32 TimeToFrame(float Time) const;
 
 private:
+	// === 자체 프리뷰 시스템 ===
+	ViewerState* PreviewState = nullptr;
+	UWorld* World = nullptr;
+	ID3D11Device* Device = nullptr;
+
+	// === 레이아웃 비율 ===
+	float TopPreviewHeight = 0.6f;      // 상단 프리뷰 60%
+	float BottomPanelHeight = 0.4f;     // 하단 전체 40%
+
+	float LeftNotifyWidth = 0.30f;      // 좌측 Notify 30%
+	float CenterTimelineWidth = 0.40f;  // 중앙 Timeline 40%
+	float RightPanelWidth = 0.3f;       // 우측 Info+List 30%
+
+	float RightTopInfoHeight = 0.4f;    // 우측 상단 Info 40%
+	float RightBottomListHeight = 0.6f; // 우측 하단 List 60%
+
 	// === Notify 상태 ===
 	int32 HoveredNotifyIndex = -1;
 	int32 SelectedNotifyIndex = -1;
 
-	// 현재 보고 있는 애니메이션 시퀀스
-	UAnimSequenceBase* CurrentSequence = nullptr;
+	// === Notify 트랙 관리 ===
+	TArray<int32> NotifyTrackIndices; // 추가된 노티파이 트랙 번호 목록 (1, 2, 3...)
+	int32 NextNotifyTrackNumber = 1;  // 다음 트랙 번호
+	int32 SelectedTrackIndex = -1;    // 클릭해서 선택된 트랙 인덱스
+	int32 HoveredTrackIndex = -1;     // 마우스 오버된 트랙 인덱스
+	int32 RightClickedTrackIndex = -1; // 우클릭된 트랙 인덱스
 
 private:
-	//// 애니메이션 데이터
-	//void* CurrentSquence = nullptr; // UAnimSquence* 대신 임시
-	//TArray<FString> AvailableAnimationNames; // 임시 목록
+	// 애니메이션 데이터
+	TArray<FString> AvailableAnimationPaths; // 애니메이션 파일 경로 목록
 	int32 SelectedAnimIndex = -1;
+	UAnimSequenceBase* CurrentSequence; // 현재 보고 있는 애니메이션 시퀀스
+	
 	// 재생 상태
 	float CurrentTime = 0.0f;
 	float PlayLength = 5.0f; // 임시 기본값
@@ -98,9 +130,13 @@ private:
 	// UI 상태
 	float TimelineWidth = 800.0f;
 	bool bIsDraggingPlayhead = false; // 재생 헤드 드래그 중
+	float SharedScrollY = 0.0f; // Notify와 Timeline 패널 공유 스크롤 Y
 
 	bool bInitialPlacementDone = false;
 	bool bIsOpen = true;
+
+	// 프리뷰 뷰포트 영역 (OnRenderViewport에서 사용)
+	FRect PreviewRect;
 
 
 };

@@ -1,11 +1,10 @@
 ﻿#pragma once
 #include "SkinnedMeshComponent.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
-#include "Source/Runtime/Engine/Animation/AnimInstance.h"
-
 #include "USkeletalMeshComponent.generated.h"
 
 // 전방 선언
+class UAnimInstance;
 class UAnimSequence;
 struct FAnimNotifyEvent;
 enum class EAnimationMode : uint8;
@@ -33,9 +32,14 @@ public:
     void SetBoneLocalTransform(int32 BoneIndex, const FTransform& NewLocalTransform);
 
     void SetBoneWorldTransform(int32 BoneIndex, const FTransform& NewWorldTransform);
-    
+
     void SetPose(const FPoseContext& Pose);
     const TArray<FTransform>& GetPose() const;
+
+    /**
+     * @brief 전체 본 포즈를 직접 설정 (뷰어 전용)
+     */
+    void SetLocalSpacePose(const TArray<FTransform>& InPose);
     /**
      * @brief 특정 뼈의 현재 로컬 트랜스폼을 반환
      */
