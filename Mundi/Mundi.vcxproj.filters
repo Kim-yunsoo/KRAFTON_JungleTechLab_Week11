@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <FxCompile Include="Shaders\Materials\Fireball.hlsl">
@@ -59,6 +59,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Animation\Notifies\AnimNotify.cpp">
+      <Filter>Source\\Runtime\\Engine</Filter>
+    </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\Camera\CamMod_Fade.cpp">
       <Filter>Source\Runtime\Engine\GameFramework\Camera</Filter>
@@ -671,6 +674,9 @@
   <ClCompile Include="Generated\UMyAnimInstance.generated.cpp"><Filter>Generated</Filter></ClCompile></ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="Source\Runtime\Engine\Animation\Notifies\AnimNotify.h">
+      <Filter>Source\\Runtime\\Engine</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h">
       <Filter>Source\Editor\Clipboard</Filter>
     </ClInclude>

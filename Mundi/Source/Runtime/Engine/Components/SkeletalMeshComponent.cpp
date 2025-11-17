@@ -2,6 +2,7 @@
 #include "SkeletalMeshComponent.h"
 #include "Source/Runtime/Engine/Animation/AnimSingleNodeInstance.h"
 #include "Source/Runtime/Engine/Animation/MyAnimInstance.h"
+#include "Source/Runtime/Core/Object/Actor.h"
 #include <functional>
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
@@ -232,4 +233,13 @@ void USkeletalMeshComponent::PlayAnimation(UAnimSequence* InAnimSequence, bool b
     }
 
     SingleNode->SetAnimSequence(InAnimSequence, bLoop);
+}
+
+void USkeletalMeshComponent::HandleAnimNotify(const FAnimNotifyEvent& Notify)
+{
+    AActor* Owner = GetOwner();
+    if (Owner)
+    {
+        Owner->HandleAnimNotify(Notify);
+    }
 }

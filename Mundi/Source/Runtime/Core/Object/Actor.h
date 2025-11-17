@@ -172,6 +172,9 @@ public:
         return nullptr;
     }
 
+    // AnimNotify hook: override in derived actors to react to notifies
+    virtual void HandleAnimNotify(const struct FAnimNotifyEvent& /*Notify*/) {}
+
 public:
     UWorld* World = nullptr;
     USceneComponent* RootComponent = nullptr;

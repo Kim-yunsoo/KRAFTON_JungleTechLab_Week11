@@ -509,6 +509,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Slate\Windows\SViewportWindow.cpp" />
     <ClCompile Include="Source\Slate\Windows\SWindow.cpp" />
     <ClCompile Include="Source\Slate\Windows\UIWindow.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Animation\Notifies\AnimNotify.cpp" />
     <ClCompile Include="Generated\UMeshComponent.generated.cpp" />
     <ClCompile Include="Generated\UMovementComponent.generated.cpp" />
     <ClCompile Include="Generated\AInfo.generated.cpp" />
@@ -658,6 +659,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Generated\UPerspectiveDecalComponent.generated.h" />
     <ClInclude Include="Generated\UPointLightComponent.generated.h" />
     <ClInclude Include="Generated\UPrimitiveComponent.generated.h" />
+    <ClInclude Include="Source\Runtime\Engine\Animation\Notifies\AnimNotify.h" />
     <ClInclude Include="Generated\UProjectileMovementComponent.generated.h" />
     <ClInclude Include="Generated\URotatingMovementComponent.generated.h" />
     <ClInclude Include="Generated\USceneComponent.generated.h" />

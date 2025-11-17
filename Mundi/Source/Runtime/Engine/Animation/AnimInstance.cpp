@@ -37,7 +37,18 @@ void UAnimInstance::ChangeState(UAnimState* AnimState, float InTransitionTime)
 
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 {
+    if (!OwnerComponent) { return; }
 
+    if (!CurrentState || !CurrentState->AnimSequence) { return; }
+
+    UAnimSequence* CurrentSequence = CurrentState->AnimSequence;
+    TArray<FAnimNotifyEvent> TriggeredNotifies;
+    CurrentSequence->GetAnimNotifiesInRange(PrevTime, CurrentTime, TriggeredNotifies);
+
+    for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
+    {
+        OwnerComponent->HandleAnimNotify(Notify);
+    }
 }
 
 void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)

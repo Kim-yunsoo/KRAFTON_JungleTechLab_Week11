@@ -46,6 +46,9 @@ public:
     FTransform GetBoneWorldTransform(int32 BoneIndex);
     void PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop);
 
+    // AnimNotify routing
+    void HandleAnimNotify(const FAnimNotifyEvent& Notify);
+
 public:
     UPROPERTY(EditAnywhere, Category = "SkeletalComponent", Range = "0.0, 1.0")
     float TestBlend = 0;
