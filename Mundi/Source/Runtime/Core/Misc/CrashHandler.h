@@ -27,5 +27,23 @@ public:
     // - 전달된 EXCEPTION_POINTERS 컨텍스트로 MiniDump(.dmp)를 생성합니다.
     // - 기본적으로 실행 파일 경로 옆에 타임스탬프/프로세스ID를 포함한 파일명을 사용합니다.
     static void WriteMiniDump(EXCEPTION_POINTERS* ExceptionInfo);
+
+    // Configure the next crash to capture a compact dump
+    // (basic stack + exception info + data segments only)
+    static void SetNextDumpProfileDataSegsOnly();
+
+    // Randomly delete one managed UObject via ObjectFactory to provoke
+    // a potential natural crash later (UAF or misuse). Does NOT force a crash.
+    // Sets the next-dump profile to DataSegs-only so when it does crash,
+    // the dump stays compact and focused.
+    static void RandomCrash();
+
+    // Continuous random deletion: when enabled, deletes a few objects every
+    // frame until a crash naturally occurs. Use EnableRandomCrashBombard(true)
+    // via console, and UWorld::Tick will call RandomCrashTick().
+    static void EnableRandomCrashBombard(bool bEnable, int32 DeletionsPerFrame = 1);
+    static void RandomCrashTick();
+
+    // Note: we do not force a crash at deletion site; we want natural crash sites.
 };
 
