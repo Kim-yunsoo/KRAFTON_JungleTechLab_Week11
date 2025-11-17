@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "Object.h"
+#include "ActorComponent.h"
 #include "UInputComponent.generated.h"
 
 // TODO: 해당 클래스의 바인딩 로직은 모든 상황에 대하여 커버를 하지 않습니다.
@@ -10,7 +10,7 @@
 constexpr size_t MAX_MEMBER_FUNC_PTR_SIZE = 16;
 
 UCLASS(DisplayName = "인풋컴포넌트", Description = "사용자의 제어를 입력받는 오브젝트입니다.")
-class UInputComponent : public UObject
+class UInputComponent : public UActorComponent
 {
 public:
 	GENERATED_REFLECTION_BODY()
@@ -44,9 +44,11 @@ public:
 
 		// 호출 래퍼: 버퍼에서 타입을 복원해서 실제 함수 호출
 		Binding.ExecuteAxis = [](UObject* Obj, const char* Storage, float Value) {
-			auto TypedFunc = *reinterpret_cast<const void(UserClass::**)(float)>(Storage);
+			using FuncType = void(UserClass::*)(float);
+			FuncType TypedFunc{};
+			memcpy(&TypedFunc, Storage, sizeof(TypedFunc));
 			(static_cast<UserClass*>(Obj)->*TypedFunc)(Value);
-		};
+		}; 
 
 		AxisBindings.Add(Binding);
 	}
@@ -76,7 +78,9 @@ public:
 
 		// 호출 래퍼: 버퍼에서 타입을 복원해서 실제 함수 호출
 		Binding.ExecuteAction = [](UObject* Obj, const char* Storage) {
-			auto TypedFunc = *reinterpret_cast<const void(UserClass::**)()>(Storage);
+			using FuncType = void(UserClass::*)();
+			FuncType TypedFunc{};
+			memcpy(&TypedFunc, Storage, sizeof(TypedFunc));
 			(static_cast<UserClass*>(Obj)->*TypedFunc)();
 		};
 

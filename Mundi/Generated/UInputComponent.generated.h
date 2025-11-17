@@ -10,11 +10,11 @@
 #endif
 #define CURRENT_CLASS_GENERATED_BODY \
 public: \
-    using Super = UObject; \
+    using Super = UActorComponent; \
     using ThisClass_t = UInputComponent; \
     static UClass* StaticClass() \
     { \
-        static UClass Cls{ "UInputComponent", UObject::StaticClass(), sizeof(UInputComponent) }; \
+        static UClass Cls{ "UInputComponent", UActorComponent::StaticClass(), sizeof(UInputComponent) }; \
         static bool bRegistered = (UClass::SignUpClass(&Cls), true); \
         return &Cls; \
     } \

@@ -34,7 +34,7 @@ const bool UInputComponent::bPropertiesRegistered = []() {
 // ===== Property Reflection =====
 
 BEGIN_PROPERTIES(UInputComponent)
-
+    MARK_AS_COMPONENT("인풋컴포넌트", "사용자의 제어를 입력받는 오브젝트입니다.")
 END_PROPERTIES()
 
 
