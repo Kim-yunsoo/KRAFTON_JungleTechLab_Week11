@@ -459,6 +459,11 @@ void USlateManager::RenderAfterUI()
     {
         SkeletalViewerWindow->OnRenderViewport();
     }
+
+    if (AnimSequenceViewerWindow && AnimSequenceViewerWindow->IsOpen())
+    {
+        AnimSequenceViewerWindow->OnRenderViewport();
+    }
 }
 
 void USlateManager::Update(float DeltaSeconds)

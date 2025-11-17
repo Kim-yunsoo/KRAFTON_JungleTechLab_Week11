@@ -3,7 +3,7 @@
 #include "CameraActor.h"
 #include "Source/Runtime/Engine/SkeletalViewer/ViewerState.h"
 #include "FViewport.h"
-#include "FViewportClient.h"
+#include "FSkeletalViewerViewportClient.h"
 #include "Source/Runtime/Engine/GameFramework/SkeletalMeshActor.h"
 
 ViewerState* AnimSequenceViewerBootstrap::CreateViewerState(const char* Name, UWorld* InWorld, ID3D11Device* InDevice)
@@ -26,8 +26,8 @@ ViewerState* AnimSequenceViewerBootstrap::CreateViewerState(const char* Name, UW
     // 초기 크기는 매 프레임마다 조정됨
     State->Viewport->Initialize(0, 0, 1, 1, InDevice);
 
-    // 기본 ViewportClient 사용 (에디터 기능 불필요)
-    auto* Client = new FViewportClient();
+    // FSkeletalViewerViewportClient 사용 (카메라 컨트롤 자동 활성화)
+    auto* Client = new FSkeletalViewerViewportClient();
     Client->SetWorld(State->World);
     Client->SetViewportType(EViewportType::Perspective);
     Client->SetViewMode(EViewMode::VMI_Lit_Phong);
@@ -45,6 +45,15 @@ ViewerState* AnimSequenceViewerBootstrap::CreateViewerState(const char* Name, UW
     {
         ASkeletalMeshActor* Preview = State->World->SpawnActor<ASkeletalMeshActor>();
         State->PreviewActor = Preview;
+
+        if (Preview)
+        {
+            UE_LOG("[AnimSequenceViewerBootstrap] PreviewActor spawned successfully at (0,0,0)");
+        }
+        else
+        {
+            UE_LOG("[AnimSequenceViewerBootstrap] ERROR: Failed to spawn PreviewActor");
+        }
     }
 
     return State;

@@ -34,9 +34,12 @@ public:
 	// SWindow 오버라이드
 	virtual void OnRender() override;
 	virtual void OnUpdate(float DeltaSeconds) override;
-	//virtual void OnMouseMove(FVector2D MousePos) override;
-	//virtual void OnMouseDown(FVector2D MousePos, uint32 Button) override;
-	//virtual void OnMouseUp(FVector2D MousePos, uint32 Button) override;
+	virtual void OnMouseMove(FVector2D MousePos) override;
+	virtual void OnMouseDown(FVector2D MousePos, uint32 Button) override;
+	virtual void OnMouseUp(FVector2D MousePos, uint32 Button) override;
+
+	// 뷰포트 렌더링 (ImGui 렌더링 전에 호출됨)
+	void OnRenderViewport();
 
 private:
 	// === UI 렌더링 메서드 ===
@@ -125,6 +128,9 @@ private:
 
 	bool bInitialPlacementDone = false;
 	bool bIsOpen = true;
+
+	// 프리뷰 뷰포트 영역 (OnRenderViewport에서 사용)
+	FRect PreviewRect;
 
 
 };

@@ -8,6 +8,7 @@
 #include "Source/Runtime/Engine/Animation/AnimSequence.h"
 #include "Source/Runtime/AssetManagement/SkeletalMesh.h"
 #include "FViewport.h"
+#include "FViewportClient.h"
 SAnimSequenceViewerWindow::SAnimSequenceViewerWindow()
 {
     // ResourceManager에서 모든 애니메이션 파일 경로 가져오기
@@ -97,6 +98,47 @@ void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
 
     UE_LOG("[AnimSequenceViewer] Loaded: %s (Length: %.2fs, Frames: %d)",
         Sequence->GetFilePath().c_str(), PlayLength, TotalFrames);
+
+    // PreviewActor에 스켈레탈 메시 및 애니메이션 설정
+    if (PreviewState && PreviewState->PreviewActor)
+    {
+        ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
+        if (PreviewActor)
+        {
+            // 스켈레탈 메시 설정 (X Bot 사용)
+            // TODO: 애니메이션에서 참조하는 스켈레탈 메시 경로를 가져오도록 개선 필요
+            PreviewActor->SetSkeletalMesh("Data/X Bot.fbx");
+            UE_LOG("[AnimSequenceViewer] Set skeletal mesh: Data/X Bot.fbx");
+
+            USkeletalMeshComponent* SkeletalMeshComp = PreviewActor->GetSkeletalMeshComponent();
+            if (SkeletalMeshComp)
+            {
+                // 가시성 확인
+                SkeletalMeshComp->SetVisibility(true);
+                UE_LOG("[AnimSequenceViewer] SkeletalMeshComponent visibility set to true");
+
+                // 애니메이션 재생 설정
+                SkeletalMeshComp->PlayAnimation(Sequence, bLooping);
+                UE_LOG("[AnimSequenceViewer] Play animation started");
+
+                // 액터 위치 확인
+                FVector ActorLoc = PreviewActor->GetActorLocation();
+                UE_LOG("[AnimSequenceViewer] PreviewActor location: (%.2f, %.2f, %.2f)", ActorLoc.X, ActorLoc.Y, ActorLoc.Z);
+            }
+            else
+            {
+                UE_LOG("[AnimSequenceViewer] ERROR: SkeletalMeshComponent is null");
+            }
+        }
+        else
+        {
+            UE_LOG("[AnimSequenceViewer] ERROR: PreviewActor cast failed");
+        }
+    }
+    else
+    {
+        UE_LOG("[AnimSequenceViewer] ERROR: PreviewState or PreviewActor is null");
+    }
 }
 
 //void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
@@ -193,13 +235,19 @@ void SAnimSequenceViewerWindow::OnRender()
 
 void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
 {
-    // ViewerState 업데이트 (월드 틱)
+    // ViewerState 업데이트 (월드 틱 - 애니메이션도 함께 틱됨)
     if (PreviewState && PreviewState->World)
     {
         PreviewState->World->Tick(DeltaSeconds);
     }
 
-    // 타임라인 자동 재생
+    // ViewportClient 업데이트 (카메라 컨트롤)
+    if (PreviewState && PreviewState->Client)
+    {
+        PreviewState->Client->Tick(DeltaSeconds);
+    }
+
+    // 타임라인 UI 업데이트 (표시용)
     if (bIsPlaying && CurrentSequence)
     {
         // 시간 증가
@@ -224,7 +272,8 @@ void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
         CurrentFrame = TimeToFrame(CurrentTime);
     }
 
-    // TODO: 자체 프리뷰에 포즈 적용 (Step 7에서 구현)
+    // 참고: 실제 애니메이션 포즈는 USkeletalMeshComponent::PlayAnimation이
+    // World::Tick에서 자동으로 업데이트됩니다.
 }
 
 void SAnimSequenceViewerWindow::RenderAnimationList()
@@ -790,35 +839,78 @@ int32 SAnimSequenceViewerWindow::TimeToFrame(float Time) const
 
 void SAnimSequenceViewerWindow::RenderPreviewViewport(float Height)
 {
+    // 프리뷰 뷰포트 영역 정의 (경계선 포함)
     ImGui::BeginChild("PreviewViewport", ImVec2(0, Height), true, ImGuiWindowFlags_NoScrollbar);
 
-    if (PreviewState && PreviewState->Viewport)
+    // 현재 영역의 화면 좌표와 크기 저장 (OnRenderViewport에서 사용)
+    ImVec2 childPos = ImGui::GetWindowPos();
+    ImVec2 childSize = ImGui::GetWindowSize();
+
+    // PreviewRect 업데이트
+    PreviewRect.Left = childPos.x;
+    PreviewRect.Top = childPos.y;
+    PreviewRect.Right = childPos.x + childSize.x;
+    PreviewRect.Bottom = childPos.y + childSize.y;
+    PreviewRect.UpdateMinMax();
+
+    // 뷰포트가 없으면 플레이스홀더 표시
+    if (!PreviewState || !PreviewState->Viewport)
     {
-        // 현재 영역의 화면 좌표와 크기 가져오기
-        ImVec2 childPos = ImGui::GetWindowPos();
-        ImVec2 childSize = ImGui::GetWindowSize();
-
-        // 뷰포트 크기 조정 및 위치 설정
-        if (childSize.x > 0 && childSize.y > 0)
-        {
-            const uint32 NewStartX = static_cast<uint32>(childPos.x);
-            const uint32 NewStartY = static_cast<uint32>(childPos.y);
-            const uint32 NewWidth = static_cast<uint32>(childSize.x);
-            const uint32 NewHeight = static_cast<uint32>(childSize.y);
-
-            PreviewState->Viewport->Resize(NewStartX, NewStartY, NewWidth, NewHeight);
-
-            // 뷰포트 렌더링 (ImGui 영역에 독립적으로 렌더링됨)
-            PreviewState->Viewport->Render();
-        }
-    }
-    else
-    {
-        // ViewerState가 없으면 플레이스홀더 표시
         ImGui::Text("Preview Viewport (No ViewerState)");
     }
 
     ImGui::EndChild();
+}
+
+void SAnimSequenceViewerWindow::OnMouseMove(FVector2D MousePos)
+{
+    if (!PreviewState || !PreviewState->Viewport) return;
+
+    if (PreviewRect.Contains(MousePos))
+    {
+        FVector2D LocalPos = MousePos - FVector2D(PreviewRect.Left, PreviewRect.Top);
+        PreviewState->Viewport->ProcessMouseMove((int32)LocalPos.X, (int32)LocalPos.Y);
+    }
+}
+
+void SAnimSequenceViewerWindow::OnMouseDown(FVector2D MousePos, uint32 Button)
+{
+    if (!PreviewState || !PreviewState->Viewport) return;
+
+    if (PreviewRect.Contains(MousePos))
+    {
+        FVector2D LocalPos = MousePos - FVector2D(PreviewRect.Left, PreviewRect.Top);
+        PreviewState->Viewport->ProcessMouseButtonDown((int32)LocalPos.X, (int32)LocalPos.Y, (int32)Button);
+    }
+}
+
+void SAnimSequenceViewerWindow::OnMouseUp(FVector2D MousePos, uint32 Button)
+{
+    if (!PreviewState || !PreviewState->Viewport) return;
+
+    if (PreviewRect.Contains(MousePos))
+    {
+        FVector2D LocalPos = MousePos - FVector2D(PreviewRect.Left, PreviewRect.Top);
+        PreviewState->Viewport->ProcessMouseButtonUp((int32)LocalPos.X, (int32)LocalPos.Y, (int32)Button);
+    }
+}
+
+void SAnimSequenceViewerWindow::OnRenderViewport()
+{
+    // 뷰포트 렌더링 (ImGui 렌더링 전에 호출됨)
+    if (PreviewState && PreviewState->Viewport && PreviewRect.GetWidth() > 0 && PreviewRect.GetHeight() > 0)
+    {
+        const uint32 NewStartX = static_cast<uint32>(PreviewRect.Left);
+        const uint32 NewStartY = static_cast<uint32>(PreviewRect.Top);
+        const uint32 NewWidth = static_cast<uint32>(PreviewRect.Right - PreviewRect.Left);
+        const uint32 NewHeight = static_cast<uint32>(PreviewRect.Bottom - PreviewRect.Top);
+
+        // 뷰포트 크기 조정
+        PreviewState->Viewport->Resize(NewStartX, NewStartY, NewWidth, NewHeight);
+
+        // 뷰포트 렌더링 (3D 씬)
+        PreviewState->Viewport->Render();
+    }
 }
 
 // ============================================================
