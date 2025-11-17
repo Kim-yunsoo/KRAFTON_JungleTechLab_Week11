@@ -5,6 +5,20 @@
 
 IMPLEMENT_CLASS(UAnimStateMachine)
 
+UAnimStateMachine::~UAnimStateMachine()
+{
+	for (UAnimState* State : States)
+	{
+		DeleteObject(State);
+	}
+	States.clear();
+	for (UAnimTransition* Transition : Transitions)
+	{
+		DeleteObject(Transition);
+	}
+	Transitions.clear();
+}
+
 void UAnimStateMachine::Tick(float DeltaSeconds)
 {
 	if (CurrentState == nullptr)

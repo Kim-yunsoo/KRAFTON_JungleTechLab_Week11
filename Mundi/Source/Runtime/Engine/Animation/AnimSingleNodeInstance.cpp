@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "Source/Runtime/Engine/Animation/AnimSingleNodeInstance.h"
+#include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
 
 IMPLEMENT_CLASS(UAnimSingleNodeInstance)
 
@@ -9,7 +10,7 @@ void UAnimSingleNodeInstance::SetAnimSequence(UAnimSequence* InAnimSequence, con
 	SetLoop(bLoop);
 	SetTime(0);
 	SetSpeed(1);
-	SetPlay(true);
+	Play();
 }
 
 void UAnimSingleNodeInstance::Tick(float DeltaSeconds)
@@ -19,8 +20,10 @@ void UAnimSingleNodeInstance::Tick(float DeltaSeconds)
 		PrevTime = CurrentTime;
 		CurrentTime += DeltaSeconds * Speed;
 		NativeUpdateAnimation(DeltaSeconds);
+		TriggerAnimNotifies(DeltaSeconds);
 	}
 }
+
 
 void UAnimSingleNodeInstance::NativeUpdateAnimation(float DeltaSeconds)
 {

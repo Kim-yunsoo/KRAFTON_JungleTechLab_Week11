@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "SkinnedMeshComponent.h"
-#include "USkeletalMeshComponent.generated.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
+#include "USkeletalMeshComponent.generated.h"
 
 // 전방 선언
 class UAnimInstance;
@@ -49,7 +49,37 @@ public:
      * @brief 기즈모를 렌더링하기 위해 특정 뼈의 월드 트랜스폼을 계산
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
-    void PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop);
+
+    UFUNCTION(LuaBind, DisplayName = "PlayAnimation")
+    void PlayAnimation(const FString& AnimPath, bool bLoop);
+
+
+    //----------------
+    //UAnimInstance 루아 바인딩 안되서 임시로 스켈레탈메쉬에서 호출
+    UFUNCTION(LuaBind, DisplayName = "AddState")
+    void AddState(const FString& InName, const FString& AnimPath);
+
+    UFUNCTION(LuaBind, DisplayName = "AddTransition")
+    void AddTransition(const FString& StartStateName, const FString& EndStateName, const float InBlendTime, std::function<bool()> func);
+
+    UFUNCTION(LuaBind, DisplayName = "SetStartState")
+    void SetStartState(const FString& StartStateName);
+
+    UFUNCTION(LuaBind, DisplayName = "SetSpeed")
+    void SetSpeed(const float InSpeed);
+
+    UFUNCTION(LuaBind, DisplayName = "Play")
+    void Play();
+
+    UFUNCTION(LuaBind, DisplayName = "Pause")
+    void Pause();
+
+    UFUNCTION(LuaBind, DisplayName = "Replay")
+    void Replay();
+
+    //------------------------
+
+    void DuplicateSubObjects() override;
 
 public:
     UPROPERTY(EditAnywhere, Category = "SkeletalComponent", Range = "0.0, 1.0")
@@ -59,7 +89,7 @@ public:
     bool bMove = false;
 
     UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
-    float TestSpeed = 0;
+    float TestSpeed = 1;
 
 protected:
     /**
@@ -98,6 +128,7 @@ protected:
     TArray<FMatrix> TempFinalSkinningNormalMatrices;
 
 private:
+    UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
     UAnimInstance* AnimInstance = nullptr;
 
 // FOR TEST!!!

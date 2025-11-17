@@ -2,14 +2,17 @@
 #include "Source/Runtime/Engine/Animation/AnimState.h"
 #include "Source/Runtime/Engine/Animation/AnimTransition.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
+#include "UAnimStateMachine.generated.h"
 
 class UAnimInstance;
 
 class UAnimStateMachine : public UObject
 {
-	DECLARE_CLASS(UAnimStateMachine, UObject)
+	GENERATED_REFLECTION_BODY()
 
 public:
+	UAnimStateMachine() = default;
+	virtual ~UAnimStateMachine();
 	void SetOwner(UAnimInstance* InOwner)
 	{
 		Owner = InOwner;

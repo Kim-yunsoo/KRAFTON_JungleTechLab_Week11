@@ -35,7 +35,7 @@ void AJamesCharacter::BeginPlay()
 	// 기본 Idle 애니메이션 재생
 	if (Mesh && IdleAnimation)
 	{
-		Mesh->PlayAnimation(IdleAnimation, true);
+		Mesh->PlayAnimation(IdleAnimation->GetFilePath(), true);
 		CurrentAnimation = IdleAnimation;
 	}
 }
@@ -97,7 +97,7 @@ void AJamesCharacter::Tick(float DeltaTime)
 		// Only switch when animation changed to avoid restart
 		if (DesiredAnimation && DesiredAnimation != CurrentAnimation)
 		{
-			Mesh->PlayAnimation(DesiredAnimation, true);
+			Mesh->PlayAnimation(DesiredAnimation->GetFilePath(), true);
 			CurrentAnimation = DesiredAnimation;
 		}
 	}

@@ -791,7 +791,7 @@ void USkinnedMeshComponent::ReadGPUQueryResults()
    if (!GPUDisjointQuery || !GPUTimestampStartQuery || !GPUTimestampEndQuery)
    {
       //UE_LOG("[ERROR] ReadGPUQueryResults: Query 객체가 nullptr! (Disjoint: %p, Start: %p, End: %p)",
-            // GPUDisjointQuery, GPUTimestampStartQuery, GPUTimestampEndQuery);
+             //GPUDisjointQuery, GPUTimestampStartQuery, GPUTimestampEndQuery);
       return;
    }
 
@@ -827,6 +827,7 @@ void USkinnedMeshComponent::ReadGPUQueryResults()
    }
 
    //UE_LOG("[DEBUG] ReadGPUQueryResults: GetData 성공! Disjoint: %d, Frequency: %llu",
+
      //     disjointData.Disjoint, disjointData.Frequency);
 
    if (disjointData.Disjoint)

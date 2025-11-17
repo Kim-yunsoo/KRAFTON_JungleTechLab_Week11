@@ -105,7 +105,7 @@ void SAnimSequenceViewerWindow::SetSkeletalMeshPath(const char* MeshPath)
 					if (SkeletalMeshComp)
 					{
 						SkeletalMeshComp->SetVisibility(true);
-						SkeletalMeshComp->PlayAnimation(AnimSequence, bLooping);
+						SkeletalMeshComp->PlayAnimation(CurrentSequence->GetFilePath(), bLooping);
 					}
 				}
 			}
