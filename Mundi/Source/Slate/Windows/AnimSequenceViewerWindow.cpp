@@ -95,8 +95,8 @@ void SAnimSequenceViewerWindow::SetSkeletalMeshPath(const char* MeshPath)
 			PreviewActor->SetSkeletalMesh(MeshPath);
 			UE_LOG("[AnimSequenceViewer] Skeletal mesh set from outliner: %s", MeshPath);
 
-			// 현재 애니메이션이 있으면 다시 재생
-			if (CurrentSequence)
+			// 현재 애니메이션이 있고 재생 중이면 다시 재생
+			if (CurrentSequence && bIsPlaying)
 			{
 				UAnimSequence* AnimSequence = Cast<UAnimSequence>(CurrentSequence);
 				if (AnimSequence)
@@ -137,7 +137,7 @@ void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
     UE_LOG("[AnimSequenceViewer] Loaded: %s (Length: %.2fs, Frames: %d)",
         Sequence->GetFilePath().c_str(), PlayLength, TotalFrames);
 
-    // PreviewActor에 애니메이션 재생
+    // PreviewActor에 애니메이션 설정 (아직 재생하지 않음)
     // 참고: 스켈레탈 메시는 이미 SetSkeletalMeshPath()에서 설정되어 있음
     if (PreviewState && PreviewState->PreviewActor)
     {
@@ -147,10 +147,9 @@ void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
             USkeletalMeshComponent* SkeletalMeshComp = PreviewActor->GetSkeletalMeshComponent();
             if (SkeletalMeshComp)
             {
-                // 애니메이션 재생
-                SkeletalMeshComp->PlayAnimation(Sequence, bLooping);
+                // 메시를 보이게만 하고 애니메이션은 재생하지 않음 (사용자가 Play 버튼 눌러야 함)
                 SkeletalMeshComp->SetVisibility(true);
-                UE_LOG("[AnimSequenceViewer] Playing animation on existing skeletal mesh");
+                UE_LOG("[AnimSequenceViewer] Animation loaded. Press Play to start.");
             }
             else
             {
@@ -266,7 +265,7 @@ void SAnimSequenceViewerWindow::OnRender()
 
 void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
 {
-    // ViewerState 업데이트 (월드 틱 - 애니메이션도 함께 틱됨)
+    // ViewerState 업데이트 (월드 틱)
     if (PreviewState && PreviewState->World)
     {
         PreviewState->World->Tick(DeltaSeconds);
@@ -278,7 +277,7 @@ void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
         PreviewState->Client->Tick(DeltaSeconds);
     }
 
-    // 타임라인 UI 업데이트 (표시용)
+    // 타임라인 UI 업데이트 및 애니메이션 포즈 적용
     if (bIsPlaying && CurrentSequence)
     {
         // 시간 증가
@@ -303,8 +302,64 @@ void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
         CurrentFrame = TimeToFrame(CurrentTime);
     }
 
-    // 참고: 실제 애니메이션 포즈는 USkeletalMeshComponent::PlayAnimation이
-    // World::Tick에서 자동으로 업데이트됩니다.
+    // 애니메이션 포즈를 직접 평가하여 SkeletalMeshComponent에 적용
+    ApplyAnimationPose();
+}
+
+void SAnimSequenceViewerWindow::ApplyAnimationPose()
+{
+    if (!CurrentSequence || !PreviewState || !PreviewState->PreviewActor)
+    {
+        return;
+    }
+
+    ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
+    if (!PreviewActor)
+    {
+        return;
+    }
+
+    USkeletalMeshComponent* SkelComp = PreviewActor->GetSkeletalMeshComponent();
+    if (!SkelComp)
+    {
+        return;
+    }
+
+    USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMesh();
+    if (!SkelMesh || !SkelMesh->GetSkeletalMeshData())
+    {
+        return;
+    }
+
+    const FSkeleton& Skeleton = SkelMesh->GetSkeletalMeshData()->Skeleton;
+    int32 BoneCount = Skeleton.Bones.Num();
+
+    // 애니메이션 시퀀스로부터 포즈 평가
+    UAnimSequence* AnimSeq = Cast<UAnimSequence>(CurrentSequence);
+    if (AnimSeq)
+    {
+        TArray<FTransform> BonePoses;
+        BonePoses.resize(BoneCount);
+
+        // 레퍼런스 포즈로 초기화
+        for (int32 i = 0; i < BoneCount; ++i)
+        {
+            BonePoses[i] = FTransform(Skeleton.Bones[i].BindPose);
+        }
+
+        // 애니메이션 트랙 데이터로 오버라이드
+        float FrameRate = AnimSeq->GetFrameRate();
+        for (const FBoneAnimationTrack& Track : AnimSeq->GetBoneTracks())
+        {
+            if (Track.BoneIndex >= 0 && Track.BoneIndex < BoneCount)
+            {
+                BonePoses[Track.BoneIndex] = Track.InternalTrack.GetTransform(FrameRate, CurrentTime);
+            }
+        }
+
+        // SkeletalMeshComponent에 포즈 직접 설정
+        SkelComp->SetLocalSpacePose(BonePoses);
+    }
 }
 
 void SAnimSequenceViewerWindow::RenderAnimationList()
@@ -534,7 +589,7 @@ void SAnimSequenceViewerWindow::RenderPlaybackControls()
             if (CurrentSequence)
             {
                 bIsPlaying = !bIsPlaying;
-                UE_LOG("[AnimSequenceViewer] Play button clicked. bIsPlaying: %s", bIsPlaying ? "true" : "false");
+                UE_LOG("[AnimSequenceViewer] %s", bIsPlaying ? "Playing" : "Paused");
             }
             else
             {
@@ -549,10 +604,11 @@ void SAnimSequenceViewerWindow::RenderPlaybackControls()
         // Stop 버튼
         if (ImGui::Button("[]", ImVec2(ButtonWidth, 30)))
         {
-            // TODO: 정지 (처음으로)
+            // 정지 (처음으로)
             bIsPlaying = false;
             CurrentFrame = 0;
             CurrentTime = 0.0f;
+            UE_LOG("[AnimSequenceViewer] Stopped and reset to frame 0");
         }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Stop");

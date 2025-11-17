@@ -62,6 +62,9 @@ private:
 	/** 하단 우측 하단: 애니메이션 목록 */
 	void RenderAnimationList();
 
+	/** 애니메이션 포즈를 평가하여 SkeletalMeshComponent에 적용 */
+	void ApplyAnimationPose();
+
 	/** [DEPRECATED] 하단 좌측: Notify 트랙 패널 (레거시) */
 	void RenderNotifyTrackPanel();
 	/** [DEPRECATED] 하단 중앙: 타임라인 (레거시) */
