@@ -65,11 +65,6 @@ private:
 	/** 애니메이션 포즈를 평가하여 SkeletalMeshComponent에 적용 */
 	void ApplyAnimationPose();
 
-	/** [DEPRECATED] 하단 좌측: Notify 트랙 패널 (레거시) */
-	void RenderNotifyTrackPanel();
-	/** [DEPRECATED] 하단 중앙: 타임라인 (레거시) */
-	void RenderTimeline();
-
 private:
 	// === 타임라인 UI 헬퍼 메서드 ===
 	/** 시간 → 화면 X좌표 변환 */
@@ -93,24 +88,15 @@ private:
 	// === 레이아웃 비율 ===
 	float TopPreviewHeight = 0.6f;      // 상단 프리뷰 60%
 	float BottomPanelHeight = 0.4f;     // 하단 전체 40%
-
-	float LeftNotifyWidth = 0.30f;      // 좌측 Notify 30%
-	float CenterTimelineWidth = 0.40f;  // 중앙 Timeline 40%
 	float RightPanelWidth = 0.3f;       // 우측 Info+List 30%
-
 	float RightTopInfoHeight = 0.4f;    // 우측 상단 Info 40%
 	float RightBottomListHeight = 0.6f; // 우측 하단 List 60%
 
-	// === Notify 상태 ===
-	int32 HoveredNotifyIndex = -1;
-	int32 SelectedNotifyIndex = -1;
-
-	// === Notify 트랙 관리 ===
-	TArray<int32> NotifyTrackIndices; // 추가된 노티파이 트랙 번호 목록 (1, 2, 3...)
+	// === Notify 트랙 관리 (향후 구현) ===
+	TArray<int32> NotifyTrackIndices; // 추가된 노티파이 트랙 번호 목록
 	int32 NextNotifyTrackNumber = 1;  // 다음 트랙 번호
-	int32 SelectedTrackIndex = -1;    // 클릭해서 선택된 트랙 인덱스
 	int32 HoveredTrackIndex = -1;     // 마우스 오버된 트랙 인덱스
-	int32 RightClickedTrackIndex = -1; // 우클릭된 트랙 인덱스
+	int32 SelectedTrackIndex = -1;    // 선택된 트랙 인덱스
 
 private:
 	// 애니메이션 데이터
