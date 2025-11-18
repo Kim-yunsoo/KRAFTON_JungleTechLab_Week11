@@ -3,6 +3,8 @@
 #include "AnimDataModel.h"
 #include "JsonSerializer.h"
 #include "PathUtils.h"
+#include "WindowsBinReader.h"
+#include "WindowsBinWriter.h"
 
 #include <filesystem>
 
@@ -41,6 +43,121 @@ void UAnimSequence::Load(const FString& InFilePath, ID3D11Device* InDevice)
     catch (...)
     {
         SetLastModifiedTime(std::filesystem::file_time_type::clock::now());
+    }
+}
+
+void UAnimSequence::LoadBinary(const FString& InFilePath)
+{
+    FString NormalizedPath = NormalizePath(InFilePath);
+
+    if (!std::filesystem::exists(NormalizedPath))
+    {
+        UE_LOG("[error] UAnimSequence::LoadBinary: File not found %s", NormalizedPath.c_str());
+        ResetDataModel();
+        ClearNotifies();
+        return;
+    }
+
+    try
+    {
+        FWindowsBinReader Reader(NormalizedPath);
+        auto NewModel = std::make_unique<UAnimDataModel>();
+
+        // 1. FrameRate 로드
+        FFrameRate Rate;
+        Reader << Rate;
+        NewModel->SetFrameRate(Rate);
+
+        // 2. BoneTracks 로드
+        uint32 TrackCount = 0;
+        Reader << TrackCount;
+        TArray<FBoneAnimationTrack> Tracks;
+        Tracks.reserve(TrackCount);
+        for (uint32 i = 0; i < TrackCount; ++i)
+        {
+            FBoneAnimationTrack Track;
+            Reader << Track;
+            Tracks.push_back(std::move(Track));
+        }
+        NewModel->SetBoneTracks(std::move(Tracks));
+
+        // 3. CurveTracks 로드
+        uint32 CurveCount = 0;
+        Reader << CurveCount;
+        TArray<FCurveTrack> Curves;
+        Curves.reserve(CurveCount);
+        for (uint32 i = 0; i < CurveCount; ++i)
+        {
+            FCurveTrack Curve;
+            Reader << Curve;
+            Curves.push_back(std::move(Curve));
+        }
+        NewModel->SetCurveTracks(std::move(Curves));
+
+        Reader.Close();
+
+        DataModel = std::move(NewModel);
+        SyncDerivedMetadata();
+
+        UE_LOG("UAnimSequence::LoadBinary: Loaded from %s", NormalizedPath.c_str());
+    }
+    catch (const std::exception& e)
+    {
+        UE_LOG("[error] UAnimSequence::LoadBinary: Exception %s", e.what());
+        ResetDataModel();
+        ClearNotifies();
+    }
+}
+
+void UAnimSequence::SaveBinary(const FString& InFilePath) const
+{
+    if (!DataModel)
+    {
+        UE_LOG("[warning] UAnimSequence::SaveBinary: No DataModel to save");
+        return;
+    }
+
+    try
+    {
+        // 디렉토리 생성
+        std::filesystem::path FilePath(InFilePath);
+        if (FilePath.has_parent_path())
+        {
+            std::filesystem::create_directories(FilePath.parent_path());
+        }
+
+        FWindowsBinWriter Writer(InFilePath);
+
+        // 1. FrameRate 저장
+        FFrameRate Rate = DataModel->GetFrameRate();
+        Writer << Rate;
+
+        // 2. BoneTracks 저장
+        const TArray<FBoneAnimationTrack>& Tracks = DataModel->GetBoneTracks();
+        uint32 TrackCount = static_cast<uint32>(Tracks.size());
+        Writer << TrackCount;
+        for (const auto& Track : Tracks)
+        {
+            // const_cast needed because operator<< is non-const
+            Writer << const_cast<FBoneAnimationTrack&>(Track);
+        }
+
+        // 3. CurveTracks 저장
+        const TArray<FCurveTrack>& Curves = DataModel->GetCurveTracks();
+        uint32 CurveCount = static_cast<uint32>(Curves.size());
+        Writer << CurveCount;
+        for (const auto& Curve : Curves)
+        {
+            Writer << const_cast<FCurveTrack&>(Curve);
+        }
+
+        Writer.Close();
+
+        UE_LOG("UAnimSequence::SaveBinary: Saved to %s", InFilePath.c_str());
+    }
+    catch (const std::exception& e)
+    {
+        UE_LOG("[error] UAnimSequence::SaveBinary: Exception %s", e.what());
     }
 }
 
