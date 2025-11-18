@@ -30,17 +30,19 @@ public:
 protected:
 	virtual ~AJamesCharacter() override = default;
 
-	// 애니메이션
-	UAnimSequence* IdleAnimation = nullptr;
-	UAnimSequence* WalkAnimation = nullptr;
-	UAnimSequence* RunAnimation = nullptr;
-	UAnimSequence* CurrentAnimation = nullptr;
-
 	// 이동 속도
-	float WalkSpeed = 1.0f;
-	float RunSpeed = 2.0f;
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float WalkSpeed = 2.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float RunSpeed = 4.0f;
+
 	bool bIsRunning = false;
 
 	// 현재 속도
 	FVector CurrentVelocity;
+
+private:
+	// StateMachine 설정 헬퍼 함수
+	void SetupAnimationStateMachine();
 };
