@@ -403,7 +403,43 @@ struct FFrameRate
     }
 
     bool IsValid() const { return Numerator > 0 && Denominator > 0; }
+
+    friend FArchive& operator<<(FArchive& Ar, FFrameRate& Rate)
+    {
+        Ar << Rate.Numerator;
+        Ar << Rate.Denominator;
+        return Ar;
+    }
 };
+
+// FQuat 직렬화 (Vector.h에 정의되어 있지만 operator<<는 여기 추가)
+inline FArchive& operator<<(FArchive& Ar, FQuat& Q)
+{
+    Ar.Serialize(&Q.X, sizeof(float));
+    Ar.Serialize(&Q.Y, sizeof(float));
+    Ar.Serialize(&Q.Z, sizeof(float));
+    Ar.Serialize(&Q.W, sizeof(float));
+    return Ar;
+}
+
+// FName 직렬화
+inline FArchive& operator<<(FArchive& Ar, FName& Name)
+{
+    if (Ar.IsSaving())
+    {
+        // FName을 문자열로 변환해서 저장
+        FString Str = Name.ToString();
+        Serialization::WriteString(Ar, Str);
+    }
+    else if (Ar.IsLoading())
+    {
+        // 문자열을 읽어서 FName으로 변환
+        FString Str;
+        Serialization::ReadString(Ar, Str);
+        Name = FName(Str);
+    }
+    return Ar;
+}
 
 struct FRawAnimSequenceTrack
 {
@@ -448,6 +484,83 @@ struct FRawAnimSequenceTrack
 
         return FTransform::Lerp(PrevTransform, NextTransform, T);
     }
+
+    friend FArchive& operator<<(FArchive& Ar, FRawAnimSequenceTrack& Track)
+    {
+        if (Ar.IsSaving())
+        {
+            // PosKeys
+            uint32 PosCount = static_cast<uint32>(Track.PosKeys.size());
+            Ar << PosCount;
+            for (auto& Pos : Track.PosKeys) { Ar << Pos; }
+
+            // RotKeys
+            uint32 RotCount = static_cast<uint32>(Track.RotKeys.size());
+            Ar << RotCount;
+            for (auto& Rot : Track.RotKeys) { Ar << Rot; }
+
+            // ScaleKeys
+            uint32 ScaleCount = static_cast<uint32>(Track.ScaleKeys.size());
+            Ar << ScaleCount;
+            for (auto& Scale : Track.ScaleKeys) { Ar << Scale; }
+
+            // KeyTimes
+            uint32 TimeCount = static_cast<uint32>(Track.KeyTimes.size());
+            Ar << TimeCount;
+            for (auto& Time : Track.KeyTimes) { Ar.Serialize(&Time, sizeof(float)); }
+        }
+        else if (Ar.IsLoading())
+        {
+            // PosKeys
+            uint32 PosCount = 0;
+            Ar << PosCount;
+            Track.PosKeys.clear();
+            Track.PosKeys.reserve(PosCount);
+            for (uint32 i = 0; i < PosCount; ++i)
+            {
+                FVector Pos;
+                Ar << Pos;
+                Track.PosKeys.push_back(Pos);
+            }
+
+            // RotKeys
+            uint32 RotCount = 0;
+            Ar << RotCount;
+            Track.RotKeys.clear();
+            Track.RotKeys.reserve(RotCount);
+            for (uint32 i = 0; i < RotCount; ++i)
+            {
+                FQuat Rot;
+                Ar << Rot;
+                Track.RotKeys.push_back(Rot);
+            }
+
+            // ScaleKeys
+            uint32 ScaleCount = 0;
+            Ar << ScaleCount;
+            Track.ScaleKeys.clear();
+            Track.ScaleKeys.reserve(ScaleCount);
+            for (uint32 i = 0; i < ScaleCount; ++i)
+            {
+                FVector Scale;
+                Ar << Scale;
+                Track.ScaleKeys.push_back(Scale);
+            }
+
+            // KeyTimes
+            uint32 TimeCount = 0;
+            Ar << TimeCount;
+            Track.KeyTimes.clear();
+            Track.KeyTimes.reserve(TimeCount);
+            for (uint32 i = 0; i < TimeCount; ++i)
+            {
+                float Time;
+                Ar.Serialize(&Time, sizeof(float));
+                Track.KeyTimes.push_back(Time);
+            }
+        }
+        return Ar;
+    }
 };
 
 struct FBoneAnimationTrack
@@ -460,6 +573,14 @@ struct FBoneAnimationTrack
     {
         return BoneIndex >= 0 && InternalTrack.HasAnyKeys();
     }
+
+    friend FArchive& operator<<(FArchive& Ar, FBoneAnimationTrack& Track)
+    {
+        Ar << Track.BoneName;
+        Ar << Track.BoneIndex;
+        Ar << Track.InternalTrack;
+        return Ar;
+    }
 };
 
 // === Animation Float Curves ===
@@ -467,6 +588,13 @@ struct FFloatCurveKey
 {
     float Time = 0.0f;   // seconds
     float Value = 0.0f;  // scalar
+
+    friend FArchive& operator<<(FArchive& Ar, FFloatCurveKey& Key)
+    {
+        Ar.Serialize(&Key.Time, sizeof(float));
+        Ar.Serialize(&Key.Value, sizeof(float));
+        return Ar;
+    }
 };
 
 struct FCurveTrack
@@ -505,6 +633,35 @@ struct FCurveTrack
             }
         }
         return Keys.back().Value; // fallback
+    }
+
+    friend FArchive& operator<<(FArchive& Ar, FCurveTrack& Track)
+    {
+        Ar << Track.CurveName;
+
+        if (Ar.IsSaving())
+        {
+            uint32 KeyCount = static_cast<uint32>(Track.Keys.size());
+            Ar << KeyCount;
+            for (auto& Key : Track.Keys)
+            {
+                Ar << Key;
+            }
+        }
+        else if (Ar.IsLoading())
+        {
+            uint32 KeyCount = 0;
+            Ar << KeyCount;
+            Track.Keys.clear();
+            Track.Keys.reserve(KeyCount);
+            for (uint32 i = 0; i < KeyCount; ++i)
+            {
+                FFloatCurveKey Key;
+                Ar << Key;
+                Track.Keys.push_back(Key);
+            }
+        }
+        return Ar;
     }
 };
 
