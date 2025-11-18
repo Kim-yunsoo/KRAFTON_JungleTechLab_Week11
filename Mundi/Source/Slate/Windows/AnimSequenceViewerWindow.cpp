@@ -9,6 +9,11 @@
 #include "Source/Runtime/AssetManagement/SkeletalMesh.h"
 #include "FViewport.h"
 #include "FViewportClient.h"
+#include "BoneAnchorComponent.h"
+#include "Source/Runtime/Engine/Collision/Picking.h"
+#include "Source/Runtime/Engine/GameFramework/CameraActor.h"
+#include "SelectionManager.h"
+#include "Source/Runtime/Engine/Components/LineComponent.h"
 SAnimSequenceViewerWindow::SAnimSequenceViewerWindow()
 {
     // ResourceManager에서 모든 애니메이션 파일 경로 가져오기
@@ -92,32 +97,43 @@ void SAnimSequenceViewerWindow::SetSkeletalMeshPath(const char* MeshPath)
 		ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
 		if (PreviewActor)
 		{
-			PreviewActor->SetSkeletalMesh(MeshPath);
-			UE_LOG("[AnimSequenceViewer] Skeletal mesh set from outliner: %s", MeshPath);
-
-			// 본 표시가 켜져 있으면 본 라인 구성
-			if (bShowBones)
+			// 스켈레탈 메시 리소스 로드 및 설정 (SSkeletalMeshViewerWindow 참고)
+			USkeletalMesh* Mesh = UResourceManager::GetInstance().Load<USkeletalMesh>(MeshPath);
+			if (Mesh)
 			{
-				PreviewActor->RebuildBoneLines(-1); // -1 = 선택된 본 없음
-				if (PreviewActor->GetBoneLineComponent())
-				{
-					PreviewActor->GetBoneLineComponent()->SetLineVisible(true);
-				}
-			}
+				PreviewActor->SetSkeletalMesh(MeshPath);
+				PreviewState->CurrentMesh = Mesh;  // CurrentMesh 설정 (본 피킹을 위해 필요!)
+				PreviewState->LoadedMeshPath = MeshPath;  // Track for resource unloading
+				UE_LOG("[AnimSequenceViewer] Skeletal mesh set from outliner: %s", MeshPath);
 
-			// 현재 애니메이션이 있고 재생 중이면 다시 재생
-			if (CurrentSequence && bIsPlaying)
-			{
-				UAnimSequence* AnimSequence = Cast<UAnimSequence>(CurrentSequence);
-				if (AnimSequence)
+				// 본 표시가 켜져 있으면 본 라인 구성
+				if (bShowBones)
 				{
-					USkeletalMeshComponent* SkeletalMeshComp = PreviewActor->GetSkeletalMeshComponent();
-					if (SkeletalMeshComp)
+					PreviewActor->RebuildBoneLines(-1); // -1 = 선택된 본 없음
+					if (PreviewActor->GetBoneLineComponent())
 					{
-						SkeletalMeshComp->SetVisibility(true);
-						SkeletalMeshComp->PlayAnimation(CurrentSequence->GetFilePath(), bLooping);
+						PreviewActor->GetBoneLineComponent()->SetLineVisible(true);
 					}
 				}
+
+				// 현재 애니메이션이 있고 재생 중이면 다시 재생
+				if (CurrentSequence && bIsPlaying)
+				{
+					UAnimSequence* AnimSequence = Cast<UAnimSequence>(CurrentSequence);
+					if (AnimSequence)
+					{
+						USkeletalMeshComponent* SkeletalMeshComp = PreviewActor->GetSkeletalMeshComponent();
+						if (SkeletalMeshComp)
+						{
+							SkeletalMeshComp->SetVisibility(true);
+							SkeletalMeshComp->PlayAnimation(CurrentSequence->GetFilePath(), bLooping);
+						}
+					}
+				}
+			}
+			else
+			{
+				UE_LOG("[AnimSequenceViewer] Failed to load skeletal mesh: %s", MeshPath);
 			}
 		}
 	}
@@ -287,12 +303,60 @@ void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
     if (PreviewState && PreviewState->World)
     {
         PreviewState->World->Tick(DeltaSeconds);
+
+        // Gizmo 모드 전환 처리 (SSkeletalMeshViewerWindow 참고)
+        if (PreviewState->World->GetGizmoActor())
+        {
+            PreviewState->World->GetGizmoActor()->ProcessGizmoModeSwitch();
+        }
     }
 
     // ViewportClient 업데이트 (카메라 컨트롤)
     if (PreviewState && PreviewState->Client)
     {
         PreviewState->Client->Tick(DeltaSeconds);
+    }
+
+    // 기즈모로 본을 조작했는지 감지 (SSkeletalMeshViewerWindow 참고)
+    // 주의: 애니메이션 재생 중에는 기즈모가 자동으로 움직이므로 사용자 조작만 감지해야 함
+    if (PreviewState && PreviewState->World && PreviewState->PreviewActor && PreviewState->SelectedBoneIndex >= 0)
+    {
+        UBoneAnchorComponent* Anchor = PreviewState->PreviewActor->GetBoneGizmoAnchor();
+        if (Anchor && Anchor->IsVisible())
+        {
+            // 앵커의 월드 트랜스폼이 변경되었는지 체크
+            static FTransform LastAnchorTransform;
+            FTransform CurrentAnchorTransform = Anchor->GetWorldTransform();
+
+            // 기즈모 조작 감지: Gizmo Actor가 드래그 중이면 사용자 조작으로 판단
+            bool bGizmoBeingManipulated = PreviewState->World->GetGizmoActor() &&
+                                          PreviewState->World->GetGizmoActor()->GetbIsDragging();
+
+            if (CurrentAnchorTransform != LastAnchorTransform && bGizmoBeingManipulated)
+            {
+                // 기즈모가 움직였으므로 본 트랜스폼을 업데이트
+                if (ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor))
+                {
+                    if (USkeletalMeshComponent* SkelComp = PreviewActor->GetSkeletalMeshComponent())
+                    {
+                        // 앵커의 월드 트랜스폼을 본의 로컬 트랜스폼으로 변환하여 적용
+                        SkelComp->SetBoneWorldTransform(PreviewState->SelectedBoneIndex, CurrentAnchorTransform);
+
+                        // 편집된 본 트랜스폼을 저장 (애니메이션 재생 시에도 유지하기 위해)
+                        FTransform EditedLocalTransform = SkelComp->GetBoneLocalTransform(PreviewState->SelectedBoneIndex);
+                        PreviewState->EditedBoneTransforms[PreviewState->SelectedBoneIndex] = EditedLocalTransform;
+
+                        // 본 라인 즉시 재구성 (애니메이션 재생 중이 아니어도 업데이트)
+                        if (bShowBones && PreviewActor->GetBoneLineComponent())
+                        {
+                            PreviewActor->RebuildBoneLines(PreviewState->SelectedBoneIndex);
+                        }
+                    }
+                }
+            }
+
+            LastAnchorTransform = CurrentAnchorTransform;
+        }
     }
 
     // 타임라인 UI 업데이트
@@ -398,14 +462,47 @@ void SAnimSequenceViewerWindow::ApplyAnimationPose()
             }
         }
 
+        // 사용자가 편집한 본 트랜스폼을 덮어쓰지 않도록 보존 (언리얼 방식)
+        for (const auto& EditedBone : PreviewState->EditedBoneTransforms)
+        {
+            int32 BoneIndex = EditedBone.first;
+            if (BoneIndex >= 0 && BoneIndex < BoneCount)
+            {
+                // 편집된 트랜스폼을 애니메이션 포즈 위에 적용
+                BonePoses[BoneIndex] = EditedBone.second;
+            }
+        }
+
         // SkeletalMeshComponent에 포즈 직접 설정
         SkelComp->SetLocalSpacePose(BonePoses);
+
+        // 선택된 본이 있으면 기즈모를 해당 본 위치로 업데이트 (애니메이션 재생 중에도 따라다니도록)
+        if (PreviewState->SelectedBoneIndex >= 0)
+        {
+            UBoneAnchorComponent* Anchor = PreviewActor->GetBoneGizmoAnchor();
+            if (Anchor && Anchor->IsVisible())
+            {
+                // 선택된 본의 현재 월드 트랜스폼을 가져와서 기즈모 위치 업데이트
+                FTransform BoneWorldTransform = SkelComp->GetBoneWorldTransform(PreviewState->SelectedBoneIndex);
+                Anchor->SetWorldTransform(BoneWorldTransform);
+            }
+        }
 
         // 본이 표시되어 있으면 본 라인 업데이트
         if (bShowBones && PreviewActor->GetBoneLineComponent())
         {
-            // 루트 본(0)을 선택한 것처럼 호출하면 전체 서브트리(모든 본) 업데이트됨
-            PreviewActor->RebuildBoneLines(0);
+            // 선택된 본이 있으면 해당 본의 서브트리만 업데이트, 없으면 루트부터 전체 업데이트
+            // bBoneLinesDirty가 true일 경우 전체 재구성
+            if (PreviewState->bBoneLinesDirty)
+            {
+                PreviewActor->RebuildBoneLines(PreviewState->SelectedBoneIndex);
+                PreviewState->bBoneLinesDirty = false;
+            }
+            else
+            {
+                // 단순 트랜스폼 업데이트만 필요한 경우
+                PreviewActor->RebuildBoneLines(0); // 루트부터 전체 업데이트
+            }
         }
     }
 }
@@ -546,6 +643,42 @@ void SAnimSequenceViewerWindow::RenderInfoPanel()
                 if (bShowBones)
                 {
                     PreviewActor->RebuildBoneLines(-1); // -1 = 선택된 본 없음
+                }
+            }
+        }
+    }
+
+    // 선택된 본 정보 표시
+    if (bShowBones && PreviewState && PreviewState->PreviewActor)
+    {
+        ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
+        if (PreviewActor)
+        {
+            USkeletalMeshComponent* SkelComp = PreviewActor->GetSkeletalMeshComponent();
+            if (SkelComp && SkelComp->GetSkeletalMesh() && SkelComp->GetSkeletalMesh()->GetSkeletalMeshData())
+            {
+                const FSkeleton& Skeleton = SkelComp->GetSkeletalMesh()->GetSkeletalMeshData()->Skeleton;
+
+                ImGui::Spacing();
+                if (PreviewState->SelectedBoneIndex >= 0 && PreviewState->SelectedBoneIndex < Skeleton.Bones.Num())
+                {
+                    const FBone& SelectedBone = Skeleton.Bones[PreviewState->SelectedBoneIndex];
+                    ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "Selected Bone:");
+                    ImGui::Text("  Index: %d", PreviewState->SelectedBoneIndex);
+                    ImGui::Text("  Name: %s", SelectedBone.Name.c_str());
+
+                    // 선택 해제 버튼
+                    if (ImGui::Button("Deselect Bone"))
+                    {
+                        PreviewState->SelectedBoneIndex = -1;
+                        PreviewState->bBoneLinesDirty = true;
+                        PreviewState->World->GetSelectionManager()->ClearSelection();
+                    }
+                }
+                else
+                {
+                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "No bone selected");
+                    ImGui::TextWrapped("Click on a bone in the viewport to select it");
                 }
             }
         }
@@ -802,7 +935,86 @@ void SAnimSequenceViewerWindow::OnMouseDown(FVector2D MousePos, uint32 Button)
     if (PreviewRect.Contains(MousePos))
     {
         FVector2D LocalPos = MousePos - FVector2D(PreviewRect.Left, PreviewRect.Top);
+
+        // First, always try gizmo picking (pass to viewport)
         PreviewState->Viewport->ProcessMouseButtonDown((int32)LocalPos.X, (int32)LocalPos.Y, (int32)Button);
+
+        // Left click: if no gizmo was picked, try bone picking
+        if (Button == 0 && PreviewState->PreviewActor && PreviewState->CurrentMesh && PreviewState->Client && PreviewState->World)
+        {
+            // Check if gizmo was picked by checking selection
+            UActorComponent* SelectedComp = PreviewState->World->GetSelectionManager()->GetSelectedComponent();
+
+            // Only do bone picking if gizmo wasn't selected
+            if (!SelectedComp || !Cast<UBoneAnchorComponent>(SelectedComp))
+            {
+                // Get camera from viewport client
+                ACameraActor* Camera = PreviewState->Client->GetCamera();
+                if (Camera)
+                {
+                    // Get camera vectors
+                    FVector CameraPos = Camera->GetActorLocation();
+                    FVector CameraRight = Camera->GetRight();
+                    FVector CameraUp = Camera->GetUp();
+                    FVector CameraForward = Camera->GetForward();
+
+                    // Calculate viewport-relative mouse position
+                    FVector2D ViewportMousePos(MousePos.X - PreviewRect.Left, MousePos.Y - PreviewRect.Top);
+                    FVector2D ViewportSize(PreviewRect.GetWidth(), PreviewRect.GetHeight());
+
+                    // Generate ray from mouse position
+                    FRay Ray = MakeRayFromViewport(
+                        Camera->GetViewMatrix(),
+                        Camera->GetProjectionMatrix(PreviewRect.GetWidth() / PreviewRect.GetHeight(), PreviewState->Viewport),
+                        CameraPos,
+                        CameraRight,
+                        CameraUp,
+                        CameraForward,
+                        ViewportMousePos,
+                        ViewportSize
+                    );
+
+                    // Try to pick a bone
+                    float HitDistance;
+                    int32 PickedBoneIndex = PreviewState->PreviewActor->PickBone(Ray, HitDistance);
+
+                    UE_LOG("[AnimSequenceViewer] Bone picking result: %d", PickedBoneIndex);
+
+                    if (PickedBoneIndex >= 0)
+                    {
+                        // Bone was picked
+                        PreviewState->SelectedBoneIndex = PickedBoneIndex;
+                        PreviewState->bBoneLinesDirty = true;
+
+                        UE_LOG("[AnimSequenceViewer] Bone %d picked successfully", PickedBoneIndex);
+
+                        // Move gizmo to the selected bone
+                        PreviewState->PreviewActor->RepositionAnchorToBone(PickedBoneIndex);
+                        if (USceneComponent* Anchor = PreviewState->PreviewActor->GetBoneGizmoAnchor())
+                        {
+                            PreviewState->World->GetSelectionManager()->SelectActor(PreviewState->PreviewActor);
+                            PreviewState->World->GetSelectionManager()->SelectComponent(Anchor);
+                        }
+                    }
+                    else
+                    {
+                        // No bone was picked - clear selection
+                        PreviewState->SelectedBoneIndex = -1;
+                        PreviewState->bBoneLinesDirty = true;
+
+                        UE_LOG("[AnimSequenceViewer] No bone picked, clearing selection");
+
+                        // Hide gizmo and clear selection
+                        if (UBoneAnchorComponent* Anchor = PreviewState->PreviewActor->GetBoneGizmoAnchor())
+                        {
+                            Anchor->SetVisibility(false);
+                            Anchor->SetEditability(false);
+                        }
+                        PreviewState->World->GetSelectionManager()->ClearSelection();
+                    }
+                }
+            }
+        }
     }
 }
 

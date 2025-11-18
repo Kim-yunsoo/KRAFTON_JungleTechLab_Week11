@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 class UWorld; class FViewport; class FViewportClient; class ASkeletalMeshActor; class USkeletalMesh;
 
@@ -28,9 +28,12 @@ public:
     FVector EditBoneLocation;
     FVector EditBoneRotation;  // Euler angles in degrees
     FVector EditBoneScale;
-    
+
     bool bBoneTransformChanged = false;
     bool bBoneRotationEditing = false;
+
+    // 사용자가 편집한 본 트랜스폼 저장 (애니메이션 재생 시에도 유지)
+    TMap<int32, FTransform> EditedBoneTransforms;  // BoneIndex -> 편집된 로컬 트랜스폼
 
     // 애니메이션 재생 관련 (Step 6: AnimSequenceViewer 연동)
     float CurrentTime = 0.0f;
