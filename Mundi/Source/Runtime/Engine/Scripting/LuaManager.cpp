@@ -343,22 +343,26 @@ FLuaManager::FLuaManager()
         "A", &FLinearColor::A
     );
 
-    // One-shot footstep sound helper for notify testing
-    // Usage in Lua: PlayFootstep() -> plays Data/Audio/FootSound.wav
-    SharedLib.set_function("PlayFootstep", []()
+    // Generic sound playback function for Lua scripts
+    // Usage in Lua: PlaySound("Data/Audio/FootSound.wav", 1.0)
+    //               PlaySound("Data/Audio/Jump.wav") -- volume defaults to 1.0
+    SharedLib.set_function("PlaySound", [](const FString& SoundPath, sol::optional<float> Volume)
     {
-        const FString Path = "Data/Audio/FootSound.wav";
-        USound* Sound = UResourceManager::GetInstance().Get<USound>(Path);
+        float Vol = Volume.value_or(1.0f); // Default volume = 1.0
+
+        USound* Sound = UResourceManager::GetInstance().Get<USound>(SoundPath);
         if (!Sound)
         {
-            Sound = UResourceManager::GetInstance().Load<USound>(Path);
+            Sound = UResourceManager::GetInstance().Load<USound>(SoundPath);
         }
         if (!Sound)
         {
-            UE_LOG("[Lua][Audio] PlayFootstep: failed to get sound %s", Path.c_str());
+            UE_LOG("[Lua][Audio] PlaySound: failed to load sound '%s'", SoundPath.c_str());
             return;
         }
-        FAudioDevice::PlaySound3D(Sound, FVector(0.f, 0.f, 0.f), 1.0f, false);
+
+        UE_LOG("[Lua][Audio] PlaySound: playing '%s' at volume %.2f", SoundPath.c_str(), Vol);
+        FAudioDevice::PlaySound3D(Sound, FVector(0.f, 0.f, 0.f), Vol, false);
     });
 
     RegisterComponentProxy(*Lua);

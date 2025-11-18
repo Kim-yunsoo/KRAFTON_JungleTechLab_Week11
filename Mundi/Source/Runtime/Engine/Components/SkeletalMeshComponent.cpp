@@ -23,7 +23,7 @@ USkeletalMeshComponent::~USkeletalMeshComponent()
 
 void USkeletalMeshComponent::BeginPlay()
 {
-   
+
 }
 
 void USkeletalMeshComponent::TickComponent(float DeltaTime)

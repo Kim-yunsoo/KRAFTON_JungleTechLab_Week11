@@ -78,14 +78,25 @@ void UAnimInstance::SetStartState(const FString& StartStateName)
 
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 {
-    if (!OwnerComponent) { return; }
+    if (!OwnerComponent)
+    {
+        UE_LOG("[AnimNotify] TriggerAnimNotifies: OwnerComponent is null!");
+        return;
+    }
 
-    if (!CurrentState) 
-	{
-		return;
-	}
-
+    if (!CurrentState)
+    {
+        UE_LOG("[AnimNotify] TriggerAnimNotifies: CurrentState is null!");
+        return;
+    }
 	TArray<UAnimSequence*> ActiveSequence = CurrentState->GetCurrentActiveSequence();
+
+    if (ActiveSequence.Num() == 0)
+    {
+        UE_LOG("[AnimNotify] TriggerAnimNotifies: CurrentState->AnimSequence is null!");
+        return;
+    }
+
 
 	for (UAnimSequence* Sequence : ActiveSequence)
 	{
