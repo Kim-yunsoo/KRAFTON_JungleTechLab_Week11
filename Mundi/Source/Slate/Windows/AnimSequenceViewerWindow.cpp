@@ -1146,107 +1146,12 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
 
 	// (markers drawn as per-track chips below)
 
-	// 타임라인 클릭/드래그 감지
-	ImGui::SetCursorScreenPos(CanvasPos);
-	ImGui::InvisibleButton("TimelineButton", CanvasSize);
-
-	if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
-	{
-		bIsDraggingPlayhead = true;
-		ImVec2 MousePos = ImGui::GetMousePos();
-		float ClickX = MousePos.x - CanvasPos.x;
-		CurrentTime = PixelToTime(ClickX);
-		CurrentFrame = TimeToFrame(CurrentTime);
-		bIsPlaying = false;
-		ApplyAnimationPose(); // 드래그 중 포즈 실시간 업데이트
-	}
-	else if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
-	{
-		ImVec2 MousePos = ImGui::GetMousePos();
-		float ClickX = MousePos.x - CanvasPos.x;
-		CurrentTime = PixelToTime(ClickX);
-		CurrentFrame = TimeToFrame(CurrentTime);
-		bIsPlaying = false;
-		ApplyAnimationPose(); // 클릭 시 포즈 즉시 업데이트
-	}
-	else if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-	{
-		// Open Add Notify popup at clicked time on the hovered track
-		ImVec2 MousePos = ImGui::GetMousePos();
-		float ClickX = MousePos.x - CanvasPos.x;
-		PendingNotifyTime = PixelToTime(ClickX);
-		// Compute track index from Y (content already offset by SetCursorPosY(-ScrollY))
-		float localY = (MousePos.y - CanvasPos.y);
-		PendingNotifyTrack = (int32)std::floor(localY / RowHeight);
-		strncpy_s(NotifyNameBuffer, sizeof(NotifyNameBuffer), "", 1);
-		ImGui::OpenPopup("AddNotifyPopup");
-	}
-	else
-	{
-		bIsDraggingPlayhead = false;
-	}
-
-	// 커서 이동
-	ImGui::SetCursorScreenPos(ImVec2(CanvasPos.x, CanvasPos.y + CanvasSize.y + 5));
-	ImGui::Spacing();
-
-	// Add Notify popup UI
-	if (ImGui::BeginPopup("AddNotifyPopup"))
-	{
-		ImGui::Text("Add AnimNotify");
-		ImGui::Separator();
-		ImGui::Text("Time: %.3f s", PendingNotifyTime);
-		ImGui::SetNextItemWidth(200.0f);
-		ImGui::InputText("Name", NotifyNameBuffer, sizeof(NotifyNameBuffer));
-		if (ImGui::Button("Add") && CurrentSequence && NotifyNameBuffer[0] != '\0')
-		{
-			FAnimNotifyEvent Ev;
-			Ev.TriggerTime = std::max(0.0f, std::min(PendingNotifyTime, PlayLength));
-			Ev.Duration = 0.0f;
-			Ev.NotifyName = FName(NotifyNameBuffer);
-			CurrentSequence->AddNotify(Ev);
-
-			// DEBUG: Log notify addition
-			UE_LOG("[AnimSequenceViewer] Added notify '%s' to sequence '%s' at time %.3f",
-				NotifyNameBuffer, CurrentSequence->GetFilePath().c_str(), Ev.TriggerTime);
-			// Add a chip on the chosen track for UI placement
-			int32 TrackIdx = PendingNotifyTrack;
-			if (TrackIdx < 0) TrackIdx = 0;
-			// Clamp to actual track count if any
-			if (NotifyTrackIndices.Num() == 0)
-			{
-				// If no tracks exist, create one so chip is visible
-				NotifyTrackIndices.Add(NextNotifyTrackNumber++);
-				TrackIdx = 0;
-			}
-			else if (TrackIdx >= NotifyTrackIndices.Num())
-			{
-				TrackIdx = NotifyTrackIndices.Num() - 1;
-			}
-            FNotifyChip Chip;
-            Chip.Time = Ev.TriggerTime;
-            Chip.Duration = Ev.Duration;
-            Chip.Name = Ev.NotifyName;
-            Chip.TrackIndex = TrackIdx;
-            NotifyChips.Add(Chip);
-            SelectedNotifyIndex = static_cast<int32>(NotifyChips.Num()) - 1;
-			// Ensure the newly added chip's row is visible
-			float rowTopForScroll = CanvasPos.y + (TrackIdx * RowHeight);
-			ImGui::SetScrollFromPosY(rowTopForScroll + RowHeight * 0.5f, 0.5f);
-			ImGui::CloseCurrentPopup();
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Cancel"))
-		{
-			ImGui::CloseCurrentPopup();
-		}
-		ImGui::EndPopup();
-	}
-
-    // Track hover state for this frame (will be applied next frame)
+    // Track hover state and click state for this frame
     int32 NewHoveredNotifyIndex = -1;
+    bool bAnyNotifyChipClicked = false; // Track if any notify chip was clicked
 
-    // Draw notify markers per track: diamond at TriggerTime + duration rectangle
+    // Draw notify markers per track FIRST (higher priority for clicks)
+    // diamond at TriggerTime + duration rectangle
     for (int i = 0; i < NotifyChips.Num(); ++i)
     {
         const FNotifyChip& Chip = NotifyChips[i];
@@ -1358,6 +1263,7 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
             SelectedNotifyIndex = i;
+            bAnyNotifyChipClicked = true; // Mark that a notify was clicked
         }
 
         // Update hover state for next frame
@@ -1369,6 +1275,109 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
 
     // Apply new hover state for next frame
     HoveredNotifyIndex = NewHoveredNotifyIndex;
+
+    // ============================================================
+    // Timeline button interaction (AFTER notify chips)
+    // Only process timeline clicks if no notify chip was clicked
+    // ============================================================
+
+    // Timeline invisible button for playhead dragging and timeline clicks
+    ImGui::SetCursorScreenPos(CanvasPos);
+    ImGui::InvisibleButton("TimelineButton", CanvasSize);
+
+    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
+    {
+        bIsDraggingPlayhead = true;
+        ImVec2 MousePos = ImGui::GetMousePos();
+        float ClickX = MousePos.x - CanvasPos.x;
+        CurrentTime = PixelToTime(ClickX);
+        CurrentFrame = TimeToFrame(CurrentTime);
+        bIsPlaying = false;
+        ApplyAnimationPose(); // 드래그 중 포즈 실시간 업데이트
+    }
+    else if (!bAnyNotifyChipClicked && ImGui::IsItemClicked(ImGuiMouseButton_Left))
+    {
+        // Only move playhead if no notify chip was clicked
+        ImVec2 MousePos = ImGui::GetMousePos();
+        float ClickX = MousePos.x - CanvasPos.x;
+        CurrentTime = PixelToTime(ClickX);
+        CurrentFrame = TimeToFrame(CurrentTime);
+        bIsPlaying = false;
+        ApplyAnimationPose(); // 클릭 시 포즈 즉시 업데이트
+    }
+    else if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    {
+        // Open Add Notify popup at clicked time on the hovered track
+        ImVec2 MousePos = ImGui::GetMousePos();
+        float ClickX = MousePos.x - CanvasPos.x;
+        PendingNotifyTime = PixelToTime(ClickX);
+        // Compute track index from Y (content already offset by SetCursorPosY(-ScrollY))
+        float localY = (MousePos.y - CanvasPos.y);
+        PendingNotifyTrack = (int32)std::floor(localY / RowHeight);
+        strncpy_s(NotifyNameBuffer, sizeof(NotifyNameBuffer), "", 1);
+        ImGui::OpenPopup("AddNotifyPopup");
+    }
+    else
+    {
+        bIsDraggingPlayhead = false;
+    }
+
+    // 커서 이동
+    ImGui::SetCursorScreenPos(ImVec2(CanvasPos.x, CanvasPos.y + CanvasSize.y + 5));
+    ImGui::Spacing();
+
+    // Add Notify popup UI
+    if (ImGui::BeginPopup("AddNotifyPopup"))
+    {
+        ImGui::Text("Add AnimNotify");
+        ImGui::Separator();
+        ImGui::Text("Time: %.3f s", PendingNotifyTime);
+        ImGui::SetNextItemWidth(200.0f);
+        ImGui::InputText("Name", NotifyNameBuffer, sizeof(NotifyNameBuffer));
+        if (ImGui::Button("Add") && CurrentSequence && NotifyNameBuffer[0] != '\0')
+        {
+            FAnimNotifyEvent Ev;
+            Ev.TriggerTime = std::max(0.0f, std::min(PendingNotifyTime, PlayLength));
+            Ev.Duration = 0.0f;
+            Ev.NotifyName = FName(NotifyNameBuffer);
+            CurrentSequence->AddNotify(Ev);
+
+            // DEBUG: Log notify addition
+            UE_LOG("[AnimSequenceViewer] Added notify '%s' to sequence '%s' at time %.3f",
+                NotifyNameBuffer, CurrentSequence->GetFilePath().c_str(), Ev.TriggerTime);
+            // Add a chip on the chosen track for UI placement
+            int32 TrackIdx = PendingNotifyTrack;
+            if (TrackIdx < 0) TrackIdx = 0;
+            // Clamp to actual track count if any
+            if (NotifyTrackIndices.Num() == 0)
+            {
+                // If no tracks exist, create one so chip is visible
+                NotifyTrackIndices.Add(NextNotifyTrackNumber++);
+                TrackIdx = 0;
+            }
+            else if (TrackIdx >= NotifyTrackIndices.Num())
+            {
+                TrackIdx = NotifyTrackIndices.Num() - 1;
+            }
+            FNotifyChip Chip;
+            Chip.Time = Ev.TriggerTime;
+            Chip.Duration = Ev.Duration;
+            Chip.Name = Ev.NotifyName;
+            Chip.TrackIndex = TrackIdx;
+            NotifyChips.Add(Chip);
+            SelectedNotifyIndex = static_cast<int32>(NotifyChips.Num()) - 1;
+            // Ensure the newly added chip's row is visible
+            float rowTopForScroll = CanvasPos.y + (TrackIdx * RowHeight);
+            ImGui::SetScrollFromPosY(rowTopForScroll + RowHeight * 0.5f, 0.5f);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel"))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
 }
 
 
