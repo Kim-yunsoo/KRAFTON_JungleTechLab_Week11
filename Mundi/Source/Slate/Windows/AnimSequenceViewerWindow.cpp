@@ -161,26 +161,34 @@ void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
 	CurrentFrame = 0;
 	bIsPlaying = false;
 
+	// Restore notify tracks from sequence
+	NotifyTrackIndices = CurrentSequence->GetNotifyTrackIndices();
+	NextNotifyTrackNumber = CurrentSequence->GetNextNotifyTrackNumber();
+
 	// Rebuild notify chips from sequence
 	NotifyChips.clear();
 	if (CurrentSequence)
 	{
 		const TArray<FAnimNotifyEvent>& Notifies = CurrentSequence->GetNotifies();
+		const TArray<int32>& DisplayTracks = CurrentSequence->GetNotifyDisplayTrackIndices();
 		UE_LOG("[AnimSequenceViewer] Rebuilding notify chips. Found %d notifies in sequence '%s'",
 			Notifies.size(), CurrentSequence->GetFilePath().c_str());
 
-		for (const FAnimNotifyEvent& Ev : Notifies)
+		for (size_t i = 0; i < Notifies.size(); ++i)
 		{
+			const FAnimNotifyEvent& Ev = Notifies[i];
             FNotifyChip Chip;
             Chip.Time = Ev.TriggerTime;
             Chip.Duration = Ev.Duration;
             Chip.Name = Ev.NotifyName;
-            Chip.TrackIndex = 0; // default to first track
+            Chip.TrackIndex = (i < DisplayTracks.size()) ? DisplayTracks[i] : 0; // 저장된 트랙 인덱스 복원
             NotifyChips.Add(Chip);
 
-			UE_LOG("[AnimSequenceViewer]   - Notify: %s at time %.3f",
-				Ev.NotifyName.ToString().c_str(), Ev.TriggerTime);
+			UE_LOG("[AnimSequenceViewer]   - Notify: %s at time %.3f on track %d",
+				Ev.NotifyName.ToString().c_str(), Ev.TriggerTime, Chip.TrackIndex);
 		}
+
+		UE_LOG("[AnimSequenceViewer] Restored %d notify tracks", NotifyTrackIndices.size());
 	}
 
 	UE_LOG("[AnimSequenceViewer] Loaded: %s (Length: %.2fs, Frames: %d)",
@@ -1126,10 +1134,43 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 
 	if (ImGui::Button("[-] Delete Track"))
 	{
-		if (bCanDelete)
+		if (bCanDelete && CurrentSequence)
 		{
+			// 1. 해당 트랙에 있는 모든 노티파이 삭제
+			const TArray<FAnimNotifyEvent>& Notifies = CurrentSequence->GetNotifies();
+			const TArray<int32>& DisplayTracks = CurrentSequence->GetNotifyDisplayTrackIndices();
+
+			// 삭제할 노티파이 이름 수집
+			TArray<FName> NotifiesToRemove;
+			for (size_t i = 0; i < Notifies.size() && i < DisplayTracks.size(); ++i)
+			{
+				if (DisplayTracks[i] == SelectedTrackIndex)
+				{
+					NotifiesToRemove.Add(Notifies[i].NotifyName);
+				}
+			}
+
+			// 노티파이 삭제
+			for (const FName& NotifyName : NotifiesToRemove)
+			{
+				CurrentSequence->RemoveNotifiesByName(NotifyName);
+			}
+
+			// UI 칩도 삭제
+			for (int32 i = static_cast<int32>(NotifyChips.Num()) - 1; i >= 0; --i)
+			{
+				if (NotifyChips[i].TrackIndex == SelectedTrackIndex)
+				{
+					NotifyChips.RemoveAt(i);
+				}
+			}
+
+			// 2. 트랙 삭제
 			NotifyTrackIndices.RemoveAt(SelectedTrackIndex);
 			SelectedTrackIndex = -1;
+
+			// 3. 시퀀스에 트랙 정보 저장
+			CurrentSequence->SetNotifyTrackIndices(NotifyTrackIndices);
 		}
 	}
 
@@ -1145,6 +1186,13 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 		{
 			NotifyTrackIndices.Add(NextNotifyTrackNumber);
 			NextNotifyTrackNumber++;
+
+			// 시퀀스에 트랙 정보 저장
+			if (CurrentSequence)
+			{
+				CurrentSequence->SetNotifyTrackIndices(NotifyTrackIndices);
+				CurrentSequence->SetNextNotifyTrackNumber(NextNotifyTrackNumber);
+			}
 		}
 		ImGui::EndPopup();
 	}
@@ -1630,15 +1678,6 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         ImGui::InputText("Name", NotifyNameBuffer, sizeof(NotifyNameBuffer));
         if (ImGui::Button("Add") && CurrentSequence && NotifyNameBuffer[0] != '\0')
         {
-            FAnimNotifyEvent Ev;
-            Ev.TriggerTime = std::max(0.0f, std::min(PendingNotifyTime, PlayLength));
-            Ev.Duration = 0.0f;
-            Ev.NotifyName = FName(NotifyNameBuffer);
-            CurrentSequence->AddNotify(Ev);
-
-            // DEBUG: Log notify addition
-            UE_LOG("[AnimSequenceViewer] Added notify '%s' to sequence '%s' at time %.3f",
-                NotifyNameBuffer, CurrentSequence->GetFilePath().c_str(), Ev.TriggerTime);
             // Add a chip on the chosen track for UI placement
             int32 TrackIdx = PendingNotifyTrack;
             if (TrackIdx < 0) TrackIdx = 0;
@@ -1648,11 +1687,29 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
                 // If no tracks exist, create one so chip is visible
                 NotifyTrackIndices.Add(NextNotifyTrackNumber++);
                 TrackIdx = 0;
+
+                // 시퀀스에 트랙 정보 저장
+                if (CurrentSequence)
+                {
+                    CurrentSequence->SetNotifyTrackIndices(NotifyTrackIndices);
+                    CurrentSequence->SetNextNotifyTrackNumber(NextNotifyTrackNumber);
+                }
             }
             else if (TrackIdx >= NotifyTrackIndices.Num())
             {
                 TrackIdx = NotifyTrackIndices.Num() - 1;
             }
+
+            FAnimNotifyEvent Ev;
+            Ev.TriggerTime = std::max(0.0f, std::min(PendingNotifyTime, PlayLength));
+            Ev.Duration = 0.0f;
+            Ev.NotifyName = FName(NotifyNameBuffer);
+            CurrentSequence->AddNotify(Ev, TrackIdx);  // 트랙 인덱스와 함께 추가
+
+            // DEBUG: Log notify addition
+            UE_LOG("[AnimSequenceViewer] Added notify '%s' to sequence '%s' at time %.3f on track %d",
+                NotifyNameBuffer, CurrentSequence->GetFilePath().c_str(), Ev.TriggerTime, TrackIdx);
+
             FNotifyChip Chip;
             Chip.Time = Ev.TriggerTime;
             Chip.Duration = Ev.Duration;

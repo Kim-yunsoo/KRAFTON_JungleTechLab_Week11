@@ -6,7 +6,7 @@ struct FAnimNotifyEvent
 {
     float TriggerTime = 0.f;    // 이벤트가 발생의 시작 지점
     float Duration = 0.f;       // 이벤트 트리거가 유효할 시간
-    FName NotifyName;           
+    FName NotifyName;
 
     float GetEndTime() const { return TriggerTime + Duration; }
     bool IsWithin(float StartTime, float EndTime) const
@@ -32,10 +32,18 @@ public:
 
     const TArray<FAnimNotifyEvent>& GetNotifies() const { return Notifies; }
     void SetNotifies(const TArray<FAnimNotifyEvent>& InNotifies);
-    void AddNotify(const FAnimNotifyEvent& Notify);
+    void AddNotify(const FAnimNotifyEvent& Notify, int32 TrackIndex = 0);
     void RemoveNotifiesByName(const FName& InName);
-    void ClearNotifies() { Notifies.clear(); }
+    void ClearNotifies() { Notifies.clear(); NotifyDisplayTrackIndices.clear(); }
     void GetAnimNotifiesInRange(float StartTime, float EndTime, TArray<FAnimNotifyEvent>& OutNotifies) const;
+
+    // Notify 트랙 관리 (AnimSequenceViewer UI용)
+    const TArray<int32>& GetNotifyTrackIndices() const { return NotifyTrackIndices; }
+    void SetNotifyTrackIndices(const TArray<int32>& InTracks) { NotifyTrackIndices = InTracks; }
+    const TArray<int32>& GetNotifyDisplayTrackIndices() const { return NotifyDisplayTrackIndices; }
+    void SetNotifyDisplayTrackIndices(const TArray<int32>& InDisplayTracks) { NotifyDisplayTrackIndices = InDisplayTracks; }
+    int32 GetNextNotifyTrackNumber() const { return NextNotifyTrackNumber; }
+    void SetNextNotifyTrackNumber(int32 InNumber) { NextNotifyTrackNumber = InNumber; }
 
     float GetSequenceLength() const { return TotalPlayLength; }
     void SetSequenceLength(float InLength) { TotalPlayLength = std::max(0.f, InLength); }
@@ -61,8 +69,11 @@ protected:
     }
 
 protected:
-    TArray<FAnimNotifyEvent> Notifies{};   // 시퀀스에 배치된 노티파이 목록
-    float TotalPlayLength = 0.f;         // 전체 재생 시간(초)
-    float PlayRate = 1.f;                // 속도 배율 (1.0 = 원래 속도)
-    bool bLoop = false;                  // 애니메이션 반복 여부
+    TArray<FAnimNotifyEvent> Notifies{};       // 시퀀스에 배치된 노티파이 목록
+    TArray<int32> NotifyTrackIndices{};        // 노티파이 트랙 번호 목록 (UI용)
+    TArray<int32> NotifyDisplayTrackIndices{}; // 각 노티파이의 UI 트랙 인덱스 (Notifies와 1:1 대응)
+    int32 NextNotifyTrackNumber = 1;           // 다음 트랙 번호
+    float TotalPlayLength = 0.f;               // 전체 재생 시간(초)
+    float PlayRate = 1.f;                      // 속도 배율 (1.0 = 원래 속도)
+    bool bLoop = false;                        // 애니메이션 반복 여부
 };

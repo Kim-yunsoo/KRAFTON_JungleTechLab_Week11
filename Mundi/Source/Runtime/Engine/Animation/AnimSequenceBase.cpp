@@ -4,7 +4,7 @@
 
 IMPLEMENT_CLASS(UAnimSequenceBase)
 
-void UAnimSequenceBase::AddNotify(const FAnimNotifyEvent& Notify)
+void UAnimSequenceBase::AddNotify(const FAnimNotifyEvent& Notify, int32 TrackIndex)
 {
     FString TestSrt = Notify.NotifyName.ToString();
     // 이진 탐색을 통해 추가할 지점을 찾아 삽입합니다.
@@ -14,7 +14,9 @@ void UAnimSequenceBase::AddNotify(const FAnimNotifyEvent& Notify)
             return A.TriggerTime < B.TriggerTime;
         });
 
+    size_t InsertIndex = std::distance(Notifies.begin(), InsertPos);
     Notifies.insert(InsertPos, Notify);
+    NotifyDisplayTrackIndices.insert(NotifyDisplayTrackIndices.begin() + InsertIndex, TrackIndex);
 }
 
 void UAnimSequenceBase::SetNotifies(const TArray<FAnimNotifyEvent>& InNotifies)
@@ -27,12 +29,18 @@ void UAnimSequenceBase::RemoveNotifiesByName(const FName& InName)
 {
     if (Notifies.empty()) { return; }
 
-    Notifies.erase(std::remove_if(Notifies.begin(),Notifies.end(),
-        [&InName](const FAnimNotifyEvent& Notify)
+    // 인덱스를 역순으로 순회하며 삭제 (인덱스 불일치 방지)
+    for (int32 i = static_cast<int32>(Notifies.size()) - 1; i >= 0; --i)
+    {
+        if (Notifies[i].NotifyName == InName)
         {
-            return Notify.NotifyName == InName;
-        }),
-        Notifies.end());
+            Notifies.erase(Notifies.begin() + i);
+            if (i < NotifyDisplayTrackIndices.size())
+            {
+                NotifyDisplayTrackIndices.erase(NotifyDisplayTrackIndices.begin() + i);
+            }
+        }
+    }
 }
 
 // 애니메이션의 특정 구간에서 노티파이 이벤트 목록들을 수집해서 반환합니다
@@ -119,13 +127,43 @@ void UAnimSequenceBase::Serialize(const bool bInIsLoading, JSON& InOutHandle)
         FJsonSerializer::ReadFloat(InOutHandle, "PlayRate", PlayRate, 1.f, false);
         FJsonSerializer::ReadBool(InOutHandle, "bLoop", bLoop, false, false);
 
+        // NextNotifyTrackNumber 로드
+        if (InOutHandle.hasKey("NextNotifyTrackNumber"))
+        {
+            NextNotifyTrackNumber = InOutHandle["NextNotifyTrackNumber"].ToInt();
+        }
+        else
+        {
+            NextNotifyTrackNumber = 1;
+        }
+
+        // 노티파이 트랙 인덱스 로드
+        JSON TrackArray;
+        if (FJsonSerializer::ReadArray(InOutHandle, "NotifyTrackIndices", TrackArray, nullptr, false))
+        {
+            NotifyTrackIndices.clear();
+            for (size_t Idx = 0; Idx < TrackArray.size(); ++Idx)
+            {
+                const JSON& TrackJson = TrackArray.at(static_cast<unsigned>(Idx));
+                if (TrackJson.JSONType() == JSON::Class::Integral)
+                {
+                    NotifyTrackIndices.Add(TrackJson.ToInt());
+                }
+            }
+        }
+        else
+        {
+            NotifyTrackIndices.clear();
+        }
+
         JSON NotifyArray;
         if (FJsonSerializer::ReadArray(InOutHandle, "Notifies", NotifyArray, nullptr, false))
         {
             Notifies.clear();
+            NotifyDisplayTrackIndices.clear();
             for (size_t Idx = 0; Idx < NotifyArray.size(); ++Idx)
             {
-                const JSON& NotifyJson = NotifyArray.at(static_cast<unsigned>(Idx));
+                JSON NotifyJson = NotifyArray.at(static_cast<unsigned>(Idx));
                 if (NotifyJson.JSONType() != JSON::Class::Object) { continue; }
 
                 FAnimNotifyEvent Notify;
@@ -139,12 +177,21 @@ void UAnimSequenceBase::Serialize(const bool bInIsLoading, JSON& InOutHandle)
                 }
 
                 Notifies.Add(Notify);
+
+                // UI 트랙 인덱스 로드
+                int32 DisplayTrack = 0;
+                if (NotifyJson.hasKey("DisplayTrack"))
+                {
+                    DisplayTrack = NotifyJson["DisplayTrack"].ToInt();
+                }
+                NotifyDisplayTrackIndices.Add(DisplayTrack);
             }
             SortNotifies();
         }
         else
         {
             Notifies.clear();
+            NotifyDisplayTrackIndices.clear();
         }
     }
     else
@@ -152,14 +199,35 @@ void UAnimSequenceBase::Serialize(const bool bInIsLoading, JSON& InOutHandle)
         InOutHandle["TotalPlayLength"] = TotalPlayLength;
         InOutHandle["PlayRate"] = PlayRate;
         InOutHandle["bLoop"] = bLoop;
+        InOutHandle["NextNotifyTrackNumber"] = NextNotifyTrackNumber;
+
+        // 노티파이 트랙 인덱스 저장
+        JSON TrackArray = JSON::Make(JSON::Class::Array);
+        for (int32 TrackIndex : NotifyTrackIndices)
+        {
+            TrackArray.append(TrackIndex);
+        }
+        InOutHandle["NotifyTrackIndices"] = TrackArray;
 
         JSON NotifyArray = JSON::Make(JSON::Class::Array);
-        for (const FAnimNotifyEvent& Notify : Notifies)
+        for (size_t i = 0; i < Notifies.size(); ++i)
         {
+            const FAnimNotifyEvent& Notify = Notifies[i];
             JSON NotifyJson = JSON::Make(JSON::Class::Object);
             NotifyJson["TriggerTime"] = Notify.TriggerTime;
             NotifyJson["Duration"] = Notify.Duration;
             NotifyJson["NotifyName"] = Notify.NotifyName.ToString().c_str();
+
+            // UI 트랙 인덱스 저장
+            if (i < NotifyDisplayTrackIndices.size())
+            {
+                NotifyJson["DisplayTrack"] = NotifyDisplayTrackIndices[i];
+            }
+            else
+            {
+                NotifyJson["DisplayTrack"] = 0;
+            }
+
             NotifyArray.append(NotifyJson);
         }
         InOutHandle["Notifies"] = NotifyArray;
