@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 class UWorld; class FViewport; class FViewportClient; class ASkeletalMeshActor; class USkeletalMesh;
 
@@ -28,7 +28,7 @@ public:
     FVector EditBoneLocation;
     FVector EditBoneRotation;  // Euler angles in degrees
     FVector EditBoneScale;
-    
+
     bool bBoneTransformChanged = false;
     bool bBoneRotationEditing = false;
 

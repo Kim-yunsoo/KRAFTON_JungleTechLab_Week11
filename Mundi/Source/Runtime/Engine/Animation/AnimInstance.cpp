@@ -1,7 +1,9 @@
 ﻿#include "pch.h"
+#include "pch.h"
 #include "Source/Runtime/Engine/Animation/AnimInstance.h"
 #include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
 
+#include "Source/Runtime/Engine/Animation/NotifyDispatcher.h"
 IMPLEMENT_CLASS(UAnimInstance)
 UAnimInstance::UAnimInstance()
 {
@@ -76,7 +78,28 @@ void UAnimInstance::SetStartState(const FString& StartStateName)
 
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 {
+    if (!OwnerComponent) { return; }
 
+    if (!CurrentState || !CurrentState->AnimSequence) { return; }
+
+    UAnimSequence* CurrentSequence = CurrentState->AnimSequence;
+    TArray<FAnimNotifyEvent> TriggeredNotifies;
+    CurrentSequence->GetAnimNotifiesInRange(PrevTime, CurrentTime, TriggeredNotifies);
+
+    // Build sequence key once (use file path only for consistency)
+    FString SequenceKey;
+    if (CurrentSequence)
+    {
+        SequenceKey = CurrentSequence->GetFilePath();
+    }
+
+    for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
+    {
+        // Component-level delegate; actor or systems can forward to dispatcher/blueprints/etc.
+		OwnerComponent->OnAnimNotify.Broadcast(Notify, SequenceKey);
+
+        FNotifyDispatcher::Get().Dispatch(SequenceKey, Notify);
+    }
 }
 
 //반복없는 애니메이션 끝나면 조건없는 트랜지션을 타고 이동 가능하도록 제작 필요 (애니메이션이 끝날때 라는 조건인거임)

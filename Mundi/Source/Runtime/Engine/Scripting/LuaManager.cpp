@@ -3,10 +3,17 @@
 #include "LuaComponentProxy.h"
 #include "GameObject.h"
 #include "ObjectIterator.h"
+#include "Source/Runtime/Engine/Animation/AnimSequenceBase.h"
 #include "CameraActor.h"
 #include "CameraComponent.h"
 #include "PlayerCameraManager.h"
 #include <tuple>
+#include "Source/Runtime/Engine/Animation/NotifyDispatcher.h"
+// Audio playback bindings
+#include "../GameFramework/FAudioDevice.h"
+#include "../Audio/Sound.h"
+#include "ResourceManager.h"
+#include "Vector.h"
 
 sol::object MakeCompProxy(sol::state_view SolState, void* Instance, UClass* Class) {
     BuildBoundClass(Class);
@@ -336,6 +343,24 @@ FLuaManager::FLuaManager()
         "A", &FLinearColor::A
     );
 
+    // One-shot footstep sound helper for notify testing
+    // Usage in Lua: PlayFootstep() -> plays Data/Audio/FootSound.wav
+    SharedLib.set_function("PlayFootstep", []()
+    {
+        const FString Path = "Data/Audio/FootSound.wav";
+        USound* Sound = UResourceManager::GetInstance().Get<USound>(Path);
+        if (!Sound)
+        {
+            Sound = UResourceManager::GetInstance().Load<USound>(Path);
+        }
+        if (!Sound)
+        {
+            UE_LOG("[Lua][Audio] PlayFootstep: failed to get sound %s", Path.c_str());
+            return;
+        }
+        FAudioDevice::PlaySound3D(Sound, FVector(0.f, 0.f, 0.f), 1.0f, false);
+    });
+
     RegisterComponentProxy(*Lua);
     ExposeGlobalFunctions();
     ExposeAllComponentsToLua();
@@ -593,6 +618,10 @@ void FLuaManager::Tick(double DeltaSeconds)
 
 void FLuaManager::ShutdownBeforeLuaClose()
 {
+    // Ensure no C++ dispatcher holds Lua functions after VM shutdown
+    FNotifyDispatcher::Get().Enable(false);
+    FNotifyDispatcher::Get().Clear();
+
     CoroutineSchedular.ShutdownBeforeLuaClose();
     
     FLuaBindRegistry::Get().Reset();
@@ -617,3 +646,68 @@ sol::protected_function FLuaManager::GetFunc(sol::environment& Env, const char* 
     
     return Func;
 }
+void FLuaManager::LoadNotifyConfig()
+{
+    sol::environment Env = this->CreateEnvironment();
+    const FString ConfigPath = "Data/Scripts/NotifyConfig.lua";
+    // Reset previous handlers to avoid duplicates and to handle hot-reload safely
+    FNotifyDispatcher::Get().Clear();
+    if (!this->LoadScriptInto(Env, ConfigPath))
+    {
+        UE_LOG("[Lua] Failed to load %s", ConfigPath.c_str());
+        return;
+    }
+    sol::object CfgObj = Env["NotifyConfig"];
+    if (!(CfgObj.valid() && CfgObj.get_type() == sol::type::table))
+    {
+        UE_LOG("[Lua] NotifyConfig table missing or invalid in %s", ConfigPath.c_str());
+        return;
+    }
+    sol::table Cfg = CfgObj.as<sol::table>();
+    for (auto& kv : Cfg)
+    {
+        sol::object KeyObj = kv.first;
+        sol::object SubObj = kv.second;
+        if (!KeyObj.is<std::string>() || !SubObj.is<sol::table>()) continue;
+        const std::string SeqKey = KeyObj.as<std::string>();
+        sol::table Sub = SubObj.as<sol::table>();
+        for (auto& subkv : Sub)
+        {
+            sol::object NameObj = subkv.first;
+            sol::object FuncObj = subkv.second;
+            if (!NameObj.is<std::string>() || !FuncObj.is<sol::function>()) continue;
+            const std::string NotifyName = NameObj.as<std::string>();
+            sol::protected_function LuaFunc = FuncObj.as<sol::protected_function>();
+            // DEBUG: Log registration
+            UE_LOG("[Lua] Registering notify handler: Seq='%s', Notify='%s'",
+                SeqKey.c_str(), NotifyName.c_str());
+
+            FNotifyDispatcher::Get().Register(
+                SeqKey,
+                FName(NotifyName.c_str()),
+                [LuaFunc](const FAnimNotifyEvent& Ev) mutable
+                {
+                    // Guard: dispatcher may be disabled during teardown
+                    if (!FNotifyDispatcher::Get().IsEnabled()) { return; }
+                    UE_LOG("[Lua] Executing notify handler for '%s'", Ev.NotifyName.ToString().c_str());
+                    sol::state_view SV(LuaFunc.lua_state());
+                    sol::table EventTbl = SV.create_table();
+                    EventTbl["TriggerTime"] = Ev.TriggerTime;
+                    EventTbl["Duration"] = Ev.Duration;
+                    EventTbl["Name"] = Ev.NotifyName.ToString();
+                    sol::protected_function_result R = LuaFunc(EventTbl);
+                    if (!R.valid())
+                    {
+                        sol::error Err = R;
+                        UE_LOG("[Lua][error] Notify handler failed: %s", Err.what());
+                    }
+                }
+            );
+        }
+    }
+    UE_LOG("[Lua] NotifyConfig loaded and registered globally");
+    FNotifyDispatcher::Get().Enable(true);
+}
+
+
+
