@@ -46,8 +46,8 @@ void USkeletalMeshComponent::BeginPlay()
         MoveState->AnimSequence->AddNotify(TestNotify);
         UE_LOG("Inserted TEST AnimNotify at 0.3s on Standard Walk");
     }
-    StateMachine.AddState(IdleState);
-    StateMachine.AddState(MoveState);
+    StateMachine.AddState(IdleState->AnimSequence->GetName(), IdleState->AnimSequence);
+    StateMachine.AddState(MoveState->AnimSequence->GetName(), MoveState->AnimSequence);
     StateMachine.StartStateMachine(IdleState);
 
     UAnimTransition* IdleToMoveTransition = NewObject<UAnimTransition>();
@@ -58,15 +58,16 @@ void USkeletalMeshComponent::BeginPlay()
     MoveToIdleTransition->From = MoveState;
     MoveToIdleTransition->To = IdleState;
     MoveToIdleTransition->Condition = [this]()->bool {return !bMove; };
-    StateMachine.AddTransition(IdleToMoveTransition);
-    StateMachine.AddTransition(MoveToIdleTransition);
-
-    AnimInstance->SetPlay(true);
+    //StateMachine.AddTransition(IdleState->AnimSequence->GetName(),IdleToMoveTransition);
+    //StateMachine.AddTransition(MoveState->AnimSequence->GetName(),MoveToIdleTransition);
+    StateMachine.AddTransition(IdleState->AnimSequence->GetName(), MoveState->AnimSequence->GetName());
+    AnimInstance->Play();
 }
 
 void USkeletalMeshComponent::TickComponent(float DeltaTime)
 {
     Super::TickComponent(DeltaTime);
+    int test = 3; 
     if (AnimInstance)
     {
         AnimInstance->SetSpeed(TestSpeed);
@@ -260,7 +261,7 @@ void USkeletalMeshComponent::PlayAnimation(const FString& AnimPath, bool bLoop)
         }
     }
 
-    SingleNode->SetAnimSequence(InAnimSequence, bLoop);
+    SingleNode->SetAnimSequence(AnimSequence, bLoop);
 }
 
 void USkeletalMeshComponent::HandleAnimNotify(const FAnimNotifyEvent& Notify)
@@ -270,7 +271,7 @@ void USkeletalMeshComponent::HandleAnimNotify(const FAnimNotifyEvent& Notify)
     {
         Owner->HandleAnimNotify(Notify);
     }
-    SingleNode->SetAnimSequence(AnimSequence, bLoop);
+    //SingleNode->SetAnimSequence(AnimSequence, bLoop);
 }
 
 void USkeletalMeshComponent::DuplicateSubObjects()

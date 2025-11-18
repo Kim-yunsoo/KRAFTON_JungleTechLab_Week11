@@ -17,6 +17,7 @@ UAnimInstance::~UAnimInstance()
 
 void UAnimInstance::Tick(float DeltaSeconds)
 {
+	int test = 0;
 	if (OwnerComponent && bPlay && Speed != 0 && CurrentState)
 	{
 		AnimStateMachine.Tick(DeltaSeconds);
