@@ -96,6 +96,9 @@ public:
     UFUNCTION(LuaBind, DisplayName = "Replay")
     void Replay();
 
+    UFUNCTION(LuaBind, DisplayName = "SetStateLoop")
+    void SetStateLoop(const FString& InName, const bool InLoop);
+
     //------------------------
 
     void DuplicateSubObjects() override;

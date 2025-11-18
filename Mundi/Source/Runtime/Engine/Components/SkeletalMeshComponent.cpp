@@ -330,3 +330,10 @@ void USkeletalMeshComponent::Replay()
         AnimInstance->Replay();
     }
 }
+void USkeletalMeshComponent::SetStateLoop(const FString& InName, const bool InLoop)
+{
+    if (AnimInstance)
+    {
+        AnimInstance->SetStateLoop(InName, InLoop);
+    }
+}

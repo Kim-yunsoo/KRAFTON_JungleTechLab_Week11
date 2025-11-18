@@ -17,7 +17,7 @@ void UMyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		bool AMax = ASequenceTime > BSequenceTime;
 		float MaxSequenceTime = fmax(ASequenceTime, BSequenceTime);
 
-		if (bLoop)
+		if (AnimA->IsLooping() || AnimB->IsLooping())
 		{
 			CurrentTime = ClampTimeLooped(CurrentTime, CurrentTime - PrevTime, MaxSequenceTime);
 		}

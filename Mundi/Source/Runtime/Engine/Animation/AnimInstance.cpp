@@ -17,30 +17,38 @@ UAnimInstance::~UAnimInstance()
 
 void UAnimInstance::Tick(float DeltaSeconds)
 {
+	if (RegistChangeState != CurrentState)
+	{
+		ChangeState();
+	}
 	if (OwnerComponent && bPlay && Speed != 0 && CurrentState)
 	{
 		AnimStateMachine.Tick(DeltaSeconds);
 		PrevTime = CurrentTime;
 		CurrentTime += DeltaSeconds * Speed;
 		NativeUpdateAnimation(DeltaSeconds);
-		TriggerAnimNotifies(DeltaSeconds);
+		TriggerAnimNotifies(DeltaSeconds);	
 	}
 }
-void UAnimInstance::ChangeState(UAnimState* AnimState, UAnimTransition* AnimTransition)
+void UAnimInstance::ChangeState()
 {
-	ChangeState(AnimState, AnimTransition->BlendTime);
-}
-void UAnimInstance::ChangeState(UAnimState* AnimState, float InTransitionTime)
-{
-	CurrentState = AnimState;
-	TransitionTime = InTransitionTime;
+	CurrentState = RegistChangeState;
+	TransitionTime = RegistChangeTransitionTime;
 	CurTransitionTime = TransitionTime;
 	CachedPose.Pose = GetOwner()->GetPose();
 	CurrentTime = 0;
 	PrevTime = 0;
-	SetSpeed(AnimState->Speed);
-	SetLoop(AnimState->bLoop);
+	SetSpeed(CurrentState->Speed);
 	Play();
+}
+void UAnimInstance::ChangeStatePending(UAnimState* AnimState, UAnimTransition* AnimTransition)
+{
+	ChangeStatePending(AnimState, AnimTransition->BlendTime);
+}
+void UAnimInstance::ChangeStatePending(UAnimState* AnimState, float InTransitionTime)
+{
+	RegistChangeState = AnimState;
+	RegistChangeTransitionTime = InTransitionTime;
 }
 
 UAnimState* UAnimInstance::AddSequenceInState(const FString& InName, UAnimSequence* Sequence, const float InBlendValue)
@@ -74,6 +82,14 @@ UAnimTransition* UAnimInstance::AddTransition(const FString& StartStateName, con
 void UAnimInstance::SetStartState(const FString& StartStateName)
 {
 	AnimStateMachine.StartStateMachine(StartStateName, 0);
+}
+void UAnimInstance::SetStateLoop(const FString& InName, const bool InLoop)
+{
+	UAnimState* State = AnimStateMachine.GetState(InName);
+	if (State)
+	{
+		State->SetLoop(InLoop);
+	}
 }
 
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
@@ -128,17 +144,18 @@ void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	CurTransitionTime -= abs(CurrentTime - PrevTime);
 
 	float SequenceTime = CurrentState->GetTotalSequenceTime();
-	if (bLoop)
+	if (CurrentState->bLoop)
 	{	
 		CurrentTime = ClampTimeLooped(CurrentTime, CurrentTime - PrevTime, SequenceTime);
 	}
 	else
 	{
-		CurrentTime = Clamp(CurrentTime, 0.0f, SequenceTime);
-		if (CurrentTime != SequenceTime)
+		if (CurrentTime > SequenceTime)
 		{
 			bPlay = false;
+			AnimStateMachine.EndState();
 		}
+		CurrentTime = Clamp(CurrentTime, 0.0f, SequenceTime);
 	}
 
 	FPoseContext PoseContext(this);

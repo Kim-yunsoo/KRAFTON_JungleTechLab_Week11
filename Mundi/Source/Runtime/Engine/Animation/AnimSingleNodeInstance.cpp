@@ -4,10 +4,10 @@
 
 IMPLEMENT_CLASS(UAnimSingleNodeInstance)
 
-void UAnimSingleNodeInstance::SetAnimSequence(UAnimSequence* InAnimSequence, const bool bLoop)
+void UAnimSingleNodeInstance::SetAnimSequence(UAnimSequence* InAnimSequence, const bool InLoop)
 {
 	AnimSequence = InAnimSequence;
-	SetLoop(bLoop);
+	bLoop = InLoop;
 	SetTime(0);
 	SetSpeed(1);
 	Play();
@@ -34,11 +34,11 @@ void UAnimSingleNodeInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 	else
 	{
-		CurrentTime = Clamp(CurrentTime, 0.0f, SequenceTime);
-		if (CurrentTime != SequenceTime)
+		if (CurrentTime > SequenceTime)
 		{
 			bPlay = false;
 		}
+		CurrentTime = Clamp(CurrentTime, 0.0f, SequenceTime);
 	}
 
 	FPoseContext PoseA(this);

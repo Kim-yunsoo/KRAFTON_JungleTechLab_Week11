@@ -10,8 +10,10 @@ public:
 	UAnimSingleNodeInstance() = default;
 	virtual ~UAnimSingleNodeInstance() = default;
 	void Tick(float DeltaSeconds) override;
-	void SetAnimSequence(UAnimSequence* InAnimSequence, const bool bLoop = false);
+	void SetAnimSequence(UAnimSequence* InAnimSequence, const bool InLoop = false);
 protected:
 	void NativeUpdateAnimation(float DeltaSeconds) override;
 	UAnimSequence* AnimSequence = nullptr;
+private:
+	bool bLoop = false;
 };

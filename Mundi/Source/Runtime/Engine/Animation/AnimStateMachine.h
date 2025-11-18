@@ -30,6 +30,8 @@ public:
 	void SetCurrentState(UAnimState* InAnimState, UAnimTransition* InTransition);
 	UAnimState* GetState(const FString& StateName);
 
+	void EndState();
+
 
 private:
 	bool HasState(const FString& InName);

@@ -11,7 +11,15 @@ class UAnimTransition : public UObject
 public:
 	UAnimTransition() = default;
 	virtual ~UAnimTransition() = default;
-	bool CanEnter() const { return Condition(); }
+	bool CanEnter() const 
+	{
+		if (Condition)
+		{ return Condition();}
+		else
+		{
+			return false;
+		}
+	}
 
 	void SetRoot(UAnimState* InFrom, UAnimState* InTo)
 	{

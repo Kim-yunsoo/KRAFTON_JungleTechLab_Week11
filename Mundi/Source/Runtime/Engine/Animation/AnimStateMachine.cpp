@@ -35,10 +35,23 @@ void UAnimStateMachine::Tick(float DeltaSeconds)
 		}
 	}
 }
+
+void UAnimStateMachine::EndState()
+{
+	for (UAnimTransition* Transition : Transitions)
+	{
+		if (Transition->From == CurrentState && Transition->Condition == nullptr)
+		{
+			SetCurrentState(Transition->To, Transition);
+			break;
+		}
+	}
+}
+
 void UAnimStateMachine::SetCurrentState(UAnimState* InAnimState, UAnimTransition* InTransition)
 {
 	CurrentState = InAnimState;
-	Owner->ChangeState(CurrentState, InTransition);
+	Owner->ChangeStatePending(CurrentState, InTransition);
 }
 UAnimState* UAnimStateMachine::GetState(const FString& StateName)
 {
@@ -64,7 +77,7 @@ void UAnimStateMachine::StartStateMachine(UAnimState* StartState, const float In
 		return;
 	}
 	CurrentState = StartState;
-	Owner->ChangeState(CurrentState, InBlendTime);
+	Owner->ChangeStatePending(CurrentState, InBlendTime);
 }
 
 UAnimState* UAnimStateMachine::AddSequenceInState(const FString& InName, UAnimSequence* Sequence, float InBlendValue)

@@ -35,10 +35,6 @@ public:
 	{
 		Speed = InSpeed;
 	}
-	void SetStartTime(const float InStartTime)
-	{
-		StartTime = InStartTime;
-	}
 	void SetLoop(const bool InLoop)
 	{
 		bLoop = InLoop;
@@ -55,7 +51,6 @@ public:
 	float TotalSequenceTime = 0.0f;
 	float BlendValue = 0.0f;
 	float Speed = 1.0f;
-	float StartTime = 0.0f;
 	bool bLoop = true;
 
 

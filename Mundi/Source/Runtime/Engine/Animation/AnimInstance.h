@@ -15,8 +15,8 @@ public:
 	virtual ~UAnimInstance();
 	void TriggerAnimNotifies(float DeltaSeconds);
 	virtual void Tick(float DeltaSeconds);
-	void ChangeState(UAnimState* AnimState, UAnimTransition* AnimTransition);
-	void ChangeState(UAnimState* AnimState, float InTransitionTime);
+	void ChangeStatePending(UAnimState* AnimState, UAnimTransition* AnimTransition);
+	void ChangeStatePending(UAnimState* AnimState, float InTransitionTime);
 
 	UAnimState* AddSequenceInState(const FString& InName, UAnimSequence* Sequence, const float InBlendValue = 0.0f);
 
@@ -31,16 +31,13 @@ public:
 	//UFUNCTION(LuaBind, DisplayName = "SetStartState")
 	void SetStartState(const FString& StartStateName);
 
+	void SetStateLoop(const FString& InName, const bool InLoop);
+
 	void SetOwner(USkeletalMeshComponent* InOwner)
 	{
 		OwnerComponent = InOwner;
 	}
 
-	//UFUNCTION(LuaBind, DisplayName = "SetLoop")
-	void SetLoop(const bool InLoop)
-	{
-		bLoop = InLoop;
-	}
 	//UFUNCTION(LuaBind, DisplayName = "SetSpeed")
 	void SetSpeed(const float InSpeed)
 	{
@@ -77,16 +74,19 @@ protected:
 	float CurrentTime = 0;
 	float PrevTime = 0;
 	float Speed = 1;
-	bool bLoop = false;
 	bool bPlay = false;
+
 	USkeletalMeshComponent* OwnerComponent = nullptr;
 	UAnimStateMachine AnimStateMachine;
 
 private:
-
+	void ChangeState();
 	FPoseContext CachedPose;
 	UAnimState* CurrentState = nullptr;
 	float TransitionTime = 0;
 	float CurTransitionTime = 0;
+
+	UAnimState* RegistChangeState = nullptr;
+	float RegistChangeTransitionTime = 0.0f;
 
 };
