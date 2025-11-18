@@ -149,9 +149,31 @@ FTransform USkeletalMeshComponent::GetBoneWorldTransform(int32 BoneIndex)
     return GetWorldTransform(); // 실패 시 컴포넌트 위치 반환
 }
 
+void USkeletalMeshComponent::MarkBoneAsManuallyEdited(int32 BoneIndex)
+{
+    if (BoneIndex >= 0 && BoneIndex < CurrentLocalSpacePose.Num())
+    {
+        // 중복 방지
+        if (!ManuallyEditedBones.Contains(BoneIndex))
+        {
+            ManuallyEditedBones.Add(BoneIndex);
+        }
+    }
+}
+
+bool USkeletalMeshComponent::IsBoneManuallyEdited(int32 BoneIndex) const
+{
+    return ManuallyEditedBones.Contains(BoneIndex);
+}
+
+void USkeletalMeshComponent::ClearManuallyEditedBones()
+{
+    ManuallyEditedBones.Empty();
+}
+
 void USkeletalMeshComponent::ForceRecomputePose()
 {
-    if (!SkeletalMesh) { return; } 
+    if (!SkeletalMesh) { return; }
 
     // LocalSpace -> ComponentSpace 계산
     UpdateComponentSpaceTransforms();

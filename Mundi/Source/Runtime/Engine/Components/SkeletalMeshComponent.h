@@ -50,6 +50,21 @@ public:
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
 
+    /**
+     * @brief 특정 본을 수동 편집 본으로 표시 (애니메이션이 덮어쓰지 않음)
+     */
+    void MarkBoneAsManuallyEdited(int32 BoneIndex);
+
+    /**
+     * @brief 특정 본이 수동 편집되었는지 확인
+     */
+    bool IsBoneManuallyEdited(int32 BoneIndex) const;
+
+    /**
+     * @brief 모든 수동 편집 본 표시 제거
+     */
+    void ClearManuallyEditedBones();
+
     UFUNCTION(LuaBind, DisplayName = "PlayAnimation")
     void PlayAnimation(const FString& AnimPath, bool bLoop);
 
@@ -126,6 +141,11 @@ protected:
      * @brief CPU 스키닝에 전달할 최종 노말 스키닝 행렬
      */
     TArray<FMatrix> TempFinalSkinningNormalMatrices;
+
+    /**
+     * @brief 사용자가 수동으로 편집한 본 인덱스 집합 (애니메이션 재생 시 오버라이드하지 않음)
+     */
+    TArray<int32> ManuallyEditedBones;
 
 private:
     UPROPERTY(EditAnywhere, Category = "SkeletalComponent")

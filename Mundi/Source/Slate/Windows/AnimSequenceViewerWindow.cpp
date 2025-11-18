@@ -342,9 +342,8 @@ void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
                         // 앵커의 월드 트랜스폼을 본의 로컬 트랜스폼으로 변환하여 적용
                         SkelComp->SetBoneWorldTransform(PreviewState->SelectedBoneIndex, CurrentAnchorTransform);
 
-                        // 편집된 본 트랜스폼을 저장 (애니메이션 재생 시에도 유지하기 위해)
-                        FTransform EditedLocalTransform = SkelComp->GetBoneLocalTransform(PreviewState->SelectedBoneIndex);
-                        PreviewState->EditedBoneTransforms[PreviewState->SelectedBoneIndex] = EditedLocalTransform;
+                        // 이 본을 수동 편집된 본으로 표시 (애니메이션이 덮어쓰지 않도록)
+                        SkelComp->MarkBoneAsManuallyEdited(PreviewState->SelectedBoneIndex);
 
                         // 본 라인 즉시 재구성 (애니메이션 재생 중이 아니어도 업데이트)
                         if (bShowBones && PreviewActor->GetBoneLineComponent())
@@ -443,37 +442,30 @@ void SAnimSequenceViewerWindow::ApplyAnimationPose()
     UAnimSequence* AnimSeq = Cast<UAnimSequence>(CurrentSequence);
     if (AnimSeq)
     {
-        TArray<FTransform> BonePoses;
-        BonePoses.resize(BoneCount);
+        // 현재 포즈를 베이스로 가져오기 (수동 편집된 본 포함)
+        // 예: [본0의트랜스폼, 본1의트랜스폼(편집됨), 본2의트랜스폼, ...]
+        TArray<FTransform> BonePoses = SkelComp->GetPose();
 
-        // 레퍼런스 포즈로 초기화
-        for (int32 i = 0; i < BoneCount; ++i)
-        {
-            BonePoses[i] = FTransform(Skeleton.Bones[i].BindPose);
-        }
-
-        // 애니메이션 트랙 데이터로 오버라이드
+        // 애니메이션 트랙 데이터로 오버라이드 (단, 수동 편집된 본은 제외)
         float FrameRate = AnimSeq->GetFrameRate();
         for (const FBoneAnimationTrack& Track : AnimSeq->GetBoneTracks())
         {
+            // 예: Track.BoneIndex = 5 (척추 본)
+            // Track.InternalTrack.PosKeys[299개], RotKeys[299개], ScaleKeys[299개]
             if (Track.BoneIndex >= 0 && Track.BoneIndex < BoneCount)
             {
-                BonePoses[Track.BoneIndex] = Track.InternalTrack.GetTransform(FrameRate, CurrentTime);
+                // 수동으로 편집되지 않은 본만 애니메이션 적용
+                if (!SkelComp->IsBoneManuallyEdited(Track.BoneIndex))
+                {
+                    // 현재 시간(CurrentTime)에 해당하는 트랜스폼 보간
+                    // GetTransform(30, 2.5) → 프레임 75의 트랜스폼 반환
+                    BonePoses[Track.BoneIndex] = Track.InternalTrack.GetTransform(FrameRate, CurrentTime);
+                }
+                // 수동 편집된 본은 현재 포즈 유지 (BonePoses에 이미 들어있음)
             }
         }
 
-        // 사용자가 편집한 본 트랜스폼을 덮어쓰지 않도록 보존 (언리얼 방식)
-        for (const auto& EditedBone : PreviewState->EditedBoneTransforms)
-        {
-            int32 BoneIndex = EditedBone.first;
-            if (BoneIndex >= 0 && BoneIndex < BoneCount)
-            {
-                // 편집된 트랜스폼을 애니메이션 포즈 위에 적용
-                BonePoses[BoneIndex] = EditedBone.second;
-            }
-        }
-
-        // SkeletalMeshComponent에 포즈 직접 설정
+        // SkeletalMeshComponent에 최종 포즈 적용
         SkelComp->SetLocalSpacePose(BonePoses);
 
         // 선택된 본이 있으면 기즈모를 해당 본 위치로 업데이트 (애니메이션 재생 중에도 따라다니도록)
