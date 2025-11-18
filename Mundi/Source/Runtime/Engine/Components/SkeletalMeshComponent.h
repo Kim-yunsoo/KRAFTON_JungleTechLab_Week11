@@ -1,8 +1,8 @@
 ﻿#pragma once
 #include "SkinnedMeshComponent.h"
-#include "USkeletalMeshComponent.generated.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
 #include "Source/Runtime/Core/Misc/Delegates.h"
+#include "USkeletalMeshComponent.generated.h"
 
 // 전방 선언
 class UAnimInstance;
@@ -33,9 +33,14 @@ public:
     void SetBoneLocalTransform(int32 BoneIndex, const FTransform& NewLocalTransform);
 
     void SetBoneWorldTransform(int32 BoneIndex, const FTransform& NewWorldTransform);
-    
+
     void SetPose(const FPoseContext& Pose);
     const TArray<FTransform>& GetPose() const;
+
+    /**
+     * @brief 전체 본 포즈를 직접 설정 (뷰어 전용)
+     */
+    void SetLocalSpacePose(const TArray<FTransform>& InPose);
     /**
      * @brief 특정 뼈의 현재 로컬 트랜스폼을 반환
      */
@@ -45,7 +50,37 @@ public:
      * @brief 기즈모를 렌더링하기 위해 특정 뼈의 월드 트랜스폼을 계산
      */
     FTransform GetBoneWorldTransform(int32 BoneIndex);
-    void PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop);
+
+    UFUNCTION(LuaBind, DisplayName = "PlayAnimation")
+    void PlayAnimation(const FString& AnimPath, bool bLoop);
+
+
+    //----------------
+    //UAnimInstance 루아 바인딩 안되서 임시로 스켈레탈메쉬에서 호출
+    UFUNCTION(LuaBind, DisplayName = "AddState")
+    void AddState(const FString& InName, const FString& AnimPath);
+
+    UFUNCTION(LuaBind, DisplayName = "AddTransition")
+    void AddTransition(const FString& StartStateName, const FString& EndStateName, const float InBlendTime, std::function<bool()> func);
+
+    UFUNCTION(LuaBind, DisplayName = "SetStartState")
+    void SetStartState(const FString& StartStateName);
+
+    UFUNCTION(LuaBind, DisplayName = "SetSpeed")
+    void SetSpeed(const float InSpeed);
+
+    UFUNCTION(LuaBind, DisplayName = "Play")
+    void Play();
+
+    UFUNCTION(LuaBind, DisplayName = "Pause")
+    void Pause();
+
+    UFUNCTION(LuaBind, DisplayName = "Replay")
+    void Replay();
+
+    //------------------------
+
+    void DuplicateSubObjects() override;
 
     // AnimNotify event delegate: broadcasts Event and SequenceKey (asset name or file path)
     DECLARE_DELEGATE_TYPE_TwoParam(FOnAnimNotify, const FAnimNotifyEvent&, const FString&);
@@ -60,6 +95,9 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
     bool bMove = false;
+
+    UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
+    float TestSpeed = 1;
 
 protected:
     /**
@@ -98,6 +136,7 @@ protected:
     TArray<FMatrix> TempFinalSkinningNormalMatrices;
 
 private:
+    UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
     UAnimInstance* AnimInstance = nullptr;
 
 // FOR TEST!!!

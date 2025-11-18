@@ -4,10 +4,13 @@
 #include "Source/Runtime/Engine/Animation/MyAnimInstance.h"
 #include "Source/Runtime/Core/Object/Actor.h"
 #include <functional>
+
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
     // 테스트용 기본 메시 설정
     SetSkeletalMesh(GDataDir + "/Test.fbx"); 
+    AnimInstance = NewObject<UAnimInstance>();
+    AnimInstance->SetOwner(this);
 }
 USkeletalMeshComponent::~USkeletalMeshComponent()
 {
@@ -20,8 +23,11 @@ USkeletalMeshComponent::~USkeletalMeshComponent()
 
 void USkeletalMeshComponent::BeginPlay()
 {
-    AnimInstance = NewObject<UAnimInstance>();
-    AnimInstance->SetOwner(this);
+    //AnimInstance->AddState("Idle", RESOURCE.Get<UAnimSequence>("Data/Animations/Breathing Idle.fbx"));
+    //AnimInstance->AddState("Move", RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx"));
+    //AnimInstance->SetStartState("Idle");
+    //AnimInstance->AddTransition("Idle", "Move")->SetCondition([this]()->bool {return bMove; });
+    //AnimInstance->AddTransition("Move", "Idle")->SetCondition([this]()->bool {return !bMove; });
 
     UAnimStateMachine& StateMachine = AnimInstance->GetStateMachine();
     UAnimState* IdleState = NewObject<UAnimState>();
@@ -63,6 +69,7 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime)
     Super::TickComponent(DeltaTime);
     if (AnimInstance)
     {
+        AnimInstance->SetSpeed(TestSpeed);
         AnimInstance->Tick(DeltaTime);
     }
 }
@@ -147,6 +154,15 @@ const TArray<FTransform>& USkeletalMeshComponent::GetPose() const
     return CurrentLocalSpacePose;
 }
 
+void USkeletalMeshComponent::SetLocalSpacePose(const TArray<FTransform>& InPose)
+{
+    if (InPose.Num() == CurrentLocalSpacePose.Num())
+    {
+        CurrentLocalSpacePose = InPose;
+        ForceRecomputePose();
+    }
+}
+
 FTransform USkeletalMeshComponent::GetBoneLocalTransform(int32 BoneIndex) const
 {
     if (CurrentLocalSpacePose.Num() > BoneIndex)
@@ -214,9 +230,11 @@ void USkeletalMeshComponent::UpdateFinalSkinningMatrices()
         TempFinalSkinningNormalMatrices[BoneIndex] = TempFinalSkinningMatrices[BoneIndex].Inverse().Transpose();
     }
 }
-void USkeletalMeshComponent::PlayAnimation(UAnimSequence* InAnimSequence, bool bLoop)
+
+void USkeletalMeshComponent::PlayAnimation(const FString& AnimPath, bool bLoop)
 {
-    if (!InAnimSequence)
+    UAnimSequence* AnimSequence = RESOURCE.Get<UAnimSequence>(AnimPath);
+    if (!AnimSequence)
     {
         return;
     }
@@ -251,5 +269,73 @@ void USkeletalMeshComponent::HandleAnimNotify(const FAnimNotifyEvent& Notify)
     if (Owner)
     {
         Owner->HandleAnimNotify(Notify);
+    }
+    SingleNode->SetAnimSequence(AnimSequence, bLoop);
+}
+
+void USkeletalMeshComponent::DuplicateSubObjects()
+{
+    Super::DuplicateSubObjects();
+    AnimInstance = NewObject<UAnimInstance>();
+    AnimInstance->SetOwner(this);
+}
+
+
+
+void USkeletalMeshComponent::AddState(const FString& InName, const FString& AnimPath)
+{
+    if (AnimInstance)
+    {
+        AnimInstance->AddState(InName, AnimPath);
+    }
+}
+
+void USkeletalMeshComponent::AddTransition(const FString& StartStateName, const FString& EndStateName, const float InBlendTime, std::function<bool()> func)
+{ 
+    if (AnimInstance)
+    {
+        UAnimTransition* Transition = AnimInstance->AddTransition(StartStateName, EndStateName);
+        Transition->SetBlendTime(InBlendTime);
+        Transition->SetCondition(func);
+    }
+}
+
+void USkeletalMeshComponent::SetStartState(const FString& StartStateName)
+{ 
+    if (AnimInstance)
+    {
+        AnimInstance->SetStartState(StartStateName);
+    }
+}
+
+void USkeletalMeshComponent::SetSpeed(const float InSpeed)
+{ 
+    if (AnimInstance)
+    {
+        AnimInstance->SetSpeed(InSpeed);
+    }
+}
+
+void USkeletalMeshComponent::Play()
+{ 
+    if (AnimInstance)
+    {
+        AnimInstance->Play();
+    }
+}
+
+void USkeletalMeshComponent::Pause()
+{ 
+    if (AnimInstance)
+    {
+        AnimInstance->Pause();
+    }
+}
+
+void USkeletalMeshComponent::Replay()
+{
+    if (AnimInstance)
+    {
+        AnimInstance->Replay();
     }
 }

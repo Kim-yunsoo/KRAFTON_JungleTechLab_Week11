@@ -2,6 +2,7 @@
 #include "ConsoleWidget.h"
 #include "ObjectFactory.h"
 #include "GlobalConsole.h"
+#include "CrashHandler.h"
 #include "StatsOverlayD2D.h"
 #include "USlateManager.h"
 #include "World.h"
@@ -65,6 +66,7 @@ void UConsoleWidget::Initialize()
     HelpCommandList.Add("CAUSEABORT [depth]");
     HelpCommandList.Add("CAUSETERMINATE [depth]");
     HelpCommandList.Add("CAUSEDIV0 [depth]");
+    HelpCommandList.Add("RANDOMCRASH");
 
 	// Add welcome messages
 	AddLog("=== Console Widget Initialized ===");
@@ -465,6 +467,34 @@ void UConsoleWidget::ExecCommand(const char* command_line)
         AddLog("CAUSEDIV0: depth=%d", depth);
         Frame(std::max(0, depth));
     }
+    else if (Strnicmp(command_line, "RANDOMCRASH", 11) == 0)
+    {
+        // Syntax:
+        //   RANDOMCRASH            -> enable bombard (1 deletion per frame)
+        //   RANDOMCRASH STOP       -> disable bombard
+        //   RANDOMCRASH N          -> enable bombard with N deletions per frame
+
+        // Parse argument after token
+        const char* p = command_line + 11; // after token
+        while (*p == ' ') ++p;
+        if (_strnicmp(p, "STOP", 4) == 0)
+        {
+            FCrashHandler::EnableRandomCrashBombard(false);
+            AddLog("RANDOMCRASH: bombard disabled");
+        }
+        else if (*p)
+        {
+            int n = atoi(p);
+            if (n <= 0) n = 1;
+            FCrashHandler::EnableRandomCrashBombard(true, n);
+            AddLog("RANDOMCRASH: bombard enabled (%d per frame)", n);
+        }
+        else
+        {
+            FCrashHandler::EnableRandomCrashBombard(true, 1);
+            AddLog("RANDOMCRASH: bombard enabled (1 per frame)");
+        }
+    }
 	else if (Stricmp(command_line, "STAT") == 0)
 	{
 		AddLog("STAT commands:");
@@ -721,3 +751,4 @@ int UConsoleWidget::TextEditCallback(ImGuiInputTextCallbackData* data)
 	}
 	return 0;
 }
+

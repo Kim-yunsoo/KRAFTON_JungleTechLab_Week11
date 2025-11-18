@@ -1,12 +1,18 @@
 ﻿#include "pch.h"
 #include "pch.h"
 #include "Source/Runtime/Engine/Animation/AnimInstance.h"
+#include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
 
 #include "Source/Runtime/Engine/Animation/NotifyDispatcher.h"
 IMPLEMENT_CLASS(UAnimInstance)
 UAnimInstance::UAnimInstance()
 {
+	UE_LOG("%d AnimInstance Create", UUID);
 	AnimStateMachine.SetOwner(this);
+}
+UAnimInstance::~UAnimInstance()
+{
+	UE_LOG("%d AnimInstance Destroy", UUID);
 }
 
 void UAnimInstance::Tick(float DeltaSeconds)
@@ -34,7 +40,30 @@ void UAnimInstance::ChangeState(UAnimState* AnimState, float InTransitionTime)
 	PrevTime = 0;
 	SetSpeed(AnimState->Speed);
 	SetLoop(AnimState->bLoop);
-	SetPlay(true);
+	Play();
+}
+
+UAnimState* UAnimInstance::AddState(const FString& InName, UAnimSequence* Sequence)
+{
+	return AnimStateMachine.AddState(InName, Sequence);;
+}
+UAnimState* UAnimInstance::AddState(const FString& InName, const FString& AnimPath)
+{
+	UAnimSequence* Sequence = RESOURCE.Get<UAnimSequence>(AnimPath);
+	if (Sequence == nullptr)
+	{
+		UE_LOG("Anim None %s", AnimPath);
+		return nullptr;
+	}
+	return AnimStateMachine.AddState(InName, Sequence);
+}
+UAnimTransition* UAnimInstance::AddTransition(const FString& StartStateName, const FString& EndStateName)
+{
+	return AnimStateMachine.AddTransition(StartStateName, EndStateName);
+}
+void UAnimInstance::SetStartState(const FString& StartStateName)
+{
+	AnimStateMachine.StartStateMachine(StartStateName, 0);
 }
 
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
@@ -65,7 +94,7 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	float TransitionBlendFactor = Clamp((TransitionTime - CurTransitionTime) / TransitionTime);
-	CurTransitionTime -= CurrentTime - PrevTime;
+	CurTransitionTime -= abs(CurrentTime - PrevTime);
 	UAnimSequence* AnimSequence = CurrentState->AnimSequence;
 	float SequenceTime = AnimSequence->GetSequenceLength();
 	if (bLoop)

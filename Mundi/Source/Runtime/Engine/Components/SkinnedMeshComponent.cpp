@@ -765,15 +765,15 @@ void USkinnedMeshComponent::ReadGPUQueryResults()
    // Query 객체 유효성 검사
    if (!GPUDisjointQuery || !GPUTimestampStartQuery || !GPUTimestampEndQuery)
    {
-      UE_LOG("[ERROR] ReadGPUQueryResults: Query 객체가 nullptr! (Disjoint: %p, Start: %p, End: %p)",
-             GPUDisjointQuery, GPUTimestampStartQuery, GPUTimestampEndQuery);
+      //UE_LOG("[ERROR] ReadGPUQueryResults: Query 객체가 nullptr! (Disjoint: %p, Start: %p, End: %p)",
+             //GPUDisjointQuery, GPUTimestampStartQuery, GPUTimestampEndQuery);
       return;
    }
 
    ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
    if (!Context)
    {
-      UE_LOG("[ERROR] ReadGPUQueryResults: Context is nullptr!");
+      //UE_LOG("[ERROR] ReadGPUQueryResults: Context is nullptr!");
       return;
    }
 

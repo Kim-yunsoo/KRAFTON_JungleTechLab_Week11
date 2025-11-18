@@ -28,6 +28,7 @@
 #include "Level.h"
 #include "LightManager.h"
 #include "LuaManager.h"
+#include "CrashHandler.h"
 #include "ShapeComponent.h"
 #include "PlayerCameraManager.h"
 #include "Hash.h"
@@ -188,7 +189,7 @@ bool UWorld::LoadLevelFromFile(const FWideString& Path)
 
 // 함수 내부 코드 순서 유지 필요
 void UWorld::Tick(float DeltaSeconds)
-{	
+{	 
 	// GameDelat: Unscaled * finalScale  
 	float UnscaledDeltaSeconds = DeltaSeconds;
 
@@ -273,6 +274,9 @@ void UWorld::Tick(float DeltaSeconds)
 			}
 		}
     }
+
+    // Optional crash test mode: delete random objects every frame if armed
+    FCrashHandler::RandomCrashTick();
 
     for (AActor* EditorActor : EditorActors)
     {

@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "Source/Runtime/Engine/Animation/MyAnimInstance.h"
+#include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
 
 void UMyAnimInstance::SetBlendAnimation(UAnimSequence* SequenceA, UAnimSequence* SequenceB)
 {

@@ -2,27 +2,39 @@
 #include "Source/Runtime/Engine/Animation/AnimState.h"
 #include "Source/Runtime/Engine/Animation/AnimTransition.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
+#include "UAnimStateMachine.generated.h"
 
 class UAnimInstance;
 
 class UAnimStateMachine : public UObject
 {
-	DECLARE_CLASS(UAnimStateMachine, UObject)
+	GENERATED_REFLECTION_BODY()
 
 public:
+	UAnimStateMachine() = default;
+	virtual ~UAnimStateMachine();
 	void SetOwner(UAnimInstance* InOwner)
 	{
 		Owner = InOwner;
 	}
-	void StartStateMachine(UAnimState* StartState);
-	void AddState(UAnimState* InState);
-	void RemoveState(UAnimState* InState);
-	void AddTransition(UAnimTransition* InTransition);
+	void StartStateMachine(const FString& StateName, const float InBlendTime = 0.0f);
+	void StartStateMachine(UAnimState* StartState, const float InBlendTime = 0.0f);
+	UAnimState* AddState(const FString& InName, UAnimSequence* Sequence);
+	void RemoveState(const FString& InName);
+
+	UAnimTransition* AddTransition(const FString& StartStateName, const FString& EndStateName);
+	UAnimTransition* AddTransition(UAnimState* StartState, UAnimState* EndState);
 	void RemoveTransition(UAnimTransition* InTransition);
+
 	void Tick(float DeltaSeconds);
 	void SetCurrentState(UAnimState* InAnimState, UAnimTransition* InTransition);
+	UAnimState* GetState(const FString& StateName);
 
 private:
+	bool HasState(const FString& InName);
+
+	//제거될 스테이트와 연결된 트랜지션 제거
+	void RemoveStateTransition(UAnimState* RemoveState);
 	UAnimInstance* Owner;
 	UAnimState* CurrentState = nullptr;
 	TArray<UAnimState*> States;
