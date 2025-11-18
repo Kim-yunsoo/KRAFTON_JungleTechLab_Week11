@@ -1251,31 +1251,72 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
             DrawList->AddRect(ImVec2(startX, rectTop), ImVec2(endX, rectBottom), colRectBorder, 3.0f, 0, 1.5f);
         }
 
-        // Diamond marker
-        float h = 7.0f; // half size
-        ImVec2 p0(chipX, centerY - h);
-        ImVec2 p1(chipX + h, centerY);
-        ImVec2 p2(chipX, centerY + h);
-        ImVec2 p3(chipX - h, centerY);
-        DrawList->AddQuadFilled(p0, p1, p2, p3, colDiamondFill);
-        DrawList->AddQuad(p0, p1, p2, p3, colDiamondBorder, 1.8f);
+        // Prepare label and calculate sizes
+        std::string label = Chip.Name;
+        ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
+        float diamondSize = 5.0f; // diamond half size (reduced from 7.0f)
+        float padX = 8.0f;
+        float padY = 4.0f;
 
-        // Click handling on diamond
-        ImGui::SetCursorScreenPos(ImVec2(chipX - (h + 3.0f), centerY - (h + 3.0f)));
+        // Diamond is centered at chipX (clicked position)
+        float diamondCenterX = chipX;
+
+        // Oval starts from the middle of the diamond (at chipX)
+        float ovalLeft = chipX;
+        float ovalW = textSize.x + padX * 2.0f; // only text + padding
+        float ovalH = textSize.y + padY * 2.0f;
+        float ovalTop = centerY - ovalH * 0.5f;
+        float ovalRight = ovalLeft + ovalW;
+        float ovalBottom = ovalTop + ovalH;
+
+        bool bHovered = (HoveredNotifyIndex == i);
+        ImU32 ovalFill   = bSelected ? IM_COL32(255, 235, 120, 230) : (bHovered ? IM_COL32(90, 120, 170, 210) : IM_COL32(60, 60, 70, 200));
+        ImU32 ovalBorder = bSelected ? IM_COL32(255, 210, 80, 255)  : IM_COL32(30, 30, 35, 255);
+        float radius = ovalH * 0.5f; // oval/pill style
+
+        // Draw oval background first (so diamond appears on top)
+        DrawList->AddRectFilled(ImVec2(ovalLeft, ovalTop), ImVec2(ovalRight, ovalBottom), ovalFill, radius);
+        DrawList->AddRect(ImVec2(ovalLeft, ovalTop), ImVec2(ovalRight, ovalBottom), ovalBorder, radius, 0, 1.5f);
+
+        // Draw text centered in oval
+        float textX = ovalLeft + padX;
+        float textY = centerY - textSize.y * 0.5f;
+        DrawList->AddText(ImVec2(textX, textY), IM_COL32(0, 0, 0, 255), label.c_str());
+
+        // Draw diamond marker last (on top of everything)
+        ImVec2 p0(diamondCenterX, centerY - diamondSize);
+        ImVec2 p1(diamondCenterX + diamondSize, centerY);
+        ImVec2 p2(diamondCenterX, centerY + diamondSize);
+        ImVec2 p3(diamondCenterX - diamondSize, centerY);
+
+        DrawList->AddQuadFilled(p0, p1, p2, p3, colDiamondFill);
+        DrawList->AddQuad(p0, p1, p2, p3, colDiamondBorder, 2.0f);
+
+        // Click handling on entire notify marker (diamond + oval)
+        float totalLeft = diamondCenterX - diamondSize;
+        float totalTop = std::min(ovalTop, centerY - diamondSize);
+        float totalWidth = (ovalRight - totalLeft);
+        float totalHeight = std::max(ovalH, diamondSize * 2.0f);
+
+        ImGui::SetCursorScreenPos(ImVec2(totalLeft, totalTop));
         char idbuf[64];
-        sprintf_s(idbuf, "NotifyDiamond##%d", i);
-        ImGui::InvisibleButton(idbuf, ImVec2((h + 3.0f) * 2.0f, (h + 3.0f) * 2.0f));
+        sprintf_s(idbuf, "NotifyChip##%d", i);
+        ImGui::InvisibleButton(idbuf, ImVec2(totalWidth, totalHeight));
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
             SelectedNotifyIndex = i;
         }
-
-        // Optional: notify name near marker
-        std::string label = Chip.Name;
-        ImVec2 labelSize = ImGui::CalcTextSize(label.c_str());
-        DrawList->AddText(ImVec2(chipX + 8.0f, centerY - labelSize.y * 0.5f), IM_COL32(230, 230, 230, 255), label.c_str());
+        if (ImGui::IsItemHovered())
+        {
+            HoveredNotifyIndex = i;
+        }
+        else if (HoveredNotifyIndex == i)
+        {
+            HoveredNotifyIndex = -1;
+        }
     }
 }
+
 
 
 

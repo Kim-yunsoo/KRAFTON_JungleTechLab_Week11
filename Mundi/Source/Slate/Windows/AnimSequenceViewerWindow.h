@@ -142,6 +142,7 @@ private:
     };
     TArray<FNotifyChip> NotifyChips;
     int32 SelectedNotifyIndex = -1;
+    int32 HoveredNotifyIndex = -1;
 
 };
 
