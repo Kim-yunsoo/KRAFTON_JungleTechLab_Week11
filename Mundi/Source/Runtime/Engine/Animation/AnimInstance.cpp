@@ -82,11 +82,11 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
     {
         SequenceKey = CurrentSequence->GetFilePath();
     }
-
     for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
     {
         // Component-level delegate; actor or systems can forward to dispatcher/blueprints/etc.
-        OwnerComponent->OnAnimNotify.Broadcast(Notify, SequenceKey);
+		OwnerComponent->OnAnimNotify.Broadcast(Notify, SequenceKey);
+
         FNotifyDispatcher::Get().Dispatch(SequenceKey, Notify);
     }
 }

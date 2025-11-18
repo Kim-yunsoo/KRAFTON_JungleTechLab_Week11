@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "USlateManager.h"
 #include "AnimSequenceViewerWindow.h"
 #include "Source/Runtime/Engine/SkeletalViewer/ViewerState.h"
@@ -150,14 +150,20 @@ void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
 	if (CurrentSequence)
 	{
 		const TArray<FAnimNotifyEvent>& Notifies = CurrentSequence->GetNotifies();
+		UE_LOG("[AnimSequenceViewer] Rebuilding notify chips. Found %d notifies in sequence '%s'",
+			Notifies.size(), CurrentSequence->GetFilePath().c_str());
+
 		for (const FAnimNotifyEvent& Ev : Notifies)
 		{
             FNotifyChip Chip;
             Chip.Time = Ev.TriggerTime;
             Chip.Duration = Ev.Duration;
-            Chip.Name = Ev.NotifyName.ToString();
+            Chip.Name = Ev.NotifyName;
             Chip.TrackIndex = 0; // default to first track
             NotifyChips.Add(Chip);
+
+			UE_LOG("[AnimSequenceViewer]   - Notify: %s at time %.3f",
+				Ev.NotifyName.ToString().c_str(), Ev.TriggerTime);
 		}
 	}
 
@@ -364,16 +370,25 @@ void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
 		ApplyAnimationPose();
 
 		// Trigger AnimNotifies using viewer timeline
-		if (UAnimSequence* Seq = Cast<UAnimSequence>(CurrentSequence))
-		{
-			TArray<FAnimNotifyEvent> Triggered;
-			Seq->GetAnimNotifiesInRange(PrevTimeForNotify, CurrentTime, Triggered);
-			const FString SeqKey = CurrentSequence->GetFilePath();
-			for (const FAnimNotifyEvent& Ev : Triggered)
-			{
-				FNotifyDispatcher::Get().Dispatch(SeqKey, Ev);
-			}
-		}
+		//if (UAnimSequence* Seq = Cast<UAnimSequence>(CurrentSequence))
+		//{
+		//	TArray<FAnimNotifyEvent> Triggered;
+		//	Seq->GetAnimNotifiesInRange(PrevTimeForNotify, CurrentTime, Triggered);
+		//	const FString SeqKey = CurrentSequence->GetFilePath();
+
+		//	// DEBUG: Log the sequence key and triggered notifies
+		//	if (!Triggered.empty())
+		//	{
+		//		UE_LOG("[AnimSequenceViewer] Triggering notifies for sequence: %s", SeqKey.c_str());
+		//	}
+
+		//	for (const FAnimNotifyEvent& Ev : Triggered)
+		//	{
+		//		UE_LOG("[AnimSequenceViewer] Dispatching notify: %s at time %.3f",
+		//			Ev.NotifyName.ToString().c_str(), Ev.TriggerTime);
+		//		FNotifyDispatcher::Get().Dispatch(SeqKey, Ev);
+		//	}
+		//}
 	}
 }
 
@@ -1190,6 +1205,10 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
 			Ev.Duration = 0.0f;
 			Ev.NotifyName = FName(NotifyNameBuffer);
 			CurrentSequence->AddNotify(Ev);
+
+			// DEBUG: Log notify addition
+			UE_LOG("[AnimSequenceViewer] Added notify '%s' to sequence '%s' at time %.3f",
+				NotifyNameBuffer, CurrentSequence->GetFilePath().c_str(), Ev.TriggerTime);
 			// Add a chip on the chosen track for UI placement
 			int32 TrackIdx = PendingNotifyTrack;
 			if (TrackIdx < 0) TrackIdx = 0;
@@ -1207,7 +1226,7 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
             FNotifyChip Chip;
             Chip.Time = Ev.TriggerTime;
             Chip.Duration = Ev.Duration;
-            Chip.Name = Ev.NotifyName.ToString();
+            Chip.Name = Ev.NotifyName;
             Chip.TrackIndex = TrackIdx;
             NotifyChips.Add(Chip);
             SelectedNotifyIndex = static_cast<int32>(NotifyChips.Num()) - 1;
@@ -1224,6 +1243,9 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
 		ImGui::EndPopup();
 	}
 
+    // Track hover state for this frame (will be applied next frame)
+    int32 NewHoveredNotifyIndex = -1;
+
     // Draw notify markers per track: diamond at TriggerTime + duration rectangle
     for (int i = 0; i < NotifyChips.Num(); ++i)
     {
@@ -1234,10 +1256,13 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         float centerY = rowTop + RowHeight * 0.5f;
 
         bool bSelected = (i == SelectedNotifyIndex);
-        ImU32 colDiamondFill   = bSelected ? IM_COL32(255, 235, 100, 255) : IM_COL32(200, 200, 200, 255);
-        ImU32 colDiamondBorder = bSelected ? IM_COL32(255, 210, 60, 255)  : IM_COL32(120, 120, 120, 255);
-        ImU32 colRectFill      = bSelected ? IM_COL32(255, 235, 100, 150) : IM_COL32(180, 180, 80, 90);
-        ImU32 colRectBorder    = bSelected ? IM_COL32(255, 210, 60, 200)  : IM_COL32(140, 140, 90, 140);
+        bool bHovered = (i == HoveredNotifyIndex);
+
+        // Enhanced colors for selected state (brighter and more distinct)
+        ImU32 colDiamondFill   = bSelected ? IM_COL32(255, 200, 50, 255) : IM_COL32(200, 200, 200, 255);
+        ImU32 colDiamondBorder = bSelected ? IM_COL32(255, 150, 0, 255)  : IM_COL32(120, 120, 120, 255);
+        ImU32 colRectFill      = bSelected ? IM_COL32(255, 200, 50, 150) : IM_COL32(180, 180, 80, 90);
+        ImU32 colRectBorder    = bSelected ? IM_COL32(255, 150, 0, 200)  : IM_COL32(140, 140, 90, 140);
 
         // Duration rectangle (from TriggerTime to TriggerTime+Duration)
         if (Chip.Duration > 0.0f)
@@ -1252,7 +1277,7 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         }
 
         // Prepare label and calculate sizes
-        std::string label = Chip.Name;
+        std::string label = Chip.Name.ToString();
         ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
         float diamondSize = 5.0f; // diamond half size (reduced from 7.0f)
         float padX = 8.0f;
@@ -1269,9 +1294,35 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         float ovalRight = ovalLeft + ovalW;
         float ovalBottom = ovalTop + ovalH;
 
-        bool bHovered = (HoveredNotifyIndex == i);
-        ImU32 ovalFill   = bSelected ? IM_COL32(255, 235, 120, 230) : (bHovered ? IM_COL32(90, 120, 170, 210) : IM_COL32(60, 60, 70, 200));
-        ImU32 ovalBorder = bSelected ? IM_COL32(255, 210, 80, 255)  : IM_COL32(30, 30, 35, 255);
+        // Enhanced colors for selected/hovered states
+        ImU32 ovalFill, ovalBorder, textColor;
+        float diamondBorderThickness;
+
+        if (bSelected)
+        {
+            // Bright orange/gold for selected
+            ovalFill = IM_COL32(255, 200, 80, 240);
+            ovalBorder = IM_COL32(255, 150, 0, 255);
+            textColor = IM_COL32(0, 0, 0, 255);
+            diamondBorderThickness = 2.5f;
+        }
+        else if (bHovered)
+        {
+            // Light blue for hovered
+            ovalFill = IM_COL32(120, 150, 200, 220);
+            ovalBorder = IM_COL32(80, 120, 180, 255);
+            textColor = IM_COL32(255, 255, 255, 255);
+            diamondBorderThickness = 2.0f;
+        }
+        else
+        {
+            // Default gray
+            ovalFill = IM_COL32(70, 70, 80, 200);
+            ovalBorder = IM_COL32(40, 40, 45, 255);
+            textColor = IM_COL32(200, 200, 200, 255);
+            diamondBorderThickness = 1.5f;
+        }
+
         float radius = ovalH * 0.5f; // oval/pill style
 
         // Draw oval background first (so diamond appears on top)
@@ -1281,7 +1332,7 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         // Draw text centered in oval
         float textX = ovalLeft + padX;
         float textY = centerY - textSize.y * 0.5f;
-        DrawList->AddText(ImVec2(textX, textY), IM_COL32(0, 0, 0, 255), label.c_str());
+        DrawList->AddText(ImVec2(textX, textY), textColor, label.c_str());
 
         // Draw diamond marker last (on top of everything)
         ImVec2 p0(diamondCenterX, centerY - diamondSize);
@@ -1290,7 +1341,7 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         ImVec2 p3(diamondCenterX - diamondSize, centerY);
 
         DrawList->AddQuadFilled(p0, p1, p2, p3, colDiamondFill);
-        DrawList->AddQuad(p0, p1, p2, p3, colDiamondBorder, 2.0f);
+        DrawList->AddQuad(p0, p1, p2, p3, colDiamondBorder, diamondBorderThickness);
 
         // Click handling on entire notify marker (diamond + oval)
         float totalLeft = diamondCenterX - diamondSize;
@@ -1302,19 +1353,22 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         char idbuf[64];
         sprintf_s(idbuf, "NotifyChip##%d", i);
         ImGui::InvisibleButton(idbuf, ImVec2(totalWidth, totalHeight));
+
+        // Update selection on click
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
             SelectedNotifyIndex = i;
         }
+
+        // Update hover state for next frame
         if (ImGui::IsItemHovered())
         {
-            HoveredNotifyIndex = i;
-        }
-        else if (HoveredNotifyIndex == i)
-        {
-            HoveredNotifyIndex = -1;
+            NewHoveredNotifyIndex = i;
         }
     }
+
+    // Apply new hover state for next frame
+    HoveredNotifyIndex = NewHoveredNotifyIndex;
 }
 
 

@@ -28,6 +28,7 @@
 #include "Level.h"
 #include "LightManager.h"
 #include "LuaManager.h"
+#include "NotifyDispatcher.h"
 #include "CrashHandler.h"
 #include "ShapeComponent.h"
 #include "PlayerCameraManager.h"
@@ -338,6 +339,15 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 		}
 
 		PIEWorld->AddActorToLevel(NewActor);
+	}
+
+	// Load AnimNotify handlers from Lua for PIE world
+	if (PIEWorld->LuaManager)
+	{
+		UE_LOG("[PIE] Loading AnimNotify config for PIE world...");
+		PIEWorld->LuaManager->LoadNotifyConfig();
+		UE_LOG("[PIE] AnimNotify config loaded, dispatcher enabled: %s",
+			FNotifyDispatcher::Get().IsEnabled() ? "true" : "false");
 	}
 
 	return PIEWorld;

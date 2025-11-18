@@ -678,6 +678,10 @@ void FLuaManager::LoadNotifyConfig()
             if (!NameObj.is<std::string>() || !FuncObj.is<sol::function>()) continue;
             const std::string NotifyName = NameObj.as<std::string>();
             sol::protected_function LuaFunc = FuncObj.as<sol::protected_function>();
+            // DEBUG: Log registration
+            UE_LOG("[Lua] Registering notify handler: Seq='%s', Notify='%s'",
+                SeqKey.c_str(), NotifyName.c_str());
+
             FNotifyDispatcher::Get().Register(
                 SeqKey,
                 FName(NotifyName.c_str()),
@@ -685,6 +689,7 @@ void FLuaManager::LoadNotifyConfig()
                 {
                     // Guard: dispatcher may be disabled during teardown
                     if (!FNotifyDispatcher::Get().IsEnabled()) { return; }
+                    UE_LOG("[Lua] Executing notify handler for '%s'", Ev.NotifyName.ToString().c_str());
                     sol::state_view SV(LuaFunc.lua_state());
                     sol::table EventTbl = SV.create_table();
                     EventTbl["TriggerTime"] = Ev.TriggerTime;

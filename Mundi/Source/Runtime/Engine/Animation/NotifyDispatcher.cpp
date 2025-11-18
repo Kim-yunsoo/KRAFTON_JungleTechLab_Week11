@@ -80,16 +80,43 @@ void FNotifyDispatcher::Register(const FString& SeqKey, const FName& NotifyName,
 //
 void FNotifyDispatcher::Dispatch(const FString& SeqKey, const FAnimNotifyEvent& Event)
 {
+    if (!bEnabled)
+    {
+        UE_LOG("[Notify] Dispatcher is disabled, skipping notify '%s'",
+            Event.NotifyName.ToString().c_str());
+        return;
+    }
+
     // 시퀀스(애니메이션 파일 경로)에 대한 NotifyMap 찾기
     auto* MapPtr = HandlersBySeq.Find(SeqKey);
-    if (!MapPtr) { return; }
+    if (!MapPtr)
+    {
+        UE_LOG("[Notify] WARNING: No handlers registered for sequence '%s' (notify '%s')",
+            SeqKey.c_str(), Event.NotifyName.ToString().c_str());
+        UE_LOG("[Notify] Available sequences:");
+        for (const auto& kv : HandlersBySeq)
+        {
+            UE_LOG("[Notify]   - '%s'", kv.first.c_str());
+        }
+        return;
+    }
 
     // NotifyName(FName)으로 등록된 핸들러 찾기
     auto* Fn = MapPtr->Find(Event.NotifyName);
-    if (!Fn) { return; }
+    if (!Fn)
+    {
+        UE_LOG("[Notify] WARNING: No handler for notify '%s' in sequence '%s'",
+            Event.NotifyName.ToString().c_str(), SeqKey.c_str());
+        UE_LOG("[Notify] Available notifies for this sequence:");
+        for (const auto& kv : *MapPtr)
+        {
+            UE_LOG("[Notify]   - '%s'", kv.first.ToString().c_str());
+        }
+        return;
+    }
 
     // Debug 로그 출력 (VS Output에서 확인 가능)
-    UE_LOG("[Notify][Lua] Seq='%s' Name='%s' t=%.3f",
+    UE_LOG("[Notify][Lua] SUCCESS! Seq='%s' Name='%s' t=%.3f",
         SeqKey.c_str(), Event.NotifyName.ToString().c_str(), Event.TriggerTime);
 
     // 등록된 Notify Handler 실행 (C++ or Lua 함수)

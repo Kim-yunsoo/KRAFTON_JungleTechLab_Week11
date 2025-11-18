@@ -137,7 +137,7 @@ private:
     {
         float Time = 0.0f;
         float Duration = 0.0f;
-        FString Name; // store as string for UI
+        FName Name; // store as FName for consistency with FAnimNotifyEvent
         int32 TrackIndex = 0; // 0-based UI row index
     };
     TArray<FNotifyChip> NotifyChips;
