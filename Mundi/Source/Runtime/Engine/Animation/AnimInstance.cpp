@@ -80,26 +80,34 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 {
     if (!OwnerComponent) { return; }
 
-    if (!CurrentState || !CurrentState->AnimSequence) { return; }
+    if (!CurrentState) 
+	{
+		return;
+	}
 
-    UAnimSequence* CurrentSequence = CurrentState->AnimSequence;
-    TArray<FAnimNotifyEvent> TriggeredNotifies;
-    CurrentSequence->GetAnimNotifiesInRange(PrevTime, CurrentTime, TriggeredNotifies);
+	TArray<UAnimSequence*> ActiveSequence = CurrentState->GetCurrentActiveSequence();
 
-    // Build sequence key once (use file path only for consistency)
-    FString SequenceKey;
-    if (CurrentSequence)
-    {
-        SequenceKey = CurrentSequence->GetFilePath();
-    }
+	for (UAnimSequence* Sequence : ActiveSequence)
+	{
+		TArray<FAnimNotifyEvent> TriggeredNotifies;
+		Sequence->GetAnimNotifiesInRange(PrevTime, CurrentTime, TriggeredNotifies);
 
-    for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
-    {
-        // Component-level delegate; actor or systems can forward to dispatcher/blueprints/etc.
-		OwnerComponent->OnAnimNotify.Broadcast(Notify, SequenceKey);
+		// Build sequence key once (use file path only for consistency)
+		FString SequenceKey;
+		if (Sequence)
+		{
+			SequenceKey = Sequence->GetFilePath();
+		}
 
-        FNotifyDispatcher::Get().Dispatch(SequenceKey, Notify);
-    }
+		for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
+		{
+			// Component-level delegate; actor or systems can forward to dispatcher/blueprints/etc.
+			OwnerComponent->OnAnimNotify.Broadcast(Notify, SequenceKey);
+
+			FNotifyDispatcher::Get().Dispatch(SequenceKey, Notify);
+		}
+	}
+   
 }
 
 //반복없는 애니메이션 끝나면 조건없는 트랜지션을 타고 이동 가능하도록 제작 필요 (애니메이션이 끝날때 라는 조건인거임)

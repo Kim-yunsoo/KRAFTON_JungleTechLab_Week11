@@ -44,25 +44,10 @@ public:
 		bLoop = InLoop;
 	}
 	float GetBlendValue() const { return BlendValue; }
-	void SetBlnedValue(const float InBlendValue) 
-	{
-		BlendValue = InBlendValue;
-		TArray<float> SequenceBlendKeys = AnimSequenceMap.GetKeys();
-		if (SequenceBlendKeys.Num() > 0)
-		{
-			float min = SequenceBlendKeys[0];
-			float max = SequenceBlendKeys[0];
-			for (float BlendValue : SequenceBlendKeys)
-			{
-				min = BlendValue < min ? BlendValue : min;
-				max = BlendValue > max ? BlendValue : max;
-			}
-
-			BlendValue = Clamp(BlendValue, min, max);
-		}
-	}
+	void SetBlnedValue(const float InBlendValue);
 	void GetStatePose(UAnimInstance* AnimInstance, FPoseContext& Pose, float CurrentTime);
-	
+	TArray<UAnimSequence*> GetCurrentActiveSequence();
+
 public:
 	FString Name;
 	TOrderedMap<float, UAnimSequence*> AnimSequenceMap;
