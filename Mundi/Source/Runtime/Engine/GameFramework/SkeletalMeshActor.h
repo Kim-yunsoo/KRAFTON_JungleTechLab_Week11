@@ -4,6 +4,10 @@
 #include "SkeletalMeshComponent.h"
 #include "BoneAnchorComponent.h"
 #include "ASkeletalMeshActor.generated.h"
+#include <functional>
+
+struct FAnimNotifyEvent;
+class UAnimSequenceBase;
 
 UCLASS(DisplayName="스켈레탈 메시", Description="스켈레탈 메시를 배치하는 액터입니다")
 
@@ -16,6 +20,7 @@ public:
     ~ASkeletalMeshActor() override;
 
     // AActor
+    void BeginPlay() override;
     void Tick(float DeltaTime) override;
     FAABB GetBounds() const override;
 
@@ -46,6 +51,7 @@ public:
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
 protected:
+
     // 스켈레탈 메시를 실제로 렌더링하는 컴포넌트 (미리뷰/프리뷰 액터의 루트로 사용)
     USkeletalMeshComponent* SkeletalMeshComponent = nullptr;
     
@@ -78,4 +84,9 @@ protected:
 
     // Lazily create viewer-only components (BoneLineComponent, BoneAnchor) if in preview world
     void EnsureViewerComponents();
+
+    // Forward component notify to global dispatcher; actor keeps no logic.
+    void OnAnimNotifyDispatch(const struct FAnimNotifyEvent& Event, const FString& SeqKey);
+
+    // (Notify dispatch is handled globally by LuaManager/NotifyDispatcher.)
 };

@@ -1,7 +1,9 @@
 ﻿#include "pch.h"
+#include "pch.h"
 #include "Source/Runtime/Engine/Animation/AnimInstance.h"
 #include "Source/Runtime/Engine/Components/SkeletalMeshComponent.h"
 
+#include "Source/Runtime/Engine/Animation/NotifyDispatcher.h"
 IMPLEMENT_CLASS(UAnimInstance)
 UAnimInstance::UAnimInstance()
 {
@@ -66,7 +68,28 @@ void UAnimInstance::SetStartState(const FString& StartStateName)
 
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 {
+    if (!OwnerComponent) { return; }
 
+    if (!CurrentState || !CurrentState->AnimSequence) { return; }
+
+    UAnimSequence* CurrentSequence = CurrentState->AnimSequence;
+    TArray<FAnimNotifyEvent> TriggeredNotifies;
+    CurrentSequence->GetAnimNotifiesInRange(PrevTime, CurrentTime, TriggeredNotifies);
+
+    // Build sequence key once (use file path only for consistency)
+    FString SequenceKey;
+    if (CurrentSequence)
+    {
+        SequenceKey = CurrentSequence->GetFilePath();
+    }
+
+    for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
+    {
+        // Component-level delegate; actor or systems can forward to dispatcher/blueprints/etc.
+		OwnerComponent->OnAnimNotify.Broadcast(Notify, SequenceKey);
+
+        FNotifyDispatcher::Get().Dispatch(SequenceKey, Notify);
+    }
 }
 
 void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "SkinnedMeshComponent.h"
 #include "Source/Runtime/Engine/Animation/AnimationTypes.h"
+#include "Source/Runtime/Core/Misc/Delegates.h"
 #include "USkeletalMeshComponent.generated.h"
 
 // 전방 선언
@@ -95,6 +96,13 @@ public:
     //------------------------
 
     void DuplicateSubObjects() override;
+
+    // AnimNotify event delegate: broadcasts Event and SequenceKey (asset name or file path)
+    DECLARE_DELEGATE_TYPE_TwoParam(FOnAnimNotify, const FAnimNotifyEvent&, const FString&);
+    FOnAnimNotify OnAnimNotify;
+
+    // AnimNotify routing
+    void HandleAnimNotify(const FAnimNotifyEvent& Notify);
 
 public:
     UPROPERTY(EditAnywhere, Category = "SkeletalComponent", Range = "0.0, 1.0")
