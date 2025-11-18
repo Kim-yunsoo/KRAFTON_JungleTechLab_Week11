@@ -488,18 +488,18 @@ USkeletalMesh* UFbxLoader::LoadFbxMesh(const FString& FilePath)
 		DataModel->SetFrameRate(BuildFrameRateFromDouble(FrameRateHz));
 		DataModel->SetBoneTracks(std::move(Tracks));
 
-        // Curve parsing temporarily disabled (confirmed source FBX has no non-TRS curves)
-        // If needed later, enable the calls below to collect property/blendshape curves
-        // FbxAnimLayer* Layer = AnimStack->GetMember<FbxAnimLayer>(0);
-        // if (Layer)
-        // {
-        //     TArray<FCurveTrack> Curves;
-        //     CollectCurveTracksForScene(Scene, Layer, Curves);
-        //     if (!Curves.IsEmpty())
-        //     {
-        //         DataModel->SetCurveTracks(std::move(Curves));
-        //     }
-        // }
+        // Collect property/blendshape curves from FBX
+        FbxAnimLayer* Layer = AnimStack->GetMember<FbxAnimLayer>(0);
+        if (Layer)
+        {
+            TArray<FCurveTrack> Curves;
+            CollectCurveTracksForScene(Scene, Layer, Curves);
+            if (!Curves.IsEmpty())
+            {
+                DataModel->SetCurveTracks(std::move(Curves));
+                UE_LOG("FBX: Collected %d curve tracks from scene", Curves.size());
+            }
+        }
 
 	UAnimSequence* AnimSequence = NewObject<UAnimSequence>();
 	AnimSequence->SetDataModel(std::move(DataModel));
@@ -572,26 +572,26 @@ void UFbxLoader::LoadFbxAsset(const FString& FilePath)
 	}
 #endif
 
-	// ========== 애니메이션 캐시 우선 확인 (JSON 기반) ==========
+	// ========== 애니메이션 캐시 우선 확인 (바이너리 기반) ==========
 #ifdef USE_OBJ_CACHE
 	if (!bAnimAlreadyLoaded)
 	{
 		FString CachePathStr = ConvertDataPathToCachePath(NormalizedPath);
-		const FString AnimJsonPathFileName = CachePathStr + ".anim.json";
+		const FString AnimBinPathFileName = CachePathStr + ".anim.bin";
 
-		if (std::filesystem::exists(AnimJsonPathFileName))
+		if (std::filesystem::exists(AnimBinPathFileName))
 		{
 			try
 			{
-				auto jsonTime = std::filesystem::last_write_time(AnimJsonPathFileName);
+				auto binTime = std::filesystem::last_write_time(AnimBinPathFileName);
 				auto fbxTime = std::filesystem::last_write_time(NormalizedPath);
 
 				// 캐시가 유효하면 로드
-				if (fbxTime <= jsonTime)
+				if (fbxTime <= binTime)
 				{
-					// JSON 파일에서 직접 로드 (ResourceManager를 거치지 않음)
+					// 바이너리 파일에서 직접 로드 (ResourceManager를 거치지 않음)
 					UAnimSequence* AnimSequence = NewObject<UAnimSequence>();
-					AnimSequence->Load(AnimJsonPathFileName, UResourceManager::GetInstance().GetDevice());
+					AnimSequence->LoadBinary(AnimBinPathFileName);
 
 					if (AnimSequence && AnimSequence->GetDataModel())
 					{
@@ -613,7 +613,7 @@ void UFbxLoader::LoadFbxAsset(const FString& FilePath)
 						if (UResourceManager::GetInstance().Add<UAnimSequence>(NormalizedPath, AnimSequence))
 						{
 							bAnimAlreadyLoaded = true;
-							UE_LOG("UAnimSequence(filename: '%s') loaded from JSON cache (fast path).", NormalizedPath.c_str());
+							UE_LOG("UAnimSequence(filename: '%s') loaded from binary cache (fast path).", NormalizedPath.c_str());
 						}
 						else
 						{
@@ -900,37 +900,26 @@ void UFbxLoader::LoadFbxAsset(const FString& FilePath)
 			UE_LOG("UAnimSequence(filename: '%s') loaded from FBX asset.", NormalizedPath.c_str());
 
 #ifdef USE_OBJ_CACHE
-			// 애니메이션을 JSON 캐시로 저장
+			// 애니메이션을 바이너리 캐시로 저장 (JSON → bin)
 			FString CachePathStr = ConvertDataPathToCachePath(NormalizedPath);
-			const FString AnimJsonPathFileName = CachePathStr + ".anim.json";
+			const FString AnimBinPathFileName = CachePathStr + ".anim.bin";
 
 			try
 			{
 				// 캐시 디렉토리 생성
-				std::filesystem::path CacheFileDirPath(AnimJsonPathFileName);
+				std::filesystem::path CacheFileDirPath(AnimBinPathFileName);
 				if (CacheFileDirPath.has_parent_path())
 				{
 					std::filesystem::create_directories(CacheFileDirPath.parent_path());
 				}
 
-				// JSON으로 직렬화
-				JSON AnimJson = JSON::Make(JSON::Class::Object);
-				AnimSequence->Serialize(false, AnimJson);
-
-				// JSON 파일로 저장
-				FWideString WidePath = UTF8ToWide(AnimJsonPathFileName);
-				if (FJsonSerializer::SaveJsonToFile(AnimJson, WidePath))
-				{
-					UE_LOG("Animation JSON cache saved for '%s'.", NormalizedPath.c_str());
-				}
-				else
-				{
-					UE_LOG("Failed to save animation JSON cache for '%s'.", NormalizedPath.c_str());
-				}
+				// 바이너리로 직렬화 (SaveBinary가 디렉토리 생성 포함)
+				AnimSequence->SaveBinary(AnimBinPathFileName);
+				UE_LOG("Animation binary cache saved for '%s'.", NormalizedPath.c_str());
 			}
 			catch (const std::exception& e)
 			{
-				UE_LOG("Failed to save animation JSON cache: %s", e.what());
+				UE_LOG("Failed to save animation binary cache: %s", e.what());
 			}
 #endif
 		}
