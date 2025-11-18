@@ -593,11 +593,11 @@ void SAnimSequenceViewerWindow::RenderPlaybackControls()
         // Previous Frame 버튼
         if (ImGui::Button("|<<", ImVec2(ButtonWidth, 30)))
         {
-            // TODO: 이전 프레임으로 이동
             if (CurrentFrame > 0)
             {
                 CurrentFrame--;
                 CurrentTime = FrameToTime(CurrentFrame);
+                ApplyAnimationPose(); // 포즈 즉시 적용
             }
         }
         if (ImGui::IsItemHovered())
@@ -631,6 +631,7 @@ void SAnimSequenceViewerWindow::RenderPlaybackControls()
             bIsPlaying = false;
             CurrentFrame = 0;
             CurrentTime = 0.0f;
+            ApplyAnimationPose(); // 첫 프레임 포즈 적용
             UE_LOG("[AnimSequenceViewer] Stopped and reset to frame 0");
         }
         if (ImGui::IsItemHovered())
@@ -641,11 +642,11 @@ void SAnimSequenceViewerWindow::RenderPlaybackControls()
         // Next Frame 버튼
         if (ImGui::Button(">>|", ImVec2(ButtonWidth, 30)))
         {
-            // TODO: 다음 프레임으로 이동
             if (CurrentFrame < TotalFrames - 1)
             {
                 CurrentFrame++;
                 CurrentTime = FrameToTime(CurrentFrame);
+                ApplyAnimationPose(); // 포즈 즉시 적용
             }
         }
         if (ImGui::IsItemHovered())
@@ -1299,6 +1300,7 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         CurrentTime = PixelToTime(ClickX);
         CurrentFrame = TimeToFrame(CurrentTime);
         bIsPlaying = false;
+        ApplyAnimationPose(); // 드래그 중 포즈 실시간 업데이트
     }
     else if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
     {
@@ -1307,6 +1309,7 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         CurrentTime = PixelToTime(ClickX);
         CurrentFrame = TimeToFrame(CurrentTime);
         bIsPlaying = false;
+        ApplyAnimationPose(); // 클릭 시 포즈 즉시 업데이트
     }
     else
     {
