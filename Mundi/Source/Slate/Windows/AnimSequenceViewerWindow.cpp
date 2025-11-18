@@ -1296,6 +1296,13 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
             SelectedNotifyIndex = i;
             bAnyNotifyChipClicked = true; // Mark that a notify was clicked
         }
+        // Right-click: open delete context menu
+        else if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        {
+            SelectedNotifyIndex = i; // Select on right-click
+            bAnyNotifyChipClicked = true; // Prevent timeline right-click from triggering
+            ImGui::OpenPopup("DeleteNotifyPopup");
+        }
 
         // Update hover state for next frame
         if (ImGui::IsItemHovered())
@@ -1313,6 +1320,46 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
 
     // Apply new hover state for next frame
     HoveredNotifyIndex = NewHoveredNotifyIndex;
+
+    // ============================================================
+    // Delete Notify Popup (appears when right-clicking a notify)
+    // ============================================================
+    if (ImGui::BeginPopup("DeleteNotifyPopup"))
+    {
+        if (SelectedNotifyIndex >= 0 && SelectedNotifyIndex < NotifyChips.Num())
+        {
+            const FNotifyChip& ChipToDelete = NotifyChips[SelectedNotifyIndex];
+            ImGui::Text("Delete Notify?");
+            ImGui::Separator();
+            ImGui::Text("Name: %s", ChipToDelete.Name.ToString().c_str());
+            ImGui::Text("Time: %.3f s", ChipToDelete.Time);
+
+            if (ImGui::Button("Delete", ImVec2(100, 0)))
+            {
+                // Remove from CurrentSequence (actual data)
+                if (CurrentSequence)
+                {
+                    CurrentSequence->RemoveNotifiesByName(ChipToDelete.Name);
+                    UE_LOG("[AnimSequenceViewer] Deleted notify '%s' from sequence '%s'",
+                        ChipToDelete.Name.ToString().c_str(), CurrentSequence->GetFilePath().c_str());
+                }
+
+                // Remove from NotifyChips (UI)
+                NotifyChips.RemoveAt(SelectedNotifyIndex);
+
+                // Reset selection
+                SelectedNotifyIndex = -1;
+
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(100, 0)))
+            {
+                ImGui::CloseCurrentPopup();
+            }
+        }
+        ImGui::EndPopup();
+    }
 
     // ============================================================
     // Timeline button interaction (AFTER notify chips)
@@ -1346,9 +1393,10 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
             bIsPlaying = false;
             ApplyAnimationPose(); // 클릭 시 포즈 즉시 업데이트
         }
-        else if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        else if (!bAnyNotifyChipClicked && ImGui::IsItemClicked(ImGuiMouseButton_Right))
         {
             // Open Add Notify popup at clicked time on the hovered track
+            // Only if no notify chip was right-clicked
             ImVec2 MousePos = ImGui::GetMousePos();
             float ClickX = MousePos.x - CanvasPos.x;
             PendingNotifyTime = PixelToTime(ClickX);
