@@ -56,8 +56,11 @@ public:
 
     //----------------
     //UAnimInstance 루아 바인딩 안되서 임시로 스켈레탈메쉬에서 호출
-    UFUNCTION(LuaBind, DisplayName = "AddState")
-    void AddState(const FString& InName, const FString& AnimPath);
+    UFUNCTION(LuaBind, DisplayName = "AddSequenceInState")
+    void AddSequenceInState(const FString& InName, const FString& AnimPath, const float InBlendValue);
+
+    UFUNCTION(LuaBind, DisplayName = "SetBlendValueInState")
+    void SetBlendValueInState(const FString& InStateName, const float InBlendValue);
 
     UFUNCTION(LuaBind, DisplayName = "AddTransition")
     void AddTransition(const FString& StartStateName, const FString& EndStateName, const float InBlendTime, std::function<bool()> func);
