@@ -337,3 +337,12 @@ void USkeletalMeshComponent::SetStateLoop(const FString& InName, const bool InLo
         AnimInstance->SetStateLoop(InName, InLoop);
     }
 }
+
+void USkeletalMeshComponent::SetStateExitTime(const FString& InName, const float InExitTime)
+{
+    if (AnimInstance)
+    {
+        AnimInstance->SetStateExitTime(InName, InExitTime);
+    }
+}
+

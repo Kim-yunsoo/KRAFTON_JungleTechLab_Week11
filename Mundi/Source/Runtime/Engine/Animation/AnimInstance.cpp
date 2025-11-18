@@ -41,10 +41,14 @@ void UAnimInstance::ChangeState()
 	SetSpeed(CurrentState->Speed);
 	Play();
 }
+
+//다음 틱에 애니메이션 변경
 void UAnimInstance::ChangeStatePending(UAnimState* AnimState, UAnimTransition* AnimTransition)
 {
 	ChangeStatePending(AnimState, AnimTransition->BlendTime);
 }
+
+//다음 틱에 애니메이션 변경
 void UAnimInstance::ChangeStatePending(UAnimState* AnimState, float InTransitionTime)
 {
 	RegistChangeState = AnimState;
@@ -90,7 +94,16 @@ void UAnimInstance::SetStateLoop(const FString& InName, const bool InLoop)
 	{
 		State->SetLoop(InLoop);
 	}
+}	
+void UAnimInstance::SetStateExitTime(const FString& InName, const float InExitTime)
+{
+	UAnimState * State = AnimStateMachine.GetState(InName);
+	if (State)
+	{
+		State->SetExitTime(InExitTime);
+	}
 }
+
 
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 {
@@ -137,7 +150,6 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
    
 }
 
-//반복없는 애니메이션 끝나면 조건없는 트랜지션을 타고 이동 가능하도록 제작 필요 (애니메이션이 끝날때 라는 조건인거임)
 void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	float TransitionBlendFactor = Clamp((TransitionTime - CurTransitionTime) / TransitionTime);
@@ -150,7 +162,7 @@ void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 	else
 	{
-		if (CurrentTime > SequenceTime)
+		if (CurrentTime > SequenceTime - CurrentState->ExitTime)
 		{
 			bPlay = false;
 			AnimStateMachine.EndState();

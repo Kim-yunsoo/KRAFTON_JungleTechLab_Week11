@@ -32,6 +32,7 @@ public:
 	void SetStartState(const FString& StartStateName);
 
 	void SetStateLoop(const FString& InName, const bool InLoop);
+	void SetStateExitTime(const FString& InName, const float InExitTime);
 
 	void SetOwner(USkeletalMeshComponent* InOwner)
 	{

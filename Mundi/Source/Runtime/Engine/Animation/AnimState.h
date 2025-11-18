@@ -39,6 +39,10 @@ public:
 	{
 		bLoop = InLoop;
 	}
+	void SetExitTime(const float InExitTime)
+	{
+		ExitTime = InExitTime;
+	}
 	float GetBlendValue() const { return BlendValue; }
 	void SetBlnedValue(const float InBlendValue);
 	void GetStatePose(UAnimInstance* AnimInstance, FPoseContext& Pose, float CurrentTime);
@@ -51,6 +55,7 @@ public:
 	float TotalSequenceTime = 0.0f;
 	float BlendValue = 0.0f;
 	float Speed = 1.0f;
+	float ExitTime = 0.0f;
 	bool bLoop = true;
 
 

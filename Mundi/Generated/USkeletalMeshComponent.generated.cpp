@@ -67,5 +67,7 @@ LUA_BIND_BEGIN(USkeletalMeshComponent)
         T, "Replay", &USkeletalMeshComponent::Replay);
     AddAlias<USkeletalMeshComponent, const FString&, const bool>(
         T, "SetStateLoop", &USkeletalMeshComponent::SetStateLoop);
+    AddAlias<USkeletalMeshComponent, const FString&, const float>(
+        T, "SetStateExitTime", &USkeletalMeshComponent::SetStateExitTime);
 }
 LUA_BIND_END()

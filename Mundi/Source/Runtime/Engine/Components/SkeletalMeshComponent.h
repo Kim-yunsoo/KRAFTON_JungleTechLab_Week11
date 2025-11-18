@@ -99,6 +99,9 @@ public:
     UFUNCTION(LuaBind, DisplayName = "SetStateLoop")
     void SetStateLoop(const FString& InName, const bool InLoop);
 
+    UFUNCTION(LuaBind, DisplayName = "SetStateExitTime")
+    void SetStateExitTime(const FString& InName, const float InExitTime);
+
     //------------------------
 
     void DuplicateSubObjects() override;
