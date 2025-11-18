@@ -67,7 +67,6 @@ void USkeletalMeshComponent::BeginPlay()
 void USkeletalMeshComponent::TickComponent(float DeltaTime)
 {
     Super::TickComponent(DeltaTime);
-    int test = 3; 
     if (AnimInstance)
     {
         AnimInstance->SetSpeed(TestSpeed);

@@ -5,7 +5,10 @@
 NotifyConfig = {
     ["Data/Animations/Standard Walk.fbx"] = {
         TEST = function(event)
-            print(string.format("[Lua] TEST Notify triggered at %.3f sec", event.TriggerTime))
+            -- Play audible cue instead of printing
+            if PlayFootstep ~= nil then
+                PlayFootstep()
+            end
         end,
 
         Footstep = function(event)
@@ -20,10 +23,8 @@ NotifyConfig = {
     -- Example: add another sequence with same notify names, different behavior
     ["Data/Animations/Run.fbx"] = {
         Footstep = function(event)
-            if PlayRunFootstep ~= nil then
-                PlayRunFootstep()
-            else
-                print("[Lua] Run Footstep (stub)")
+            if PlayFootstep ~= nil then
+                PlayFootstep()
             end
         end,
     },

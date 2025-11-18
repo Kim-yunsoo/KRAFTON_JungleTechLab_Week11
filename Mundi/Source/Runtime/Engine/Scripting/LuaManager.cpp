@@ -9,6 +9,11 @@
 #include "PlayerCameraManager.h"
 #include <tuple>
 #include "Source/Runtime/Engine/Animation/NotifyDispatcher.h"
+// Audio playback bindings
+#include "../GameFramework/FAudioDevice.h"
+#include "../Audio/Sound.h"
+#include "ResourceManager.h"
+#include "Vector.h"
 
 sol::object MakeCompProxy(sol::state_view SolState, void* Instance, UClass* Class) {
     BuildBoundClass(Class);
@@ -337,6 +342,24 @@ FLuaManager::FLuaManager()
         "B", &FLinearColor::B,
         "A", &FLinearColor::A
     );
+
+    // One-shot footstep sound helper for notify testing
+    // Usage in Lua: PlayFootstep() -> plays Data/Audio/FootSound.wav
+    SharedLib.set_function("PlayFootstep", []()
+    {
+        const FString Path = "Data/Audio/FootSound.wav";
+        USound* Sound = UResourceManager::GetInstance().Get<USound>(Path);
+        if (!Sound)
+        {
+            Sound = UResourceManager::GetInstance().Load<USound>(Path);
+        }
+        if (!Sound)
+        {
+            UE_LOG("[Lua][Audio] PlayFootstep: failed to get sound %s", Path.c_str());
+            return;
+        }
+        FAudioDevice::PlaySound3D(Sound, FVector(0.f, 0.f, 0.f), 1.0f, false);
+    });
 
     RegisterComponentProxy(*Lua);
     ExposeGlobalFunctions();
