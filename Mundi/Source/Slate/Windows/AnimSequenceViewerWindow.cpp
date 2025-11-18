@@ -95,6 +95,16 @@ void SAnimSequenceViewerWindow::SetSkeletalMeshPath(const char* MeshPath)
 			PreviewActor->SetSkeletalMesh(MeshPath);
 			UE_LOG("[AnimSequenceViewer] Skeletal mesh set from outliner: %s", MeshPath);
 
+			// 본 표시가 켜져 있으면 본 라인 구성
+			if (bShowBones)
+			{
+				PreviewActor->RebuildBoneLines(-1); // -1 = 선택된 본 없음
+				if (PreviewActor->GetBoneLineComponent())
+				{
+					PreviewActor->GetBoneLineComponent()->SetLineVisible(true);
+				}
+			}
+
 			// 현재 애니메이션이 있고 재생 중이면 다시 재생
 			if (CurrentSequence && bIsPlaying)
 			{
@@ -150,6 +160,16 @@ void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
                 // 메시를 보이게만 하고 애니메이션은 재생하지 않음 (사용자가 Play 버튼 눌러야 함)
                 SkeletalMeshComp->SetVisibility(true);
                 UE_LOG("[AnimSequenceViewer] Animation loaded. Press Play to start.");
+
+                // 본 표시가 켜져 있으면 본 라인 구성
+                if (bShowBones)
+                {
+                    PreviewActor->RebuildBoneLines(-1); // -1 = 선택된 본 없음
+                    if (PreviewActor->GetBoneLineComponent())
+                    {
+                        PreviewActor->GetBoneLineComponent()->SetLineVisible(true);
+                    }
+                }
             }
             else
             {
@@ -382,6 +402,13 @@ void SAnimSequenceViewerWindow::ApplyAnimationPose()
 
         // SkeletalMeshComponent에 포즈 직접 설정
         SkelComp->SetLocalSpacePose(BonePoses);
+
+        // 본이 표시되어 있으면 본 라인 업데이트
+        if (bShowBones && PreviewActor->GetBoneLineComponent())
+        {
+            // 루트 본(0)을 선택한 것처럼 호출하면 전체 서브트리(모든 본) 업데이트됨
+            PreviewActor->RebuildBoneLines(0);
+        }
     }
 }
 
@@ -503,6 +530,30 @@ void SAnimSequenceViewerWindow::RenderAnimationList()
 void SAnimSequenceViewerWindow::RenderInfoPanel()
 {
     ImGui::Text("Animation Information");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Show Bones 체크박스
+    if (ImGui::Checkbox("Show Bones", &bShowBones))
+    {
+        // PreviewActor의 BoneLineComponent 가져오기
+        if (PreviewState && PreviewState->PreviewActor)
+        {
+            ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
+            if (PreviewActor && PreviewActor->GetBoneLineComponent())
+            {
+                PreviewActor->GetBoneLineComponent()->SetLineVisible(bShowBones);
+
+                // 본을 켰을 때 본 라인 재구성
+                if (bShowBones)
+                {
+                    PreviewActor->RebuildBoneLines(-1); // -1 = 선택된 본 없음
+                }
+            }
+        }
+    }
+
+    ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
