@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug_StandAlone|x64">
@@ -1078,4 +1078,10 @@ xcopy /y /d "$(ProjectDir)ThirdParty\Lua\lib\lua54.dll" "$(OutDir)"</Command>
     </ConvertToBase64>
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand $(EncodedScript)" Condition="'$(EncodedScript)' != ''" />
   </Target>
+  <ItemGroup>
+    <ClCompile Include="Source\Runtime\Engine\Animation\NotifyDispatcher.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Source\Runtime\Engine\Animation\NotifyDispatcher.h" />
+  </ItemGroup>
 </Project>

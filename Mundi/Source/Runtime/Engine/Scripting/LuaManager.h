@@ -17,8 +17,11 @@ public:
     void RegisterComponentProxy(sol::state& Lua);
     void ExposeAllComponentsToLua();
     void ExposeGlobalFunctions();
-
     bool LoadScriptInto(sol::environment& Env, const FString& Path);
+    void LoadNotifyConfig();
+    //void LoadNotifyConfig();
+
+    //bool LoadScriptInto(sol::environment& Env, const FString& Path);
     
     // Env 테이블에서 Name(함수 이름) 키를 조회해서 함수로 캐스팅
     static sol::protected_function GetFunc(sol::environment& Env, const char* Name);

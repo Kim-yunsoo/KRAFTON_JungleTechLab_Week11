@@ -2,6 +2,7 @@
 #include "SkeletalMeshComponent.h"
 #include "Source/Runtime/Engine/Animation/AnimSingleNodeInstance.h"
 #include "Source/Runtime/Engine/Animation/MyAnimInstance.h"
+#include "Source/Runtime/Core/Object/Actor.h"
 #include <functional>
 
 USkeletalMeshComponent::USkeletalMeshComponent()
@@ -28,7 +29,30 @@ void USkeletalMeshComponent::BeginPlay()
     //AnimInstance->AddTransition("Idle", "Move")->SetCondition([this]()->bool {return bMove; });
     //AnimInstance->AddTransition("Move", "Idle")->SetCondition([this]()->bool {return !bMove; });
 
-    //AnimInstance->Play();
+    UAnimStateMachine& StateMachine = AnimInstance->GetStateMachine();
+    UAnimState* IdleState = NewObject<UAnimState>();
+    IdleState->Name = "Idle";
+    IdleState->AnimSequence = RESOURCE.Get<UAnimSequence>("Data/Animations/Breathing Idle.fbx");
+    UAnimState* MoveState = NewObject<UAnimState>();
+    MoveState->Name = "Move";
+    MoveState->AnimSequence = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx");
+    // Note: test AnimNotify injection removed; use Sequence Viewer UI to author notifies
+    StateMachine.AddState(IdleState->AnimSequence->GetName(), IdleState->AnimSequence);
+    StateMachine.AddState(MoveState->AnimSequence->GetName(), MoveState->AnimSequence);
+    StateMachine.StartStateMachine(IdleState);
+
+    UAnimTransition* IdleToMoveTransition = NewObject<UAnimTransition>();
+    IdleToMoveTransition->From = IdleState;
+    IdleToMoveTransition->To = MoveState;
+    IdleToMoveTransition->Condition = [this]()->bool {return bMove; };
+    UAnimTransition* MoveToIdleTransition = NewObject<UAnimTransition>();
+    MoveToIdleTransition->From = MoveState;
+    MoveToIdleTransition->To = IdleState;
+    MoveToIdleTransition->Condition = [this]()->bool {return !bMove; };
+    //StateMachine.AddTransition(IdleState->AnimSequence->GetName(),IdleToMoveTransition);
+    //StateMachine.AddTransition(MoveState->AnimSequence->GetName(),MoveToIdleTransition);
+    StateMachine.AddTransition(IdleState->AnimSequence->GetName(), MoveState->AnimSequence->GetName());
+    AnimInstance->Play();
 }
 
 void USkeletalMeshComponent::TickComponent(float DeltaTime)
@@ -228,6 +252,16 @@ void USkeletalMeshComponent::PlayAnimation(const FString& AnimPath, bool bLoop)
     }
 
     SingleNode->SetAnimSequence(AnimSequence, bLoop);
+}
+
+void USkeletalMeshComponent::HandleAnimNotify(const FAnimNotifyEvent& Notify)
+{
+    AActor* Owner = GetOwner();
+    if (Owner)
+    {
+        Owner->HandleAnimNotify(Notify);
+    }
+    //SingleNode->SetAnimSequence(AnimSequence, bLoop);
 }
 
 void USkeletalMeshComponent::DuplicateSubObjects()

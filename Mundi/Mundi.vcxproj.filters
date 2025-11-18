@@ -56,9 +56,15 @@
       <Filter>Shaders\UI</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\PostProcess\GammaCorrection_PS.hlsl" />
+    <ClCompile Include="Source\Runtime\Engine\Animation\NotifyDispatcher.cpp">
+      <Filter>Source\Runtime\Engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Animation\Notifies\AnimNotify.cpp">
+      <Filter>Source\\Runtime\\Engine</Filter>
+    </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\Camera\CamMod_Fade.cpp">
       <Filter>Source\Runtime\Engine\GameFramework\Camera</Filter>
@@ -715,6 +721,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="Source\Runtime\Engine\Animation\Notifies\AnimNotify.h">
+      <Filter>Source\\Runtime\\Engine</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h">
       <Filter>Source\Editor\Clipboard</Filter>
     </ClInclude>
@@ -1671,6 +1680,9 @@
     </ClCompile>
     <ClInclude Include="Source\Runtime\Core\Misc\CrashHandler.h">
       <Filter>Source\Runtime\Core\Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Animation\NotifyDispatcher.h">
+      <Filter>Source\Runtime\Engine</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
