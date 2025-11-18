@@ -23,36 +23,6 @@ USkeletalMeshComponent::~USkeletalMeshComponent()
 
 void USkeletalMeshComponent::BeginPlay()
 {
-    //AnimInstance->AddState("Idle", RESOURCE.Get<UAnimSequence>("Data/Animations/Breathing Idle.fbx"));
-    //AnimInstance->AddState("Move", RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx"));
-    //AnimInstance->SetStartState("Idle");
-    //AnimInstance->AddTransition("Idle", "Move")->SetCondition([this]()->bool {return bMove; });
-    //AnimInstance->AddTransition("Move", "Idle")->SetCondition([this]()->bool {return !bMove; });
-
-    UAnimStateMachine& StateMachine = AnimInstance->GetStateMachine();
-    UAnimState* IdleState = NewObject<UAnimState>();
-    IdleState->Name = "Idle";
-    IdleState->AnimSequence = RESOURCE.Get<UAnimSequence>("Data/Animations/Breathing Idle.fbx");
-    UAnimState* MoveState = NewObject<UAnimState>();
-    MoveState->Name = "Move";
-    MoveState->AnimSequence = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx");
-    // Note: test AnimNotify injection removed; use Sequence Viewer UI to author notifies
-    StateMachine.AddState(IdleState->AnimSequence->GetName(), IdleState->AnimSequence);
-    StateMachine.AddState(MoveState->AnimSequence->GetName(), MoveState->AnimSequence);
-    StateMachine.StartStateMachine(IdleState);
-
-    UAnimTransition* IdleToMoveTransition = NewObject<UAnimTransition>();
-    IdleToMoveTransition->From = IdleState;
-    IdleToMoveTransition->To = MoveState;
-    IdleToMoveTransition->Condition = [this]()->bool {return bMove; };
-    UAnimTransition* MoveToIdleTransition = NewObject<UAnimTransition>();
-    MoveToIdleTransition->From = MoveState;
-    MoveToIdleTransition->To = IdleState;
-    MoveToIdleTransition->Condition = [this]()->bool {return !bMove; };
-    //StateMachine.AddTransition(IdleState->AnimSequence->GetName(),IdleToMoveTransition);
-    //StateMachine.AddTransition(MoveState->AnimSequence->GetName(),MoveToIdleTransition);
-    StateMachine.AddTransition(IdleState->AnimSequence->GetName(), MoveState->AnimSequence->GetName());
-    AnimInstance->Play();
 }
 
 void USkeletalMeshComponent::TickComponent(float DeltaTime)
