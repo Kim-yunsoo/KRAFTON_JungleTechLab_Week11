@@ -35,8 +35,9 @@ const bool AJamesCharacter::bPropertiesRegistered = []() {
 
 BEGIN_PROPERTIES(AJamesCharacter)
     MARK_AS_SPAWNABLE("제임스 캐릭터", "James.fbx를 사용하는 샘플 캐릭터")
+    ADD_PROPERTY(float, WalkSpeed, "Movement", true)
+    ADD_PROPERTY(float, RunSpeed, "Movement", true)
 END_PROPERTIES()
-
 
 // ===== Lua Binding =====
 

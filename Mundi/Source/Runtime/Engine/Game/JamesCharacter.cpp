@@ -27,17 +27,8 @@ void AJamesCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// TODO: 애니메이션 작동을 안함! 호민이형 해줘! (PYB)
-	IdleAnimation = RESOURCE.Get<UAnimSequence>("Data/Animations/Breathing Idle.fbx");
-	WalkAnimation = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Walk.fbx");
-	RunAnimation = RESOURCE.Get<UAnimSequence>("Data/Animations/Standard Run.fbx");
-
-	// 기본 Idle 애니메이션 재생
-	if (Mesh && IdleAnimation)
-	{
-		Mesh->PlayAnimation(IdleAnimation->GetFilePath(), true);
-		CurrentAnimation = IdleAnimation;
-	}
+	// StateMachine 설정
+	SetupAnimationStateMachine();
 }
 
 void AJamesCharacter::SetupPlayerInputComponent()
@@ -51,12 +42,14 @@ void AJamesCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// Shift 키 입력 처리
 	UInputManager& Input = UInputManager::GetInstance();
 	if (Input.IsKeyReleased(VK_SHIFT))
 	{
 		StopRunning();
 	}
 
+	// 키 입력이 없으면 속도를 0으로 설정
 	if (!Input.IsKeyDown(VK_UP) && !Input.IsKeyDown(VK_DOWN))
 	{
 		CurrentVelocity.X = 0.0f;
@@ -66,43 +59,8 @@ void AJamesCharacter::Tick(float DeltaTime)
 		CurrentVelocity.Y = 0.0f;
 	}
 
-	// Pick animation based on current speed
+	// 이동 처리 - StateMachine이 자동으로 애니메이션 전환함
 	float Speed = CurrentVelocity.Size();
-
-	if (Mesh)
-	{
-		UAnimSequence* DesiredAnimation = nullptr;
-
-		if (Speed > 0.1f)  // Small epsilon to check movement
-		{
-			// Moving
-			if (bIsRunning && RunAnimation)
-			{
-				DesiredAnimation = RunAnimation;
-			}
-			else if (WalkAnimation)
-			{
-				DesiredAnimation = WalkAnimation;
-			}
-		}
-		else
-		{
-			// Idle
-			if (IdleAnimation)
-			{
-				DesiredAnimation = IdleAnimation;
-			}
-		}
-
-		// Only switch when animation changed to avoid restart
-		if (DesiredAnimation && DesiredAnimation != CurrentAnimation)
-		{
-			Mesh->PlayAnimation(DesiredAnimation->GetFilePath(), true);
-			CurrentAnimation = DesiredAnimation;
-		}
-	}
-
-	// Update location when moving
 	if (Speed > 0.01f)
 	{
 		FVector NewLocation = GetActorLocation() + CurrentVelocity * DeltaTime;
@@ -122,4 +80,61 @@ void AJamesCharacter::MoveRight(float Value)
 	FVector Right = GetActorRight();
 	float Speed = bIsRunning ? RunSpeed : WalkSpeed;
 	CurrentVelocity.Y = Right.Y * Value * Speed;
+}
+
+void AJamesCharacter::SetupAnimationStateMachine()
+{
+	if (!Mesh) { return; }
+
+	// ───────────────────
+	// 1. StateMachine에 상태(State) 추가
+	// ───────────────────
+	Mesh->AddState("Idle", "Data/Animations/Breathing Idle.fbx");
+	Mesh->AddState("Walk", "Data/Animations/Standard Walk.fbx");
+	Mesh->AddState("Run", "Data/Animations/Standard Run.fbx");
+
+	// ───────────────────
+	// 2. 상태 간 전환(Transition) 규칙 설정
+	// ───────────────────
+
+	// Idle → Walk: 속도가 있고 달리기 중이 아닐 때
+	Mesh->AddTransition("Idle", "Walk", 0.2f, [this]() {
+		float Speed = CurrentVelocity.Size();
+		return Speed > 0.1f && !bIsRunning;
+	});
+
+	// Idle → Run: 속도가 있고 달리기 중일 때
+	Mesh->AddTransition("Idle", "Run", 0.2f, [this]() {
+		float Speed = CurrentVelocity.Size();
+		return Speed > 0.1f && bIsRunning;
+	});
+
+	// Walk → Idle: 속도가 0일 때
+	Mesh->AddTransition("Walk", "Idle", 0.2f, [this]() {
+		float Speed = CurrentVelocity.Size();
+		return Speed <= 0.1f;
+	});
+
+	// Walk → Run: 달리기 시작
+	Mesh->AddTransition("Walk", "Run", 0.15f, [this]() {
+		return bIsRunning;
+	});
+
+	// Run → Idle: 속도가 0일 때
+	Mesh->AddTransition("Run", "Idle", 0.2f, [this]() {
+		float Speed = CurrentVelocity.Size();
+		return Speed <= 0.1f;
+	});
+
+	// Run → Walk: 달리기 중지
+	Mesh->AddTransition("Run", "Walk", 0.15f, [this]() {
+		float Speed = CurrentVelocity.Size();
+		return Speed > 0.1f && !bIsRunning;
+	});
+
+	// ────────────────
+	// 3. 시작 상태 설정 및 재생 시작
+	// ────────────────
+	Mesh->SetStartState("Idle");
+	Mesh->Play();
 }
