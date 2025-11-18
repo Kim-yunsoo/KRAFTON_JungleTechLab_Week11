@@ -49,8 +49,10 @@ LUA_BIND_BEGIN(USkeletalMeshComponent)
 {
     AddAlias<USkeletalMeshComponent, const FString&, bool>(
         T, "PlayAnimation", &USkeletalMeshComponent::PlayAnimation);
-    AddAlias<USkeletalMeshComponent, const FString&, const FString&>(
-        T, "AddState", &USkeletalMeshComponent::AddState);
+    AddAlias<USkeletalMeshComponent, const FString&, const FString&, const float>(
+        T, "AddSequenceInState", &USkeletalMeshComponent::AddSequenceInState);
+    AddAlias<USkeletalMeshComponent, const FString&, const float>(
+        T, "SetBlendValueInState", &USkeletalMeshComponent::SetBlendValueInState);
     AddAlias<USkeletalMeshComponent, const FString&, const FString&, const float, std::function<bool()>>(
         T, "AddTransition", &USkeletalMeshComponent::AddTransition);
     AddAlias<USkeletalMeshComponent, const FString&>(

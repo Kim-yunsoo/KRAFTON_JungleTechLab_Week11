@@ -23,6 +23,7 @@ USkeletalMeshComponent::~USkeletalMeshComponent()
 
 void USkeletalMeshComponent::BeginPlay()
 {
+
 }
 
 void USkeletalMeshComponent::TickComponent(float DeltaTime)
@@ -265,11 +266,18 @@ void USkeletalMeshComponent::DuplicateSubObjects()
 
 
 
-void USkeletalMeshComponent::AddState(const FString& InName, const FString& AnimPath)
+void USkeletalMeshComponent::AddSequenceInState(const FString& InName, const FString& AnimPath, const float InBlnedValue)
 {
     if (AnimInstance)
     {
-        AnimInstance->AddState(InName, AnimPath);
+        AnimInstance->AddSequenceInState(InName, AnimPath, InBlnedValue);
+    }
+}
+void USkeletalMeshComponent::SetBlendValueInState(const FString& InStateName, const float InBlendValue)
+{
+    if (AnimInstance)
+    {
+        AnimInstance->SetBlendValueInState(InStateName, InBlendValue);
     }
 }
 

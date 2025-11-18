@@ -67,18 +67,17 @@ void UAnimStateMachine::StartStateMachine(UAnimState* StartState, const float In
 	Owner->ChangeState(CurrentState, InBlendTime);
 }
 
-UAnimState* UAnimStateMachine::AddState(const FString& InName, UAnimSequence* Sequence)
+UAnimState* UAnimStateMachine::AddSequenceInState(const FString& InName, UAnimSequence* Sequence, float InBlendValue)
 {
-	if (HasState(InName))
+	UAnimState* State = GetState(InName);
+	if (State == nullptr)
 	{
-		return nullptr;
+		State = NewObject<UAnimState>();
+		State->SetName(InName);
+		States.Push(State);
 	}
-
-	UAnimState* AnimState = NewObject<UAnimState>();
-	AnimState->SetSequence(Sequence);
-	AnimState->SetName(InName);
-	States.Push(AnimState);
-	return AnimState;
+	State->AddSequence(Sequence, InBlendValue);
+	return State;
 }
 
 void UAnimStateMachine::RemoveState(const FString& InName)

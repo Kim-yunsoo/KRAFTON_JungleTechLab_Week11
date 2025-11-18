@@ -89,9 +89,9 @@ void AJamesCharacter::SetupAnimationStateMachine()
 	// ───────────────────
 	// 1. StateMachine에 상태(State) 추가
 	// ───────────────────
-	Mesh->AddState("Idle", "Data/Animations/Breathing Idle.fbx");
-	Mesh->AddState("Walk", "Data/Animations/Standard Walk.fbx");
-	Mesh->AddState("Run", "Data/Animations/Standard Run.fbx");
+	Mesh->AddSequenceInState("Idle", "Data/Animations/Breathing Idle.fbx", 0);
+	Mesh->AddSequenceInState("Walk", "Data/Animations/Standard Walk.fbx", 0);
+	Mesh->AddSequenceInState("Run", "Data/Animations/Standard Run.fbx", 0);
 
 	// ───────────────────
 	// 2. 상태 간 전환(Transition) 규칙 설정

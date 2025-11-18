@@ -18,15 +18,17 @@ public:
 	void ChangeState(UAnimState* AnimState, UAnimTransition* AnimTransition);
 	void ChangeState(UAnimState* AnimState, float InTransitionTime);
 
-	UAnimState* AddState(const FString& InName, UAnimSequence* Sequence);
+	UAnimState* AddSequenceInState(const FString& InName, UAnimSequence* Sequence, const float InBlendValue = 0.0f);
 
-	UFUNCTION(LuaBind, DisplayName = "AddState")
-	UAnimState* AddState(const FString& InName, const FString& AnimPath);
+	void SetBlendValueInState(const FString& InName, const float InBlendValue);
 
-	UFUNCTION(LuaBind, DisplayName = "AddTransition")
+	//UFUNCTION(LuaBind, DisplayName = "AddSequenceInState")
+	UAnimState* AddSequenceInState(const FString& InName, const FString& AnimPath, const float InBlendValue = 0.0f);
+
+	//UFUNCTION(LuaBind, DisplayName = "AddTransition")
 	UAnimTransition* AddTransition(const FString& StartStateName, const FString& EndStateName);
 
-	UFUNCTION(LuaBind, DisplayName = "SetStartState")
+	//UFUNCTION(LuaBind, DisplayName = "SetStartState")
 	void SetStartState(const FString& StartStateName);
 
 	void SetOwner(USkeletalMeshComponent* InOwner)
@@ -34,12 +36,12 @@ public:
 		OwnerComponent = InOwner;
 	}
 
-	UFUNCTION(LuaBind, DisplayName = "SetLoop")
+	//UFUNCTION(LuaBind, DisplayName = "SetLoop")
 	void SetLoop(const bool InLoop)
 	{
 		bLoop = InLoop;
 	}
-	UFUNCTION(LuaBind, DisplayName = "SetSpeed")
+	//UFUNCTION(LuaBind, DisplayName = "SetSpeed")
 	void SetSpeed(const float InSpeed)
 	{
 		Speed = InSpeed;
@@ -48,17 +50,17 @@ public:
 	{
 		CurrentTime = InTime;
 	}
-	UFUNCTION(LuaBind, DisplayName = "Play")
+	//UFUNCTION(LuaBind, DisplayName = "Play")
 	void Play()
 	{
 		bPlay = true;
 	}
-	UFUNCTION(LuaBind, DisplayName = "Pause")
+	//UFUNCTION(LuaBind, DisplayName = "Pause")
 	void Pause()
 	{
 		bPlay = false;
 	}
-	UFUNCTION(LuaBind, DisplayName = "Replay")
+	//UFUNCTION(LuaBind, DisplayName = "Replay")
 	void Replay()
 	{
 		bPlay = true;
