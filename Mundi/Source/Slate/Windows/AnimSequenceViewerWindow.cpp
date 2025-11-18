@@ -1259,8 +1259,39 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         sprintf_s(idbuf, "NotifyChip##%d", i);
         ImGui::InvisibleButton(idbuf, ImVec2(totalWidth, totalHeight));
 
-        // Update selection on click
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+        // Drag handling (only for selected notify)
+        if (i == SelectedNotifyIndex && ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
+        {
+            bIsDraggingNotify = true;
+            DraggingNotifyIndex = i;
+            bAnyNotifyChipClicked = true;
+
+            // Calculate new time from mouse position
+            ImVec2 MousePos = ImGui::GetMousePos();
+            float MouseX = MousePos.x - CanvasPos.x;
+            float NewTime = PixelToTime(MouseX);
+            NewTime = FMath::Clamp(NewTime, 0.0f, PlayLength);
+
+            // Update NotifyChip (UI)
+            NotifyChips[i].Time = NewTime;
+
+            // Update actual AnimNotifyEvent in sequence
+            if (CurrentSequence)
+            {
+                TArray<FAnimNotifyEvent>& Notifies = const_cast<TArray<FAnimNotifyEvent>&>(CurrentSequence->GetNotifies());
+                // Find matching notify by name and approximate time
+                for (FAnimNotifyEvent& Ev : Notifies)
+                {
+                    if (Ev.NotifyName == Chip.Name)
+                    {
+                        Ev.TriggerTime = NewTime;
+                        break; // Assume first match
+                    }
+                }
+            }
+        }
+        // Update selection on click (only if not dragging)
+        else if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
             SelectedNotifyIndex = i;
             bAnyNotifyChipClicked = true; // Mark that a notify was clicked
@@ -1270,6 +1301,13 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
         if (ImGui::IsItemHovered())
         {
             NewHoveredNotifyIndex = i;
+        }
+
+        // Reset drag state when mouse released
+        if (bIsDraggingNotify && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        {
+            bIsDraggingNotify = false;
+            DraggingNotifyIndex = -1;
         }
     }
 
@@ -1282,44 +1320,48 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
     // ============================================================
 
     // Timeline invisible button for playhead dragging and timeline clicks
-    ImGui::SetCursorScreenPos(CanvasPos);
-    ImGui::InvisibleButton("TimelineButton", CanvasSize);
+    // Only process if not dragging a notify
+    if (!bIsDraggingNotify)
+    {
+        ImGui::SetCursorScreenPos(CanvasPos);
+        ImGui::InvisibleButton("TimelineButton", CanvasSize);
 
-    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
-    {
-        bIsDraggingPlayhead = true;
-        ImVec2 MousePos = ImGui::GetMousePos();
-        float ClickX = MousePos.x - CanvasPos.x;
-        CurrentTime = PixelToTime(ClickX);
-        CurrentFrame = TimeToFrame(CurrentTime);
-        bIsPlaying = false;
-        ApplyAnimationPose(); // 드래그 중 포즈 실시간 업데이트
-    }
-    else if (!bAnyNotifyChipClicked && ImGui::IsItemClicked(ImGuiMouseButton_Left))
-    {
-        // Only move playhead if no notify chip was clicked
-        ImVec2 MousePos = ImGui::GetMousePos();
-        float ClickX = MousePos.x - CanvasPos.x;
-        CurrentTime = PixelToTime(ClickX);
-        CurrentFrame = TimeToFrame(CurrentTime);
-        bIsPlaying = false;
-        ApplyAnimationPose(); // 클릭 시 포즈 즉시 업데이트
-    }
-    else if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-    {
-        // Open Add Notify popup at clicked time on the hovered track
-        ImVec2 MousePos = ImGui::GetMousePos();
-        float ClickX = MousePos.x - CanvasPos.x;
-        PendingNotifyTime = PixelToTime(ClickX);
-        // Compute track index from Y (content already offset by SetCursorPosY(-ScrollY))
-        float localY = (MousePos.y - CanvasPos.y);
-        PendingNotifyTrack = (int32)std::floor(localY / RowHeight);
-        strncpy_s(NotifyNameBuffer, sizeof(NotifyNameBuffer), "", 1);
-        ImGui::OpenPopup("AddNotifyPopup");
-    }
-    else
-    {
-        bIsDraggingPlayhead = false;
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
+        {
+            bIsDraggingPlayhead = true;
+            ImVec2 MousePos = ImGui::GetMousePos();
+            float ClickX = MousePos.x - CanvasPos.x;
+            CurrentTime = PixelToTime(ClickX);
+            CurrentFrame = TimeToFrame(CurrentTime);
+            bIsPlaying = false;
+            ApplyAnimationPose(); // 드래그 중 포즈 실시간 업데이트
+        }
+        else if (!bAnyNotifyChipClicked && ImGui::IsItemClicked(ImGuiMouseButton_Left))
+        {
+            // Only move playhead if no notify chip was clicked
+            ImVec2 MousePos = ImGui::GetMousePos();
+            float ClickX = MousePos.x - CanvasPos.x;
+            CurrentTime = PixelToTime(ClickX);
+            CurrentFrame = TimeToFrame(CurrentTime);
+            bIsPlaying = false;
+            ApplyAnimationPose(); // 클릭 시 포즈 즉시 업데이트
+        }
+        else if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        {
+            // Open Add Notify popup at clicked time on the hovered track
+            ImVec2 MousePos = ImGui::GetMousePos();
+            float ClickX = MousePos.x - CanvasPos.x;
+            PendingNotifyTime = PixelToTime(ClickX);
+            // Compute track index from Y (content already offset by SetCursorPosY(-ScrollY))
+            float localY = (MousePos.y - CanvasPos.y);
+            PendingNotifyTrack = (int32)std::floor(localY / RowHeight);
+            strncpy_s(NotifyNameBuffer, sizeof(NotifyNameBuffer), "", 1);
+            ImGui::OpenPopup("AddNotifyPopup");
+        }
+        else
+        {
+            bIsDraggingPlayhead = false;
+        }
     }
 
     // 커서 이동

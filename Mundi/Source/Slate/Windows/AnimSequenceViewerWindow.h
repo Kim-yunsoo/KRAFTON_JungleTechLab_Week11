@@ -118,6 +118,8 @@ private:
 	// UI 상태
 	float TimelineWidth = 800.0f;
 	bool bIsDraggingPlayhead = false; // 재생 헤드 드래그 중
+	bool bIsDraggingNotify = false;   // Notify 마커 드래그 중
+	int32 DraggingNotifyIndex = -1;   // 드래그 중인 Notify 인덱스
 	float SharedScrollY = 0.0f; // Notify와 Timeline 패널 공유 스크롤 Y
 	bool bShowBones = true; // 본 표시 여부
 
