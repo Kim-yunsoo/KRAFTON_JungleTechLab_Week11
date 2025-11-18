@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "USlateManager.h"
 #include "AnimSequenceViewerWindow.h"
 #include "Source/Runtime/Engine/SkeletalViewer/ViewerState.h"
@@ -7,15 +7,16 @@
 #include "Source/Runtime/Engine/GameFramework/SkeletalMeshActor.h"
 #include "Source/Runtime/Engine/Animation/AnimSequence.h"
 #include "Source/Runtime/AssetManagement/SkeletalMesh.h"
+#include "Source/Runtime/Engine/Animation/NotifyDispatcher.h"
 #include "FViewport.h"
 #include "FViewportClient.h"
 SAnimSequenceViewerWindow::SAnimSequenceViewerWindow()
 {
-    // ResourceManager에서 모든 애니메이션 파일 경로 가져오기
-    UResourceManager& ResourceManager = UResourceManager::GetInstance();
-    AvailableAnimationPaths = ResourceManager.GetAllFilePaths<UAnimSequence>();
-    
-    CurrentSequence = nullptr; // 초기 시퀀스 null (아무것도 선택 안됨)
+	// ResourceManager에서 모든 애니메이션 파일 경로 가져오기
+	UResourceManager& ResourceManager = UResourceManager::GetInstance();
+	AvailableAnimationPaths = ResourceManager.GetAllFilePaths<UAnimSequence>();
+
+	CurrentSequence = nullptr; // 초기 시퀀스 null (아무것도 선택 안됨)
 
 	//// 더미 시퀀스 생성 (테스트용)
 	//CurrentSequence = NewObject<UAnimSequenceBase>();
@@ -125,66 +126,82 @@ void SAnimSequenceViewerWindow::SetSkeletalMeshPath(const char* MeshPath)
 
 void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
 {
-    if (!Sequence)
-    {
-        UE_LOG("[AnimSequenceViewer] LoadAnimSequence: Sequence is null");
-        return;
-    }
+	if (!Sequence)
+	{
+		UE_LOG("[AnimSequenceViewer] LoadAnimSequence: Sequence is null");
+		return;
+	}
 
-    // 기존 시퀀스 교체
-    CurrentSequence = Sequence;
+	// 기존 시퀀스 교체
+	CurrentSequence = Sequence;
 
-    // 시퀀스 정보로 타임라인 업데이트
-    PlayLength = Sequence->GetPlayLength();
-    TotalFrames = Sequence->GetNumberOfFrames();
-    bLooping = Sequence->IsLooping();
+	// 시퀀스 정보로 타임라인 업데이트
+	PlayLength = Sequence->GetPlayLength();
+	TotalFrames = Sequence->GetNumberOfFrames();
+	bLooping = Sequence->IsLooping();
 
-    // 재생 상태 초기화
-    CurrentTime = 0.0f;
-    CurrentFrame = 0;
-    bIsPlaying = false;
+	// 재생 상태 초기화
+	CurrentTime = 0.0f;
+	CurrentFrame = 0;
+	bIsPlaying = false;
 
-    UE_LOG("[AnimSequenceViewer] Loaded: %s (Length: %.2fs, Frames: %d)",
-        Sequence->GetFilePath().c_str(), PlayLength, TotalFrames);
+	// Rebuild notify chips from sequence
+	NotifyChips.clear();
+	if (CurrentSequence)
+	{
+		const TArray<FAnimNotifyEvent>& Notifies = CurrentSequence->GetNotifies();
+		for (const FAnimNotifyEvent& Ev : Notifies)
+		{
+            FNotifyChip Chip;
+            Chip.Time = Ev.TriggerTime;
+            Chip.Duration = Ev.Duration;
+            Chip.Name = Ev.NotifyName.ToString();
+            Chip.TrackIndex = 0; // default to first track
+            NotifyChips.Add(Chip);
+		}
+	}
 
-    // PreviewActor에 애니메이션 설정 (아직 재생하지 않음)
-    // 참고: 스켈레탈 메시는 이미 SetSkeletalMeshPath()에서 설정되어 있음
-    if (PreviewState && PreviewState->PreviewActor)
-    {
-        ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
-        if (PreviewActor)
-        {
-            USkeletalMeshComponent* SkeletalMeshComp = PreviewActor->GetSkeletalMeshComponent();
-            if (SkeletalMeshComp)
-            {
-                // 메시를 보이게만 하고 애니메이션은 재생하지 않음 (사용자가 Play 버튼 눌러야 함)
-                SkeletalMeshComp->SetVisibility(true);
-                UE_LOG("[AnimSequenceViewer] Animation loaded. Press Play to start.");
+	UE_LOG("[AnimSequenceViewer] Loaded: %s (Length: %.2fs, Frames: %d)",
+		Sequence->GetFilePath().c_str(), PlayLength, TotalFrames);
 
-                // 본 표시가 켜져 있으면 본 라인 구성
-                if (bShowBones)
-                {
-                    PreviewActor->RebuildBoneLines(-1); // -1 = 선택된 본 없음
-                    if (PreviewActor->GetBoneLineComponent())
-                    {
-                        PreviewActor->GetBoneLineComponent()->SetLineVisible(true);
-                    }
-                }
-            }
-            else
-            {
-                UE_LOG("[AnimSequenceViewer] WARNING: No skeletal mesh loaded. Please select a skeletal mesh from the outliner first.");
-            }
-        }
-        else
-        {
-            UE_LOG("[AnimSequenceViewer] ERROR: PreviewActor cast failed");
-        }
-    }
-    else
-    {
-        UE_LOG("[AnimSequenceViewer] ERROR: PreviewState or PreviewActor is null");
-    }
+	// PreviewActor에 애니메이션 설정 (아직 재생하지 않음)
+	// 참고: 스켈레탈 메시는 이미 SetSkeletalMeshPath()에서 설정되어 있음
+	if (PreviewState && PreviewState->PreviewActor)
+	{
+		ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
+		if (PreviewActor)
+		{
+			USkeletalMeshComponent* SkeletalMeshComp = PreviewActor->GetSkeletalMeshComponent();
+			if (SkeletalMeshComp)
+			{
+				// 메시를 보이게만 하고 애니메이션은 재생하지 않음 (사용자가 Play 버튼 눌러야 함)
+				SkeletalMeshComp->SetVisibility(true);
+				UE_LOG("[AnimSequenceViewer] Animation loaded. Press Play to start.");
+
+				// 본 표시가 켜져 있으면 본 라인 구성
+				if (bShowBones)
+				{
+					PreviewActor->RebuildBoneLines(-1); // -1 = 선택된 본 없음
+					if (PreviewActor->GetBoneLineComponent())
+					{
+						PreviewActor->GetBoneLineComponent()->SetLineVisible(true);
+					}
+				}
+			}
+			else
+			{
+				UE_LOG("[AnimSequenceViewer] WARNING: No skeletal mesh loaded. Please select a skeletal mesh from the outliner first.");
+			}
+		}
+		else
+		{
+			UE_LOG("[AnimSequenceViewer] ERROR: PreviewActor cast failed");
+		}
+	}
+	else
+	{
+		UE_LOG("[AnimSequenceViewer] ERROR: PreviewState or PreviewActor is null");
+	}
 }
 
 void SAnimSequenceViewerWindow::OnRender()
@@ -199,534 +216,547 @@ void SAnimSequenceViewerWindow::OnRender()
 		bInitialPlacementDone = true;
 	}
 
-    // 윈도우 시작 (사용자가 X버튼 누르면 bIsOpen이 false가 됨)
-    if (ImGui::Begin("Animation Sequence Viewer", &bIsOpen))
-    {
-        // 윈도우 Rect 업데이트 (마우스 이벤트 라우팅용)
-        ImVec2 WindowPos = ImGui::GetWindowPos();
-        ImVec2 WindowSize = ImGui::GetWindowSize();
-        Rect.Left = WindowPos.x;
-        Rect.Top = WindowPos.y;
-        Rect.Right = WindowPos.x + WindowSize.x;
-        Rect.Bottom = WindowPos.y + WindowSize.y;
-        Rect.UpdateMinMax();
+	// 윈도우 시작 (사용자가 X버튼 누르면 bIsOpen이 false가 됨)
+	if (ImGui::Begin("Animation Sequence Viewer", &bIsOpen))
+	{
+		// 윈도우 Rect 업데이트 (마우스 이벤트 라우팅용)
+		ImVec2 WindowPos = ImGui::GetWindowPos();
+		ImVec2 WindowSize = ImGui::GetWindowSize();
+		Rect.Left = WindowPos.x;
+		Rect.Top = WindowPos.y;
+		Rect.Right = WindowPos.x + WindowSize.x;
+		Rect.Bottom = WindowPos.y + WindowSize.y;
+		Rect.UpdateMinMax();
 
-        ImVec2 ContentAvail = ImGui::GetContentRegionAvail();
-        float TotalWidth = ContentAvail.x;
-        float TotalHeight = ContentAvail.y;
+		ImVec2 ContentAvail = ImGui::GetContentRegionAvail();
+		float TotalWidth = ContentAvail.x;
+		float TotalHeight = ContentAvail.y;
 
-        // ============================================================
-        // 레이아웃 비율 계산
-        // ============================================================
-        float TopPreviewHeightPixels = TotalHeight * TopPreviewHeight;      // 상단 60%
-        float BottomPanelHeightPixels = TotalHeight * BottomPanelHeight;    // 하단 40%
+		// ============================================================
+		// 레이아웃 비율 계산
+		// ============================================================
+		float TopPreviewHeightPixels = TotalHeight * TopPreviewHeight;      // 상단 60%
+		float BottomPanelHeightPixels = TotalHeight * BottomPanelHeight;    // 하단 40%
 
-        // 하단 패널의 가로 분할
-        float RightPanelWidthPixels = TotalWidth * RightPanelWidth;         // 우측 30%
+		// 하단 패널의 가로 분할
+		float RightPanelWidthPixels = TotalWidth * RightPanelWidth;         // 우측 30%
 
-        // 우측 패널의 세로 분할
-        float RightTopInfoHeightPixels = BottomPanelHeightPixels * RightTopInfoHeight;      // 40%
-        float RightBottomListHeightPixels = BottomPanelHeightPixels * RightBottomListHeight; // 60%
+		// 우측 패널의 세로 분할
+		float RightTopInfoHeightPixels = BottomPanelHeightPixels * RightTopInfoHeight;      // 40%
+		float RightBottomListHeightPixels = BottomPanelHeightPixels * RightBottomListHeight; // 60%
 
-        // ============================================================
-        // 상단: 3D 프리뷰 뷰포트 (전체 너비, 60% 높이)
-        // ============================================================
-        RenderPreviewViewport(TopPreviewHeightPixels);
+		// ============================================================
+		// 상단: 3D 프리뷰 뷰포트 (전체 너비, 60% 높이)
+		// ============================================================
+		RenderPreviewViewport(TopPreviewHeightPixels);
 
-        // ============================================================
-        // 하단: 좌측 (통합 Notify+Timeline) | 우측 (Info+List)
-        // ============================================================
+		// ============================================================
+		// 하단: 좌측 (통합 Notify+Timeline) | 우측 (Info+List)
+		// ============================================================
 
-        // 스타일: 패널 간 간격 제거
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+		// 스타일: 패널 간 간격 제거
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-        // --- 좌측: 통합 Notify+Timeline 패널 (70%) ---
-        float LeftCombinedWidth = TotalWidth * 0.70f; // Notify+Timeline 합쳐서 70%
-        ImGui::BeginChild("CombinedNotifyTimelinePanel", ImVec2(LeftCombinedWidth, BottomPanelHeightPixels), true);
-        {
-            // Notify 트랙과 Timeline을 합친 새로운 레이아웃
-            RenderCombinedNotifyTimeline();
-        }
-        ImGui::EndChild();
+		// --- 좌측: 통합 Notify+Timeline 패널 (70%) ---
+		float LeftCombinedWidth = TotalWidth * 0.70f; // Notify+Timeline 합쳐서 70%
+		ImGui::BeginChild("CombinedNotifyTimelinePanel", ImVec2(LeftCombinedWidth, BottomPanelHeightPixels), true);
+		{
+			// Notify 트랙과 Timeline을 합친 새로운 레이아웃
+			RenderCombinedNotifyTimeline();
+		}
+		ImGui::EndChild();
 
-        ImGui::SameLine(0, 0);
+		ImGui::SameLine(0, 0);
 
-        // --- 우측: Info + List (30%, 세로 분할) ---
-        ImGui::BeginChild("RightPanel", ImVec2(RightPanelWidthPixels, BottomPanelHeightPixels), false, ImGuiWindowFlags_NoScrollbar);
-        {
-            // 상단: Animation Info (40%)
-            ImGui::BeginChild("InfoPanel", ImVec2(0, RightTopInfoHeightPixels), true);
-            {
-                RenderInfoPanel();
-            }
-            ImGui::EndChild();
+		// --- 우측: Info + List (30%, 세로 분할) ---
+		ImGui::BeginChild("RightPanel", ImVec2(RightPanelWidthPixels, BottomPanelHeightPixels), false, ImGuiWindowFlags_NoScrollbar);
+		{
+			// 상단: Animation Info (40%)
+			ImGui::BeginChild("InfoPanel", ImVec2(0, RightTopInfoHeightPixels), true);
+			{
+				RenderInfoPanel();
+			}
+			ImGui::EndChild();
 
-            // 하단: Animation List (60%)
-            ImGui::BeginChild("AnimList", ImVec2(0, RightBottomListHeightPixels), true);
-            {
-                RenderAnimationList();
-            }
-            ImGui::EndChild();
-        }
-        ImGui::EndChild();
+			// 하단: Animation List (60%)
+			ImGui::BeginChild("AnimList", ImVec2(0, RightBottomListHeightPixels), true);
+			{
+				RenderAnimationList();
+			}
+			ImGui::EndChild();
+		}
+		ImGui::EndChild();
 
-        ImGui::PopStyleVar(); // ItemSpacing 복원
-    }
-    ImGui::End();
+		ImGui::PopStyleVar(); // ItemSpacing 복원
+	}
+	ImGui::End();
 
-    // 윈도우가 닫히면 정리
-    if (!bIsOpen)
-    {
-        // USlateManager::OnRender()에서 처리됨
-    }
+	// 윈도우가 닫히면 정리
+	if (!bIsOpen)
+	{
+		// USlateManager::OnRender()에서 처리됨
+	}
 }
 
 void SAnimSequenceViewerWindow::OnUpdate(float DeltaSeconds)
 {
-    // ViewerState 업데이트 (월드 틱)
-    if (PreviewState && PreviewState->World)
-    {
-        PreviewState->World->Tick(DeltaSeconds);
-    }
+	// ViewerState 업데이트 (월드 틱)
+	if (PreviewState && PreviewState->World)
+	{
+		PreviewState->World->Tick(DeltaSeconds);
+	}
 
-    // ViewportClient 업데이트 (카메라 컨트롤)
-    if (PreviewState && PreviewState->Client)
-    {
-        PreviewState->Client->Tick(DeltaSeconds);
-    }
+	// ViewportClient 업데이트 (카메라 컨트롤)
+	if (PreviewState && PreviewState->Client)
+	{
+		PreviewState->Client->Tick(DeltaSeconds);
+	}
 
-    // 타임라인 UI 업데이트
-    if (bIsPlaying && CurrentSequence)
-    {
-        // 시간 증가/감소 (PlayRate에 따라 정재생/역재생)
-        CurrentTime += DeltaSeconds * PlayRate;
+	// 타임라인 UI 업데이트 + notify dispatch (viewer-side)
+	if (bIsPlaying && CurrentSequence)
+	{
+		// 시간 증가/감소 (PlayRate에 따라 정재생/역재생)
+		PrevTimeForNotify = CurrentTime;
+		CurrentTime += DeltaSeconds * PlayRate;
 
-        // 정재생 (PlayRate > 0): 앞으로 재생
-        if (PlayRate > 0.0f)
-        {
-            if (CurrentTime > PlayLength)
-            {
-                if (bLooping)
-                {
-                    // 루프: 처음으로 되돌림
-                    // ex) CurrentTime = 5.3, PlayLength = 5.0 -> 0.3 (나머지 반환)
-                    CurrentTime = fmod(CurrentTime, PlayLength);
-                }
-                else
-                {
-                    // 루프 아님: 끝에서 정지
-                    CurrentTime = PlayLength;
-                    bIsPlaying = false;
-                }
-            }
-        }
-        // 역재생 (PlayRate < 0): 뒤로 재생
-        else if (PlayRate < 0.0f)
-        {
-            if (CurrentTime < 0.0f)
-            {
-                if (bLooping)
-                {
-                    // 루프: 끝으로 이동
-                    CurrentTime = PlayLength + fmod(CurrentTime, PlayLength);
-                }
-                else
-                {
-                    // 루프 아님: 처음에서 정지
-                    CurrentTime = 0.0f;
-                    bIsPlaying = false;
-                }
-            }
-        }
+		// 정재생 (PlayRate > 0): 앞으로 재생
+		if (PlayRate > 0.0f)
+		{
+			if (CurrentTime > PlayLength)
+			{
+				if (bLooping)
+				{
+					// 루프: 처음으로 되돌림
+					// ex) CurrentTime = 5.3, PlayLength = 5.0 -> 0.3 (나머지 반환)
+					CurrentTime = fmod(CurrentTime, PlayLength);
+				}
+				else
+				{
+					// 루프 아님: 끝에서 정지
+					CurrentTime = PlayLength;
+					bIsPlaying = false;
+				}
+			}
+		}
+		// 역재생 (PlayRate < 0): 뒤로 재생
+		else if (PlayRate < 0.0f)
+		{
+			if (CurrentTime < 0.0f)
+			{
+				if (bLooping)
+				{
+					// 루프: 끝으로 이동
+					CurrentTime = PlayLength + fmod(CurrentTime, PlayLength);
+				}
+				else
+				{
+					// 루프 아님: 처음에서 정지
+					CurrentTime = 0.0f;
+					bIsPlaying = false;
+				}
+			}
+		}
 
-        // 프레임 업데이트
-        CurrentFrame = TimeToFrame(CurrentTime);
+		// 프레임 업데이트
+		CurrentFrame = TimeToFrame(CurrentTime);
 
-        // 애니메이션 포즈를 직접 평가하여 SkeletalMeshComponent에 적용 (재생 중일 때만)
-        ApplyAnimationPose();
-    }
+		// 애니메이션 포즈를 직접 평가하여 SkeletalMeshComponent에 적용 (재생 중일 때만)
+		ApplyAnimationPose();
+
+		// Trigger AnimNotifies using viewer timeline
+		if (UAnimSequence* Seq = Cast<UAnimSequence>(CurrentSequence))
+		{
+			TArray<FAnimNotifyEvent> Triggered;
+			Seq->GetAnimNotifiesInRange(PrevTimeForNotify, CurrentTime, Triggered);
+			const FString SeqKey = CurrentSequence->GetFilePath();
+			for (const FAnimNotifyEvent& Ev : Triggered)
+			{
+				FNotifyDispatcher::Get().Dispatch(SeqKey, Ev);
+			}
+		}
+	}
 }
 
 void SAnimSequenceViewerWindow::ApplyAnimationPose()
 {
-    if (!CurrentSequence || !PreviewState || !PreviewState->PreviewActor)
-    {
-        return;
-    }
+	if (!CurrentSequence || !PreviewState || !PreviewState->PreviewActor)
+	{
+		return;
+	}
 
-    ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
-    if (!PreviewActor)
-    {
-        return;
-    }
+	ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
+	if (!PreviewActor)
+	{
+		return;
+	}
 
-    USkeletalMeshComponent* SkelComp = PreviewActor->GetSkeletalMeshComponent();
-    if (!SkelComp)
-    {
-        return;
-    }
+	USkeletalMeshComponent* SkelComp = PreviewActor->GetSkeletalMeshComponent();
+	if (!SkelComp)
+	{
+		return;
+	}
 
-    USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMesh();
-    if (!SkelMesh || !SkelMesh->GetSkeletalMeshData())
-    {
-        return;
-    }
+	USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMesh();
+	if (!SkelMesh || !SkelMesh->GetSkeletalMeshData())
+	{
+		return;
+	}
 
-    const FSkeleton& Skeleton = SkelMesh->GetSkeletalMeshData()->Skeleton;
-    int32 BoneCount = Skeleton.Bones.Num();
+	const FSkeleton& Skeleton = SkelMesh->GetSkeletalMeshData()->Skeleton;
+	int32 BoneCount = Skeleton.Bones.Num();
 
-    // 애니메이션 시퀀스로부터 포즈 평가
-    UAnimSequence* AnimSeq = Cast<UAnimSequence>(CurrentSequence);
-    if (AnimSeq)
-    {
-        TArray<FTransform> BonePoses;
-        BonePoses.resize(BoneCount);
+	// 애니메이션 시퀀스로부터 포즈 평가
+	UAnimSequence* AnimSeq = Cast<UAnimSequence>(CurrentSequence);
+	if (AnimSeq)
+	{
+		TArray<FTransform> BonePoses;
+		BonePoses.resize(BoneCount);
 
-        // 레퍼런스 포즈로 초기화
-        for (int32 i = 0; i < BoneCount; ++i)
-        {
-            BonePoses[i] = FTransform(Skeleton.Bones[i].BindPose);
-        }
+		// 레퍼런스 포즈로 초기화
+		for (int32 i = 0; i < BoneCount; ++i)
+		{
+			BonePoses[i] = FTransform(Skeleton.Bones[i].BindPose);
+		}
 
-        // 애니메이션 트랙 데이터로 오버라이드
-        float FrameRate = AnimSeq->GetFrameRate();
-        for (const FBoneAnimationTrack& Track : AnimSeq->GetBoneTracks())
-        {
-            if (Track.BoneIndex >= 0 && Track.BoneIndex < BoneCount)
-            {
-                BonePoses[Track.BoneIndex] = Track.InternalTrack.GetTransform(FrameRate, CurrentTime);
-            }
-        }
+		// 애니메이션 트랙 데이터로 오버라이드
+		float FrameRate = AnimSeq->GetFrameRate();
+		for (const FBoneAnimationTrack& Track : AnimSeq->GetBoneTracks())
+		{
+			if (Track.BoneIndex >= 0 && Track.BoneIndex < BoneCount)
+			{
+				BonePoses[Track.BoneIndex] = Track.InternalTrack.GetTransform(FrameRate, CurrentTime);
+			}
+		}
 
-        // SkeletalMeshComponent에 포즈 직접 설정
-        SkelComp->SetLocalSpacePose(BonePoses);
+		// SkeletalMeshComponent에 포즈 직접 설정
+		SkelComp->SetLocalSpacePose(BonePoses);
 
-        // 본이 표시되어 있으면 본 라인 업데이트
-        if (bShowBones && PreviewActor->GetBoneLineComponent())
-        {
-            // 루트 본(0)을 선택한 것처럼 호출하면 전체 서브트리(모든 본) 업데이트됨
-            PreviewActor->RebuildBoneLines(0);
-        }
-    }
+		// 본이 표시되어 있으면 본 라인 업데이트
+		if (bShowBones && PreviewActor->GetBoneLineComponent())
+		{
+			// 루트 본(0)을 선택한 것처럼 호출하면 전체 서브트리(모든 본) 업데이트됨
+			PreviewActor->RebuildBoneLines(0);
+		}
+	}
 }
 
 void SAnimSequenceViewerWindow::RenderAnimationList()
 {
-    ImGui::Text("Animation List");
-    ImGui::Separator();
-    ImGui::Spacing();
+	ImGui::Text("Animation List");
+	ImGui::Separator();
+	ImGui::Spacing();
 
-    ImGui::Text("Available Animations:");
-    ImGui::Spacing();
+	ImGui::Text("Available Animations:");
+	ImGui::Spacing();
 
-    // 실제 애니메이션 파일 목록 표시
-    for (int i = 0; i < AvailableAnimationPaths.size(); i++)
-    {
-        bool bIsSelected = (SelectedAnimIndex == i);
+	// 실제 애니메이션 파일 목록 표시
+	for (int i = 0; i < AvailableAnimationPaths.size(); i++)
+	{
+		bool bIsSelected = (SelectedAnimIndex == i);
 
-        // 파일 경로에서 파일명만 추출 (확장자 제거)
-        FString FullPath = AvailableAnimationPaths[i];
+		// 파일 경로에서 파일명만 추출 (확장자 제거)
+		FString FullPath = AvailableAnimationPaths[i];
 
-        // 1. 경로에서 파일명 추출
-        size_t LastSlash = FullPath.find_last_of("/\\");
-        FString FileName = (LastSlash != FString::npos)
-            ? FullPath.substr(LastSlash + 1)
-            : FullPath;
+		// 1. 경로에서 파일명 추출
+		size_t LastSlash = FullPath.find_last_of("/\\");
+		FString FileName = (LastSlash != FString::npos)
+			? FullPath.substr(LastSlash + 1)
+			: FullPath;
 
-        // 2. 확장자 제거
-        size_t LastDot = FileName.find_last_of(".");
-        if (LastDot != FString::npos)
-        {
-            FileName = FileName.substr(0, LastDot);
-        }
-        if (ImGui::Selectable(FileName.c_str(), bIsSelected))
-        {
-            SelectedAnimIndex = i;
+		// 2. 확장자 제거
+		size_t LastDot = FileName.find_last_of(".");
+		if (LastDot != FString::npos)
+		{
+			FileName = FileName.substr(0, LastDot);
+		}
+		if (ImGui::Selectable(FileName.c_str(), bIsSelected))
+		{
+			SelectedAnimIndex = i;
 
-            // 실제 애니메이션 시퀀스 로드 (선택된 것)
-            UResourceManager& ResourceManager = UResourceManager::GetInstance();
-            UAnimSequence* LoadedAnim = ResourceManager.Load<UAnimSequence>(AvailableAnimationPaths[i]);
+			// 실제 애니메이션 시퀀스 로드 (선택된 것)
+			UResourceManager& ResourceManager = UResourceManager::GetInstance();
+			UAnimSequence* LoadedAnim = ResourceManager.Load<UAnimSequence>(AvailableAnimationPaths[i]);
 
-            if (LoadedAnim)
-            {
-                // 선택된 애니메이션 시퀀스 로드하기
-                LoadAnimSquence(LoadedAnim);
-            }
-        }
-        if (bIsSelected)
-        {
-            ImGui::SetItemDefaultFocus();
-        }
-    }
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
+			if (LoadedAnim)
+			{
+				// 선택된 애니메이션 시퀀스 로드하기
+				LoadAnimSquence(LoadedAnim);
+			}
+		}
+		if (bIsSelected)
+		{
+			ImGui::SetItemDefaultFocus();
+		}
+	}
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
 
-    // 선택 정보
-    if (SelectedAnimIndex >= 0 && SelectedAnimIndex < AvailableAnimationPaths.size())
-    {
-        // 파일명 추출 (확장자 제거)
-        FString FullPath = AvailableAnimationPaths[SelectedAnimIndex];
-        size_t LastSlash = FullPath.find_last_of("/\\");
-        FString FileName = (LastSlash != FString::npos)
-            ? FullPath.substr(LastSlash + 1)
-            : FullPath;
+	// 선택 정보
+	if (SelectedAnimIndex >= 0 && SelectedAnimIndex < AvailableAnimationPaths.size())
+	{
+		// 파일명 추출 (확장자 제거)
+		FString FullPath = AvailableAnimationPaths[SelectedAnimIndex];
+		size_t LastSlash = FullPath.find_last_of("/\\");
+		FString FileName = (LastSlash != FString::npos)
+			? FullPath.substr(LastSlash + 1)
+			: FullPath;
 
-        size_t LastDot = FileName.find_last_of(".");
-        if (LastDot != FString::npos)
-            FileName = FileName.substr(0, LastDot);
+		size_t LastDot = FileName.find_last_of(".");
+		if (LastDot != FString::npos)
+			FileName = FileName.substr(0, LastDot);
 
-        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
-            "Selected: %s", FileName.c_str());
-    }
-    else
-    {
-        ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
-            "No animation selected");
-    }
-    //// 임시 하드코딩된 애니메이션 목록
-    //const char* DummyAnims[] = {
-    //    "MM_Idle",
-    //    "MM_Walk",
-    //    "MM_Run",
-    //    "MM_Jump"
-    //};
-    //
-    //for (int i = 0; i < 4; i++)
-    //{
-    //    bool bIsSelected = (SelectedAnimIndex == i);
-    //
-    //    if (ImGui::Selectable(DummyAnims[i], bIsSelected))
-    //    {
-    //        SelectedAnimIndex = i;
-    //        // Step 4+에서 실제 애니메이션 로드
-    //    }
-    //
-    //    if (bIsSelected)
-    //    {
-    //        ImGui::SetItemDefaultFocus();
-    //    }
-    //}
-    //
-    //ImGui::Spacing();
-    //ImGui::Separator();
-    //ImGui::Spacing();
-    //
-    //// 선택 정보
-    //if (SelectedAnimIndex >= 0)
-    //{
-    //    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
-    //        "Selected: %s", DummyAnims[SelectedAnimIndex]);
-    //}
-    //else
-    //{
-    //    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
-    //        "No animation selected");
-    //}
+		ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
+			"Selected: %s", FileName.c_str());
+	}
+	else
+	{
+		ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
+			"No animation selected");
+	}
+	//// 임시 하드코딩된 애니메이션 목록
+	//const char* DummyAnims[] = {
+	//    "MM_Idle",
+	//    "MM_Walk",
+	//    "MM_Run",
+	//    "MM_Jump"
+	//};
+	//
+	//for (int i = 0; i < 4; i++)
+	//{
+	//    bool bIsSelected = (SelectedAnimIndex == i);
+	//
+	//    if (ImGui::Selectable(DummyAnims[i], bIsSelected))
+	//    {
+	//        SelectedAnimIndex = i;
+	//        // Step 4+에서 실제 애니메이션 로드
+	//    }
+	//
+	//    if (bIsSelected)
+	//    {
+	//        ImGui::SetItemDefaultFocus();
+	//    }
+	//}
+	//
+	//ImGui::Spacing();
+	//ImGui::Separator();
+	//ImGui::Spacing();
+	//
+	//// 선택 정보
+	//if (SelectedAnimIndex >= 0)
+	//{
+	//    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
+	//        "Selected: %s", DummyAnims[SelectedAnimIndex]);
+	//}
+	//else
+	//{
+	//    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
+	//        "No animation selected");
+	//}
 }
 
 void SAnimSequenceViewerWindow::RenderInfoPanel()
 {
-    ImGui::Text("Animation Information");
-    ImGui::Separator();
-    ImGui::Spacing();
+	ImGui::Text("Animation Information");
+	ImGui::Separator();
+	ImGui::Spacing();
 
-    // Show Bones 체크박스
-    if (ImGui::Checkbox("Show Bones", &bShowBones))
-    {
-        // PreviewActor의 BoneLineComponent 가져오기
-        if (PreviewState && PreviewState->PreviewActor)
-        {
-            ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
-            if (PreviewActor && PreviewActor->GetBoneLineComponent())
-            {
-                PreviewActor->GetBoneLineComponent()->SetLineVisible(bShowBones);
+	// Show Bones 체크박스
+	if (ImGui::Checkbox("Show Bones", &bShowBones))
+	{
+		// PreviewActor의 BoneLineComponent 가져오기
+		if (PreviewState && PreviewState->PreviewActor)
+		{
+			ASkeletalMeshActor* PreviewActor = Cast<ASkeletalMeshActor>(PreviewState->PreviewActor);
+			if (PreviewActor && PreviewActor->GetBoneLineComponent())
+			{
+				PreviewActor->GetBoneLineComponent()->SetLineVisible(bShowBones);
 
-                // 본을 켰을 때 본 라인 재구성
-                if (bShowBones)
-                {
-                    PreviewActor->RebuildBoneLines(-1); // -1 = 선택된 본 없음
-                }
-            }
-        }
-    }
+				// 본을 켰을 때 본 라인 재구성
+				if (bShowBones)
+				{
+					PreviewActor->RebuildBoneLines(-1); // -1 = 선택된 본 없음
+				}
+			}
+		}
+	}
 
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
 
-    // Step 2: 플레이스홀더 정보
-    if (SelectedAnimIndex >= 0)
-    {
-        // 실제 시퀀스 정보 표시
-        UAnimSequence* AnimSequence = Cast<UAnimSequence>(CurrentSequence);
+	// Step 2: 플레이스홀더 정보
+	if (SelectedAnimIndex >= 0)
+	{
+		// 실제 시퀀스 정보 표시
+		UAnimSequence* AnimSequence = Cast<UAnimSequence>(CurrentSequence);
 
-        // 파일명 추출
-        FString FilePath = CurrentSequence->GetFilePath();
-        size_t LastSlash = FilePath.find_last_of("/\\");
-        FString FileName = (LastSlash != FString::npos)
-            ? FilePath.substr(LastSlash + 1)
-            : FilePath;
+		// 파일명 추출
+		FString FilePath = CurrentSequence->GetFilePath();
+		size_t LastSlash = FilePath.find_last_of("/\\");
+		FString FileName = (LastSlash != FString::npos)
+			? FilePath.substr(LastSlash + 1)
+			: FilePath;
 
-        size_t LastDot = FileName.find_last_of(".");
-        if (LastDot != FString::npos)
-            FileName = FileName.substr(0, LastDot);
+		size_t LastDot = FileName.find_last_of(".");
+		if (LastDot != FString::npos)
+			FileName = FileName.substr(0, LastDot);
 
-        ImGui::Text("Name: %s", FileName.c_str());
-        ImGui::Text("Length: %.2f seconds", CurrentSequence->GetPlayLength());
-        if (AnimSequence)
-        {
-            ImGui::Text("Frames: %d frames", AnimSequence->GetNumberOfFrames());
-            ImGui::Text("FPS: %.2f", AnimSequence->GetFrameRate());
-        }
+		ImGui::Text("Name: %s", FileName.c_str());
+		ImGui::Text("Length: %.2f seconds", CurrentSequence->GetPlayLength());
+		if (AnimSequence)
+		{
+			ImGui::Text("Frames: %d frames", AnimSequence->GetNumberOfFrames());
+			ImGui::Text("FPS: %.2f", AnimSequence->GetFrameRate());
+		}
 
-        ImGui::Text("Looping: %s", CurrentSequence->IsLooping() ? "Yes" : "No");
+		ImGui::Text("Looping: %s", CurrentSequence->IsLooping() ? "Yes" : "No");
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
 
-        // 상세 정보
-        ImGui::Text("Details:");
-        ImGui::BulletText("File Path: %s", FilePath.c_str());
+		// 상세 정보
+		ImGui::Text("Details:");
+		ImGui::BulletText("File Path: %s", FilePath.c_str());
 
-        if (AnimSequence)
-        {
-            ImGui::BulletText("Bone Tracks: %d", AnimSequence->GetBoneTracks().size());
-        }
+		if (AnimSequence)
+		{
+			ImGui::BulletText("Bone Tracks: %d", AnimSequence->GetBoneTracks().size());
+		}
 
-        ImGui::BulletText("Notify Events: %d", CurrentSequence->GetNotifies().size());
+		ImGui::BulletText("Notify Events: %d", CurrentSequence->GetNotifies().size());
 
-        //// 임시 정보 표시
-        //ImGui::Text("Name: MM_Animation_%d", SelectedAnimIndex);
-        //ImGui::Text("Length: 2.50 seconds (placeholder)");
-        //ImGui::Text("Frames: 75 frames (placeholder)");
-        //ImGui::Text("FPS: 30 (placeholder)");
+		//// 임시 정보 표시
+		//ImGui::Text("Name: MM_Animation_%d", SelectedAnimIndex);
+		//ImGui::Text("Length: 2.50 seconds (placeholder)");
+		//ImGui::Text("Frames: 75 frames (placeholder)");
+		//ImGui::Text("FPS: 30 (placeholder)");
 
-        //ImGui::Spacing();
-        //ImGui::Separator();
-        //ImGui::Spacing();
+		//ImGui::Spacing();
+		//ImGui::Separator();
+		//ImGui::Spacing();
 
-        //// 상세 정보
-        //ImGui::Text("Details:");
-        //ImGui::BulletText("File Path: (not loaded)");
-        //ImGui::BulletText("Bone Tracks: 0");
-        //ImGui::BulletText("Notify Events: 0");
-    }
-    else
-    {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-        ImGui::TextWrapped("Select an animation from the list to view details");
-        ImGui::PopStyleColor();
-    }
+		//// 상세 정보
+		//ImGui::Text("Details:");
+		//ImGui::BulletText("File Path: (not loaded)");
+		//ImGui::BulletText("Bone Tracks: 0");
+		//ImGui::BulletText("Notify Events: 0");
+	}
+	else
+	{
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
+		ImGui::TextWrapped("Select an animation from the list to view details");
+		ImGui::PopStyleColor();
+	}
 }
 
 void SAnimSequenceViewerWindow::RenderPlaybackControls()
 {
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
 
-    // 중앙 정렬을 위한 계산
-    float WindowWidth = ImGui::GetContentRegionAvail().x;
-    float ButtonWidth = 40.0f;
-    float Spacing = 8.0f;
-    float TotalWidth = (ButtonWidth * 5) + (Spacing * 4); // 5개 버튼 + 4개 간격
-    float StartX = (WindowWidth - TotalWidth) * 0.5f;
+	// 중앙 정렬을 위한 계산
+	float WindowWidth = ImGui::GetContentRegionAvail().x;
+	float ButtonWidth = 40.0f;
+	float Spacing = 8.0f;
+	float TotalWidth = (ButtonWidth * 5) + (Spacing * 4); // 5개 버튼 + 4개 간격
+	float StartX = (WindowWidth - TotalWidth) * 0.5f;
 
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + StartX);
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + StartX);
 
-    // 재생 컨트롤 버튼들
-    ImGui::BeginGroup();
-    {
-        // Previous Frame 버튼
-        if (ImGui::Button("|<<", ImVec2(ButtonWidth, 30)))
-        {
-            if (CurrentFrame > 0)
-            {
-                CurrentFrame--;
-                CurrentTime = FrameToTime(CurrentFrame);
-                ApplyAnimationPose(); // 포즈 즉시 적용
-            }
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Previous Frame");
+	// 재생 컨트롤 버튼들
+	ImGui::BeginGroup();
+	{
+		// Previous Frame 버튼
+		if (ImGui::Button("|<<", ImVec2(ButtonWidth, 30)))
+		{
+			if (CurrentFrame > 0)
+			{
+				CurrentFrame--;
+				CurrentTime = FrameToTime(CurrentFrame);
+				ApplyAnimationPose(); // 포즈 즉시 적용
+			}
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Previous Frame");
 
-        ImGui::SameLine(0, Spacing);
+		ImGui::SameLine(0, Spacing);
 
-        // Play/Pause 버튼
-        const char* playButtonText = bIsPlaying ? "||" : ">";
-        if (ImGui::Button(playButtonText, ImVec2(ButtonWidth, 30)))
-        {
-            if (CurrentSequence)
-            {
-                bIsPlaying = !bIsPlaying;
-                UE_LOG("[AnimSequenceViewer] %s", bIsPlaying ? "Playing" : "Paused");
-            }
-            else
-            {
-                UE_LOG("[AnimSequenceViewer] Cannot play: No animation selected");
-            }
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(bIsPlaying ? "Pause" : "Play");
+		// Play/Pause 버튼
+		const char* playButtonText = bIsPlaying ? "||" : ">";
+		if (ImGui::Button(playButtonText, ImVec2(ButtonWidth, 30)))
+		{
+			if (CurrentSequence)
+			{
+				bIsPlaying = !bIsPlaying;
+				UE_LOG("[AnimSequenceViewer] %s", bIsPlaying ? "Playing" : "Paused");
+			}
+			else
+			{
+				UE_LOG("[AnimSequenceViewer] Cannot play: No animation selected");
+			}
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip(bIsPlaying ? "Pause" : "Play");
 
-        ImGui::SameLine(0, Spacing);
+		ImGui::SameLine(0, Spacing);
 
-        // Stop 버튼
-        if (ImGui::Button("[]", ImVec2(ButtonWidth, 30)))
-        {
-            // 정지 (처음으로)
-            bIsPlaying = false;
-            CurrentFrame = 0;
-            CurrentTime = 0.0f;
-            ApplyAnimationPose(); // 첫 프레임 포즈 적용
-            UE_LOG("[AnimSequenceViewer] Stopped and reset to frame 0");
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Stop");
+		// Stop 버튼
+		if (ImGui::Button("[]", ImVec2(ButtonWidth, 30)))
+		{
+			// 정지 (처음으로)
+			bIsPlaying = false;
+			CurrentFrame = 0;
+			CurrentTime = 0.0f;
+			ApplyAnimationPose(); // 첫 프레임 포즈 적용
+			UE_LOG("[AnimSequenceViewer] Stopped and reset to frame 0");
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Stop");
 
-        ImGui::SameLine(0, Spacing);
+		ImGui::SameLine(0, Spacing);
 
-        // Next Frame 버튼
-        if (ImGui::Button(">>|", ImVec2(ButtonWidth, 30)))
-        {
-            if (CurrentFrame < TotalFrames - 1)
-            {
-                CurrentFrame++;
-                CurrentTime = FrameToTime(CurrentFrame);
-                ApplyAnimationPose(); // 포즈 즉시 적용
-            }
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Next Frame");
+		// Next Frame 버튼
+		if (ImGui::Button(">>|", ImVec2(ButtonWidth, 30)))
+		{
+			if (CurrentFrame < TotalFrames - 1)
+			{
+				CurrentFrame++;
+				CurrentTime = FrameToTime(CurrentFrame);
+				ApplyAnimationPose(); // 포즈 즉시 적용
+			}
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Next Frame");
 
-        ImGui::SameLine(0, Spacing);
+		ImGui::SameLine(0, Spacing);
 
-        // Loop Toggle 버튼
-        ImVec4 loopColor = bLooping ? ImVec4(0.4f, 0.7f, 0.4f, 1.0f) : ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
-        ImGui::PushStyleColor(ImGuiCol_Button, loopColor);
-        if (ImGui::Button("Loop", ImVec2(ButtonWidth, 30)))
-        {
-            bLooping = !bLooping;
-        }
-        ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(bLooping ? "Loop: ON" : "Loop: OFF");
-    }
-    ImGui::EndGroup();
+		// Loop Toggle 버튼
+		ImVec4 loopColor = bLooping ? ImVec4(0.4f, 0.7f, 0.4f, 1.0f) : ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+		ImGui::PushStyleColor(ImGuiCol_Button, loopColor);
+		if (ImGui::Button("Loop", ImVec2(ButtonWidth, 30)))
+		{
+			bLooping = !bLooping;
+		}
+		ImGui::PopStyleColor();
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip(bLooping ? "Loop: ON" : "Loop: OFF");
+	}
+	ImGui::EndGroup();
 
-    ImGui::Spacing();
+	ImGui::Spacing();
 
-    // 프레임 정보 표시
-    ImGui::Text("Frame: %d / %d  |  Time: %.2fs / %.2fs  |  Speed: %.2fx",
-        CurrentFrame, TotalFrames, CurrentTime, PlayLength, PlayRate);
+	// 프레임 정보 표시
+	ImGui::Text("Frame: %d / %d  |  Time: %.2fs / %.2fs  |  Speed: %.2fx",
+		CurrentFrame, TotalFrames, CurrentTime, PlayLength, PlayRate);
 
-    ImGui::Spacing();
+	ImGui::Spacing();
 
-    // 재생 속도 슬라이더
-    ImGui::SetNextItemWidth(200.0f);
-    ImGui::SliderFloat("Playback Speed", &PlayRate, -1.0f, 2.0f, "%.2fx");
+	// 재생 속도 슬라이더
+	ImGui::SetNextItemWidth(200.0f);
+	ImGui::SliderFloat("Playback Speed", &PlayRate, -1.0f, 2.0f, "%.2fx");
 }
 
 // ============================================================
@@ -736,103 +766,103 @@ void SAnimSequenceViewerWindow::RenderPlaybackControls()
 // ============================================================
 float SAnimSequenceViewerWindow::TimeToPixel(float Time) const
 {
-    if (PlayLength <= 0.0f) return 0.0f;
-    return (Time / PlayLength) * TimelineWidth;
+	if (PlayLength <= 0.0f) return 0.0f;
+	return (Time / PlayLength) * TimelineWidth;
 }
 
 float SAnimSequenceViewerWindow::PixelToTime(float PixelX) const
 {
-    if (TimelineWidth <= 0.0f) return 0.0f;
-    float Time = (PixelX / TimelineWidth) * PlayLength;
-    return FMath::Clamp(Time, 0.0f, PlayLength);
+	if (TimelineWidth <= 0.0f) return 0.0f;
+	float Time = (PixelX / TimelineWidth) * PlayLength;
+	return FMath::Clamp(Time, 0.0f, PlayLength);
 }
 
 float SAnimSequenceViewerWindow::FrameToTime(int32 Frame) const
 {
-    if (TotalFrames <= 0) return 0.0f;
-    return ((float)Frame / (float)TotalFrames) * PlayLength;
+	if (TotalFrames <= 0) return 0.0f;
+	return ((float)Frame / (float)TotalFrames) * PlayLength;
 }
 
 int32 SAnimSequenceViewerWindow::TimeToFrame(float Time) const
 {
-    if (PlayLength <= 0.0f) return 0;
-    return (int32)((Time / PlayLength) * (float)TotalFrames);
+	if (PlayLength <= 0.0f) return 0;
+	return (int32)((Time / PlayLength) * (float)TotalFrames);
 }
 
 void SAnimSequenceViewerWindow::RenderPreviewViewport(float Height)
 {
-    // 프리뷰 뷰포트 영역 정의 (경계선 포함)
-    ImGui::BeginChild("PreviewViewport", ImVec2(0, Height), true, ImGuiWindowFlags_NoScrollbar);
+	// 프리뷰 뷰포트 영역 정의 (경계선 포함)
+	ImGui::BeginChild("PreviewViewport", ImVec2(0, Height), true, ImGuiWindowFlags_NoScrollbar);
 
-    // 현재 영역의 화면 좌표와 크기 저장 (OnRenderViewport에서 사용)
-    ImVec2 childPos = ImGui::GetWindowPos();
-    ImVec2 childSize = ImGui::GetWindowSize();
+	// 현재 영역의 화면 좌표와 크기 저장 (OnRenderViewport에서 사용)
+	ImVec2 childPos = ImGui::GetWindowPos();
+	ImVec2 childSize = ImGui::GetWindowSize();
 
-    // PreviewRect 업데이트
-    PreviewRect.Left = childPos.x;
-    PreviewRect.Top = childPos.y;
-    PreviewRect.Right = childPos.x + childSize.x;
-    PreviewRect.Bottom = childPos.y + childSize.y;
-    PreviewRect.UpdateMinMax();
+	// PreviewRect 업데이트
+	PreviewRect.Left = childPos.x;
+	PreviewRect.Top = childPos.y;
+	PreviewRect.Right = childPos.x + childSize.x;
+	PreviewRect.Bottom = childPos.y + childSize.y;
+	PreviewRect.UpdateMinMax();
 
-    // 뷰포트가 없으면 플레이스홀더 표시
-    if (!PreviewState || !PreviewState->Viewport)
-    {
-        ImGui::Text("Preview Viewport (No ViewerState)");
-    }
+	// 뷰포트가 없으면 플레이스홀더 표시
+	if (!PreviewState || !PreviewState->Viewport)
+	{
+		ImGui::Text("Preview Viewport (No ViewerState)");
+	}
 
-    ImGui::EndChild();
+	ImGui::EndChild();
 }
 
 void SAnimSequenceViewerWindow::OnMouseMove(FVector2D MousePos)
 {
-    if (!PreviewState || !PreviewState->Viewport) return;
+	if (!PreviewState || !PreviewState->Viewport) return;
 
-    if (PreviewRect.Contains(MousePos))
-    {
-        FVector2D LocalPos = MousePos - FVector2D(PreviewRect.Left, PreviewRect.Top);
-        PreviewState->Viewport->ProcessMouseMove((int32)LocalPos.X, (int32)LocalPos.Y);
-    }
+	if (PreviewRect.Contains(MousePos))
+	{
+		FVector2D LocalPos = MousePos - FVector2D(PreviewRect.Left, PreviewRect.Top);
+		PreviewState->Viewport->ProcessMouseMove((int32)LocalPos.X, (int32)LocalPos.Y);
+	}
 }
 
 void SAnimSequenceViewerWindow::OnMouseDown(FVector2D MousePos, uint32 Button)
 {
-    if (!PreviewState || !PreviewState->Viewport) return;
+	if (!PreviewState || !PreviewState->Viewport) return;
 
-    if (PreviewRect.Contains(MousePos))
-    {
-        FVector2D LocalPos = MousePos - FVector2D(PreviewRect.Left, PreviewRect.Top);
-        PreviewState->Viewport->ProcessMouseButtonDown((int32)LocalPos.X, (int32)LocalPos.Y, (int32)Button);
-    }
+	if (PreviewRect.Contains(MousePos))
+	{
+		FVector2D LocalPos = MousePos - FVector2D(PreviewRect.Left, PreviewRect.Top);
+		PreviewState->Viewport->ProcessMouseButtonDown((int32)LocalPos.X, (int32)LocalPos.Y, (int32)Button);
+	}
 }
 
 void SAnimSequenceViewerWindow::OnMouseUp(FVector2D MousePos, uint32 Button)
 {
-    if (!PreviewState || !PreviewState->Viewport) return;
+	if (!PreviewState || !PreviewState->Viewport) return;
 
-    if (PreviewRect.Contains(MousePos))
-    {
-        FVector2D LocalPos = MousePos - FVector2D(PreviewRect.Left, PreviewRect.Top);
-        PreviewState->Viewport->ProcessMouseButtonUp((int32)LocalPos.X, (int32)LocalPos.Y, (int32)Button);
-    }
+	if (PreviewRect.Contains(MousePos))
+	{
+		FVector2D LocalPos = MousePos - FVector2D(PreviewRect.Left, PreviewRect.Top);
+		PreviewState->Viewport->ProcessMouseButtonUp((int32)LocalPos.X, (int32)LocalPos.Y, (int32)Button);
+	}
 }
 
 void SAnimSequenceViewerWindow::OnRenderViewport()
 {
-    // 뷰포트 렌더링 (ImGui 렌더링 전에 호출됨)
-    if (PreviewState && PreviewState->Viewport && PreviewRect.GetWidth() > 0 && PreviewRect.GetHeight() > 0)
-    {
-        const uint32 NewStartX = static_cast<uint32>(PreviewRect.Left);
-        const uint32 NewStartY = static_cast<uint32>(PreviewRect.Top);
-        const uint32 NewWidth = static_cast<uint32>(PreviewRect.Right - PreviewRect.Left);
-        const uint32 NewHeight = static_cast<uint32>(PreviewRect.Bottom - PreviewRect.Top);
+	// 뷰포트 렌더링 (ImGui 렌더링 전에 호출됨)
+	if (PreviewState && PreviewState->Viewport && PreviewRect.GetWidth() > 0 && PreviewRect.GetHeight() > 0)
+	{
+		const uint32 NewStartX = static_cast<uint32>(PreviewRect.Left);
+		const uint32 NewStartY = static_cast<uint32>(PreviewRect.Top);
+		const uint32 NewWidth = static_cast<uint32>(PreviewRect.Right - PreviewRect.Left);
+		const uint32 NewHeight = static_cast<uint32>(PreviewRect.Bottom - PreviewRect.Top);
 
-        // 뷰포트 크기 조정
-        PreviewState->Viewport->Resize(NewStartX, NewStartY, NewWidth, NewHeight);
+		// 뷰포트 크기 조정
+		PreviewState->Viewport->Resize(NewStartX, NewStartY, NewWidth, NewHeight);
 
-        // 뷰포트 렌더링 (3D 씬)
-        PreviewState->Viewport->Render();
-    }
+		// 뷰포트 렌더링 (3D 씬)
+		PreviewState->Viewport->Render();
+	}
 }
 
 // ============================================================
@@ -841,294 +871,411 @@ void SAnimSequenceViewerWindow::OnRenderViewport()
 
 void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 {
-    // 전체 패널 크기
-    float PanelWidth = ImGui::GetContentRegionAvail().x;
-    float PanelHeight = ImGui::GetContentRegionAvail().y;
+	// 전체 패널 크기
+	float PanelWidth = ImGui::GetContentRegionAvail().x;
+	float PanelHeight = ImGui::GetContentRegionAvail().y;
 
-    // 레이아웃 설정
-    float HeaderHeight = 60.0f;         // "Notify [+] [-]" 헤더 영역
-    float PlaybackHeight = 80.0f;       // Playback Controls 영역 (줄임)
-    float ScrollableHeight = PanelHeight - HeaderHeight - PlaybackHeight;
+	// 레이아웃 설정
+	float HeaderHeight = 60.0f;         // "Notify [+] [-]" 헤더 영역
+	float PlaybackHeight = 80.0f;       // Playback Controls 영역 (줄임)
+	float ScrollableHeight = PanelHeight - HeaderHeight - PlaybackHeight;
 
-    float NotifyColumnWidth = PanelWidth * 0.15f;  // Notify 트랙 번호 컬럼 15%
-    float TimelineColumnWidth = PanelWidth * 0.85f; // Timeline 컬럼 85%
-    float RowHeight = 25.0f; // 각 트랙 행 높이
+	float NotifyColumnWidth = PanelWidth * 0.15f;  // Notify 트랙 번호 컬럼 15%
+	float TimelineColumnWidth = PanelWidth * 0.85f; // Timeline 컬럼 85%
+	float RowHeight = 25.0f; // 각 트랙 행 높이
 
-    // ============================================================
-    // 1. 헤더 영역 (고정, 스크롤 안됨)
-    // ============================================================
-    ImGui::Text("Notify");
-    ImGui::SameLine();
+	// ============================================================
+	// 1. 헤더 영역 (고정, 스크롤 안됨)
+	// ============================================================
+	ImGui::Text("Notify");
+	ImGui::SameLine();
 
-    // Add Track 버튼
-    if (ImGui::Button("[+] Add Track"))
-    {
-        ImGui::OpenPopup("AddNotifyTrackMenu");
-    }
+	// Add Track 버튼
+	if (ImGui::Button("[+] Add Track"))
+	{
+		ImGui::OpenPopup("AddNotifyTrackMenu");
+	}
 
-    ImGui::SameLine();
+	ImGui::SameLine();
 
-    // Delete Track 버튼
-    bool bCanDelete = (SelectedTrackIndex >= 0 && SelectedTrackIndex < NotifyTrackIndices.Num());
-    if (!bCanDelete)
-    {
-        ImGui::BeginDisabled();
-    }
+	// Delete Track 버튼
+	bool bCanDelete = (SelectedTrackIndex >= 0 && SelectedTrackIndex < NotifyTrackIndices.Num());
+	if (!bCanDelete)
+	{
+		ImGui::BeginDisabled();
+	}
 
-    if (ImGui::Button("[-] Delete Track"))
-    {
-        if (bCanDelete)
-        {
-            NotifyTrackIndices.RemoveAt(SelectedTrackIndex);
-            SelectedTrackIndex = -1;
-        }
-    }
+	if (ImGui::Button("[-] Delete Track"))
+	{
+		if (bCanDelete)
+		{
+			NotifyTrackIndices.RemoveAt(SelectedTrackIndex);
+			SelectedTrackIndex = -1;
+		}
+	}
 
-    if (!bCanDelete)
-    {
-        ImGui::EndDisabled();
-    }
+	if (!bCanDelete)
+	{
+		ImGui::EndDisabled();
+	}
 
-    // 드롭다운 메뉴
-    if (ImGui::BeginPopup("AddNotifyTrackMenu"))
-    {
-        if (ImGui::MenuItem("Add Notify Track"))
-        {
-            NotifyTrackIndices.Add(NextNotifyTrackNumber);
-            NextNotifyTrackNumber++;
-        }
-        ImGui::EndPopup();
-    }
+	// 드롭다운 메뉴
+	if (ImGui::BeginPopup("AddNotifyTrackMenu"))
+	{
+		if (ImGui::MenuItem("Add Notify Track"))
+		{
+			NotifyTrackIndices.Add(NextNotifyTrackNumber);
+			NextNotifyTrackNumber++;
+		}
+		ImGui::EndPopup();
+	}
 
-    ImGui::Separator();
-    ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
 
-    // ============================================================
-    // 2. 스크롤 가능한 트랙 영역 (Notify + Timeline 함께 스크롤)
-    // ============================================================
-    // 부모 스크롤 영역 (실제 스크롤바를 표시)
-    ImGui::BeginChild("ScrollableTracks", ImVec2(0, ScrollableHeight), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
-    {
-        // 실제 트랙 개수
-        int32 ActualTrackCount = NotifyTrackIndices.Num();
+	// ============================================================
+	// 2. 스크롤 가능한 트랙 영역 (Notify + Timeline 함께 스크롤)
+	// ============================================================
+	// 부모 스크롤 영역 (실제 스크롤바를 표시)
+	ImGui::BeginChild("ScrollableTracks", ImVec2(0, ScrollableHeight), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+	{
+		// 실제 트랙 개수
+		int32 ActualTrackCount = NotifyTrackIndices.Num();
 
-        // 화면을 채우기 위한 최소 트랙 개수 계산
-        int32 MinVisibleTracks = std::max(1, (int32)std::ceil(ScrollableHeight / RowHeight));
+		// 화면을 채우기 위한 최소 트랙 개수 계산
+		int32 MinVisibleTracks = std::max(1, (int32)std::ceil(ScrollableHeight / RowHeight));
 
-        // 화면 표시용 트랙 개수 (최소 MinVisibleTracks개는 표시)
-        int32 DisplayTrackCount = std::max(ActualTrackCount, MinVisibleTracks);
+		// 화면 표시용 트랙 개수 (최소 MinVisibleTracks개는 표시)
+		int32 DisplayTrackCount = std::max(ActualTrackCount, MinVisibleTracks);
 
-        // 실제 스크롤 가능한 콘텐츠 높이 (실제 트랙 개수만큼만)
-        float ScrollContentHeight = RowHeight * std::max(ActualTrackCount, 1);
+		// 실제 스크롤 가능한 콘텐츠 높이 (실제 트랙 개수만큼만)
+		float ScrollContentHeight = RowHeight * std::max(ActualTrackCount, 1);
 
-        // 화면 표시용 높이 (빈 공간 포함)
-        float DisplayHeight = RowHeight * DisplayTrackCount;
+		// 화면 표시용 높이 (빈 공간 포함)
+		float DisplayHeight = RowHeight * DisplayTrackCount;
 
-        // 부모의 현재 스크롤 위치 가져오기
-        float ScrollY = ImGui::GetScrollY();
+		// 부모의 현재 스크롤 위치 가져오기
+		float ScrollY = ImGui::GetScrollY();
 
-        // 좌측 Notify 컬럼과 우측 Timeline 컬럼을 같이 렌더링
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+		// 좌측 Notify 컬럼과 우측 Timeline 컬럼을 같이 렌더링
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-        // 화면 위치 고정을 위해 SetCursorScreenPos 사용
-        ImVec2 BasePos = ImGui::GetCursorScreenPos();
+		// 화면 위치 고정을 위해 SetCursorScreenPos 사용
+		ImVec2 BasePos = ImGui::GetCursorScreenPos();
 
-        // 좌측: Notify 트랙 번호 컬럼 (고정 위치, 스크롤 오프셋 적용)
-        ImGui::SetCursorScreenPos(ImVec2(BasePos.x, BasePos.y));
-        ImGui::BeginChild("NotifyColumn", ImVec2(NotifyColumnWidth, DisplayHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
-        {
-            ImGui::SetCursorPosY(-ScrollY);
-            RenderNotifyTrackColumn(NotifyColumnWidth, RowHeight, DisplayTrackCount);
-        }
-        ImGui::EndChild();
+		// 좌측: Notify 트랙 번호 컬럼 (고정 위치, 스크롤 오프셋 적용)
+		ImGui::SetCursorScreenPos(ImVec2(BasePos.x, BasePos.y));
+		ImGui::BeginChild("NotifyColumn", ImVec2(NotifyColumnWidth, DisplayHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+		{
+			ImGui::SetCursorPosY(-ScrollY);
+			RenderNotifyTrackColumn(NotifyColumnWidth, RowHeight, DisplayTrackCount);
+		}
+		ImGui::EndChild();
 
-        // 우측: Timeline 컬럼 (고정 위치, 스크롤 오프셋 적용)
-        ImGui::SetCursorScreenPos(ImVec2(BasePos.x + NotifyColumnWidth, BasePos.y));
-        ImGui::BeginChild("TimelineColumn", ImVec2(TimelineColumnWidth, DisplayHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
-        {
-            ImGui::SetCursorPosY(-ScrollY);
-            RenderTimelineColumn(TimelineColumnWidth, RowHeight, DisplayTrackCount);
-        }
-        ImGui::EndChild();
+		// 우측: Timeline 컬럼 (고정 위치, 스크롤 오프셋 적용)
+		ImGui::SetCursorScreenPos(ImVec2(BasePos.x + NotifyColumnWidth, BasePos.y));
+		ImGui::BeginChild("TimelineColumn", ImVec2(TimelineColumnWidth, DisplayHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+		{
+			ImGui::SetCursorPosY(-ScrollY);
+			RenderTimelineColumn(TimelineColumnWidth, RowHeight, DisplayTrackCount);
+		}
+		ImGui::EndChild();
 
-        ImGui::PopStyleVar();
+		ImGui::PopStyleVar();
 
-        // 더미 아이템으로 스크롤 가능한 영역 설정 (실제 트랙 개수만큼만)
-        ImGui::Dummy(ImVec2(0, ScrollContentHeight));
-    }
-    ImGui::EndChild();
+		// 더미 아이템으로 스크롤 가능한 영역 설정 (실제 트랙 개수만큼만)
+		ImGui::Dummy(ImVec2(0, ScrollContentHeight));
+	}
+	ImGui::EndChild();
 
-    // ============================================================
-    // 3. Playback Controls (하단 고정, 스크롤 안됨)
-    // ============================================================
-    ImGui::Separator();
-    RenderPlaybackControls();
+	// ============================================================
+	// 3. Playback Controls (하단 고정, 스크롤 안됨)
+	// ============================================================
+	ImGui::Separator();
+	RenderPlaybackControls();
 }
 
 void SAnimSequenceViewerWindow::RenderNotifyTrackColumn(float ColumnWidth, float RowHeight, int32 VisibleTrackCount)
 {
-    // Notify 트랙 번호 표시 (좌측 컬럼)
-    for (int i = 0; i < NotifyTrackIndices.Num(); i++)
-    {
-        int32 TrackNumber = NotifyTrackIndices[i];
-        char Label[32];
-        sprintf_s(Label, "%d", TrackNumber);
+	// Notify 트랙 번호 표시 (좌측 컬럼)
+	for (int i = 0; i < NotifyTrackIndices.Num(); i++)
+	{
+		int32 TrackNumber = NotifyTrackIndices[i];
+		char Label[32];
+		sprintf_s(Label, "%d", TrackNumber);
 
-        // 트랙 선택 가능
-        bool bSelected = (i == SelectedTrackIndex);
-        if (ImGui::Selectable(Label, bSelected, 0, ImVec2(0, RowHeight)))
-        {
-            SelectedTrackIndex = i;
-        }
+		// 트랙 선택 가능
+		bool bSelected = (i == SelectedTrackIndex);
+		if (ImGui::Selectable(Label, bSelected, 0, ImVec2(0, RowHeight)))
+		{
+			SelectedTrackIndex = i;
+		}
 
-        // 호버 감지
-        if (ImGui::IsItemHovered())
-        {
-            HoveredTrackIndex = i;
-        }
-    }
+		// 호버 감지
+		if (ImGui::IsItemHovered())
+		{
+			HoveredTrackIndex = i;
+		}
+	}
 
-    // 트랙이 없으면 안내 메시지
-    if (NotifyTrackIndices.Num() == 0)
-    {
-        ImGui::TextDisabled("No tracks");
-        ImGui::TextDisabled("Click [+]");
-    }
+	// 트랙이 없으면 안내 메시지
+	if (NotifyTrackIndices.Num() == 0)
+	{
+		ImGui::TextDisabled("No tracks");
+		ImGui::TextDisabled("Click [+]");
+	}
 }
 
 void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float RowHeight, int32 VisibleTrackCount)
 {
-    // Timeline 영역 계산
-    TimelineWidth = ColumnWidth - 20.0f;
-    float RulerHeight = 35.0f; // 하단 프레임 눈금 영역
-    float TotalHeight = (VisibleTrackCount * RowHeight) + RulerHeight;
+	// Timeline 영역 계산
+	TimelineWidth = ColumnWidth - 20.0f;
+	float RulerHeight = 35.0f; // 하단 프레임 눈금 영역
+	float TotalHeight = (VisibleTrackCount * RowHeight) + RulerHeight;
 
-    ImVec2 CanvasPos = ImGui::GetCursorScreenPos();
-    ImVec2 CanvasSize(TimelineWidth, TotalHeight);
+	ImVec2 CanvasPos = ImGui::GetCursorScreenPos();
+	ImVec2 CanvasSize(TimelineWidth, TotalHeight);
 
-    ImDrawList* DrawList = ImGui::GetWindowDrawList();
+	ImDrawList* DrawList = ImGui::GetWindowDrawList();
 
-    // 타임라인 배경
-    ImVec4 bgColor = ImVec4(0.2f, 0.2f, 0.2f, 1.0f);
-    DrawList->AddRectFilled(CanvasPos,
-        ImVec2(CanvasPos.x + CanvasSize.x, CanvasPos.y + CanvasSize.y),
-        ImGui::ColorConvertFloat4ToU32(bgColor));
+	// 타임라인 배경
+	ImVec4 bgColor = ImVec4(0.2f, 0.2f, 0.2f, 1.0f);
+	DrawList->AddRectFilled(CanvasPos,
+		ImVec2(CanvasPos.x + CanvasSize.x, CanvasPos.y + CanvasSize.y),
+		ImGui::ColorConvertFloat4ToU32(bgColor));
 
-    // 각 트랙별 구분선 그리기
-    for (int i = 0; i <= VisibleTrackCount; i++)
+	// 각 트랙별 구분선 그리기
+	for (int i = 0; i <= VisibleTrackCount; i++)
+	{
+		float YPos = CanvasPos.y + (i * RowHeight);
+		DrawList->AddLine(
+			ImVec2(CanvasPos.x, YPos),
+			ImVec2(CanvasPos.x + CanvasSize.x, YPos),
+			IM_COL32(80, 80, 80, 255), 1.0f);
+	}
+
+	// 적응형 눈금 간격 계산
+	int targetRulerCount = 10;
+	int FrameInterval = (TotalFrames > 0) ? (TotalFrames / targetRulerCount) : 10;
+
+	if (FrameInterval <= 5)
+		FrameInterval = 5;
+	else if (FrameInterval <= 10)
+		FrameInterval = 10;
+	else if (FrameInterval <= 20)
+		FrameInterval = 20;
+	else if (FrameInterval <= 30)
+		FrameInterval = 30;
+	else if (FrameInterval <= 50)
+		FrameInterval = 50;
+	else if (FrameInterval <= 100)
+		FrameInterval = 100;
+	else
+		FrameInterval = ((FrameInterval + 99) / 100) * 100;
+
+	// 프레임 눈금 그리기 (세로선)
+	for (int frame = 0; frame <= TotalFrames; frame += FrameInterval)
+	{
+		float Time = FrameToTime(frame);
+		float XPos = CanvasPos.x + TimeToPixel(Time);
+
+		// 큰 눈금선 (전체 높이)
+		DrawList->AddLine(
+			ImVec2(XPos, CanvasPos.y),
+			ImVec2(XPos, CanvasPos.y + CanvasSize.y),
+			IM_COL32(100, 100, 100, 255), 1.0f);
+
+		// 프레임 번호 표시 (하단)
+		char Label[16];
+		sprintf_s(Label, "%d", frame);
+		DrawList->AddText(
+			ImVec2(XPos - 10, CanvasPos.y + CanvasSize.y - 30),
+			IM_COL32(200, 200, 200, 255), Label);
+	}
+
+	// 작은 눈금
+	int smallInterval = (FrameInterval >= 50) ? (FrameInterval / 5) : (FrameInterval / 2);
+	if (smallInterval > 0)
+	{
+		for (int frame = 0; frame <= TotalFrames; frame += smallInterval)
+		{
+			if (frame % FrameInterval == 0) continue;
+
+			float Time = FrameToTime(frame);
+			float XPos = CanvasPos.x + TimeToPixel(Time);
+
+			DrawList->AddLine(
+				ImVec2(XPos, CanvasPos.y),
+				ImVec2(XPos, CanvasPos.y + CanvasSize.y - RulerHeight),
+				IM_COL32(60, 60, 60, 255), 1.0f);
+		}
+	}
+
+	// 재생 헤드 (Playhead)
+	float PlayheadX = CanvasPos.x + TimeToPixel(CurrentTime);
+
+	// 재생 헤드 라인
+	DrawList->AddLine(
+		ImVec2(PlayheadX, CanvasPos.y),
+		ImVec2(PlayheadX, CanvasPos.y + CanvasSize.y),
+		IM_COL32(255, 100, 100, 255), 3.0f);
+
+	// 재생 헤드 상단 삼각형
+	ImVec2 triangle[3] = {
+		ImVec2(PlayheadX, CanvasPos.y),
+		ImVec2(PlayheadX - 6, CanvasPos.y + 10),
+		ImVec2(PlayheadX + 6, CanvasPos.y + 10)
+	};
+	DrawList->AddTriangleFilled(triangle[0], triangle[1], triangle[2],
+		IM_COL32(255, 100, 100, 255));
+
+	// (markers drawn as per-track chips below)
+
+	// 타임라인 클릭/드래그 감지
+	ImGui::SetCursorScreenPos(CanvasPos);
+	ImGui::InvisibleButton("TimelineButton", CanvasSize);
+
+	if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
+	{
+		bIsDraggingPlayhead = true;
+		ImVec2 MousePos = ImGui::GetMousePos();
+		float ClickX = MousePos.x - CanvasPos.x;
+		CurrentTime = PixelToTime(ClickX);
+		CurrentFrame = TimeToFrame(CurrentTime);
+		bIsPlaying = false;
+		ApplyAnimationPose(); // 드래그 중 포즈 실시간 업데이트
+	}
+	else if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+	{
+		ImVec2 MousePos = ImGui::GetMousePos();
+		float ClickX = MousePos.x - CanvasPos.x;
+		CurrentTime = PixelToTime(ClickX);
+		CurrentFrame = TimeToFrame(CurrentTime);
+		bIsPlaying = false;
+		ApplyAnimationPose(); // 클릭 시 포즈 즉시 업데이트
+	}
+	else if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+	{
+		// Open Add Notify popup at clicked time on the hovered track
+		ImVec2 MousePos = ImGui::GetMousePos();
+		float ClickX = MousePos.x - CanvasPos.x;
+		PendingNotifyTime = PixelToTime(ClickX);
+		// Compute track index from Y (content already offset by SetCursorPosY(-ScrollY))
+		float localY = (MousePos.y - CanvasPos.y);
+		PendingNotifyTrack = (int32)std::floor(localY / RowHeight);
+		strncpy_s(NotifyNameBuffer, sizeof(NotifyNameBuffer), "", 1);
+		ImGui::OpenPopup("AddNotifyPopup");
+	}
+	else
+	{
+		bIsDraggingPlayhead = false;
+	}
+
+	// 커서 이동
+	ImGui::SetCursorScreenPos(ImVec2(CanvasPos.x, CanvasPos.y + CanvasSize.y + 5));
+	ImGui::Spacing();
+
+	// Add Notify popup UI
+	if (ImGui::BeginPopup("AddNotifyPopup"))
+	{
+		ImGui::Text("Add AnimNotify");
+		ImGui::Separator();
+		ImGui::Text("Time: %.3f s", PendingNotifyTime);
+		ImGui::SetNextItemWidth(200.0f);
+		ImGui::InputText("Name", NotifyNameBuffer, sizeof(NotifyNameBuffer));
+		if (ImGui::Button("Add") && CurrentSequence && NotifyNameBuffer[0] != '\0')
+		{
+			FAnimNotifyEvent Ev;
+			Ev.TriggerTime = std::max(0.0f, std::min(PendingNotifyTime, PlayLength));
+			Ev.Duration = 0.0f;
+			Ev.NotifyName = FName(NotifyNameBuffer);
+			CurrentSequence->AddNotify(Ev);
+			// Add a chip on the chosen track for UI placement
+			int32 TrackIdx = PendingNotifyTrack;
+			if (TrackIdx < 0) TrackIdx = 0;
+			// Clamp to actual track count if any
+			if (NotifyTrackIndices.Num() == 0)
+			{
+				// If no tracks exist, create one so chip is visible
+				NotifyTrackIndices.Add(NextNotifyTrackNumber++);
+				TrackIdx = 0;
+			}
+			else if (TrackIdx >= NotifyTrackIndices.Num())
+			{
+				TrackIdx = NotifyTrackIndices.Num() - 1;
+			}
+            FNotifyChip Chip;
+            Chip.Time = Ev.TriggerTime;
+            Chip.Duration = Ev.Duration;
+            Chip.Name = Ev.NotifyName.ToString();
+            Chip.TrackIndex = TrackIdx;
+            NotifyChips.Add(Chip);
+            SelectedNotifyIndex = static_cast<int32>(NotifyChips.Num()) - 1;
+			// Ensure the newly added chip's row is visible
+			float rowTopForScroll = CanvasPos.y + (TrackIdx * RowHeight);
+			ImGui::SetScrollFromPosY(rowTopForScroll + RowHeight * 0.5f, 0.5f);
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel"))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
+    // Draw notify markers per track: diamond at TriggerTime + duration rectangle
+    for (int i = 0; i < NotifyChips.Num(); ++i)
     {
-        float YPos = CanvasPos.y + (i * RowHeight);
-        DrawList->AddLine(
-            ImVec2(CanvasPos.x, YPos),
-            ImVec2(CanvasPos.x + CanvasSize.x, YPos),
-            IM_COL32(80, 80, 80, 255), 1.0f);
-    }
+        const FNotifyChip& Chip = NotifyChips[i];
+        float chipX = CanvasPos.x + TimeToPixel(Chip.Time);
+        float rowTop = CanvasPos.y + (Chip.TrackIndex * RowHeight);
+        float rowBottom = rowTop + RowHeight;
+        float centerY = rowTop + RowHeight * 0.5f;
 
-    // 적응형 눈금 간격 계산
-    int targetRulerCount = 10;
-    int FrameInterval = (TotalFrames > 0) ? (TotalFrames / targetRulerCount) : 10;
+        bool bSelected = (i == SelectedNotifyIndex);
+        ImU32 colDiamondFill   = bSelected ? IM_COL32(255, 235, 100, 255) : IM_COL32(200, 200, 200, 255);
+        ImU32 colDiamondBorder = bSelected ? IM_COL32(255, 210, 60, 255)  : IM_COL32(120, 120, 120, 255);
+        ImU32 colRectFill      = bSelected ? IM_COL32(255, 235, 100, 150) : IM_COL32(180, 180, 80, 90);
+        ImU32 colRectBorder    = bSelected ? IM_COL32(255, 210, 60, 200)  : IM_COL32(140, 140, 90, 140);
 
-    if (FrameInterval <= 5)
-        FrameInterval = 5;
-    else if (FrameInterval <= 10)
-        FrameInterval = 10;
-    else if (FrameInterval <= 20)
-        FrameInterval = 20;
-    else if (FrameInterval <= 30)
-        FrameInterval = 30;
-    else if (FrameInterval <= 50)
-        FrameInterval = 50;
-    else if (FrameInterval <= 100)
-        FrameInterval = 100;
-    else
-        FrameInterval = ((FrameInterval + 99) / 100) * 100;
-
-    // 프레임 눈금 그리기 (세로선)
-    for (int frame = 0; frame <= TotalFrames; frame += FrameInterval)
-    {
-        float Time = FrameToTime(frame);
-        float XPos = CanvasPos.x + TimeToPixel(Time);
-
-        // 큰 눈금선 (전체 높이)
-        DrawList->AddLine(
-            ImVec2(XPos, CanvasPos.y),
-            ImVec2(XPos, CanvasPos.y + CanvasSize.y),
-            IM_COL32(100, 100, 100, 255), 1.0f);
-
-        // 프레임 번호 표시 (하단)
-        char Label[16];
-        sprintf_s(Label, "%d", frame);
-        DrawList->AddText(
-            ImVec2(XPos - 10, CanvasPos.y + CanvasSize.y - 30),
-            IM_COL32(200, 200, 200, 255), Label);
-    }
-
-    // 작은 눈금
-    int smallInterval = (FrameInterval >= 50) ? (FrameInterval / 5) : (FrameInterval / 2);
-    if (smallInterval > 0)
-    {
-        for (int frame = 0; frame <= TotalFrames; frame += smallInterval)
+        // Duration rectangle (from TriggerTime to TriggerTime+Duration)
+        if (Chip.Duration > 0.0f)
         {
-            if (frame % FrameInterval == 0) continue;
-
-            float Time = FrameToTime(frame);
-            float XPos = CanvasPos.x + TimeToPixel(Time);
-
-            DrawList->AddLine(
-                ImVec2(XPos, CanvasPos.y),
-                ImVec2(XPos, CanvasPos.y + CanvasSize.y - RulerHeight),
-                IM_COL32(60, 60, 60, 255), 1.0f);
+            float startX = chipX;
+            float endX = CanvasPos.x + TimeToPixel(Chip.Time + Chip.Duration);
+            if (endX < startX) std::swap(endX, startX);
+            float rectTop = rowTop + RowHeight * 0.25f;
+            float rectBottom = rowBottom - RowHeight * 0.25f;
+            DrawList->AddRectFilled(ImVec2(startX, rectTop), ImVec2(endX, rectBottom), colRectFill, 3.0f);
+            DrawList->AddRect(ImVec2(startX, rectTop), ImVec2(endX, rectBottom), colRectBorder, 3.0f, 0, 1.5f);
         }
+
+        // Diamond marker
+        float h = 7.0f; // half size
+        ImVec2 p0(chipX, centerY - h);
+        ImVec2 p1(chipX + h, centerY);
+        ImVec2 p2(chipX, centerY + h);
+        ImVec2 p3(chipX - h, centerY);
+        DrawList->AddQuadFilled(p0, p1, p2, p3, colDiamondFill);
+        DrawList->AddQuad(p0, p1, p2, p3, colDiamondBorder, 1.8f);
+
+        // Click handling on diamond
+        ImGui::SetCursorScreenPos(ImVec2(chipX - (h + 3.0f), centerY - (h + 3.0f)));
+        char idbuf[64];
+        sprintf_s(idbuf, "NotifyDiamond##%d", i);
+        ImGui::InvisibleButton(idbuf, ImVec2((h + 3.0f) * 2.0f, (h + 3.0f) * 2.0f));
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+        {
+            SelectedNotifyIndex = i;
+        }
+
+        // Optional: notify name near marker
+        std::string label = Chip.Name;
+        ImVec2 labelSize = ImGui::CalcTextSize(label.c_str());
+        DrawList->AddText(ImVec2(chipX + 8.0f, centerY - labelSize.y * 0.5f), IM_COL32(230, 230, 230, 255), label.c_str());
     }
-
-    // 재생 헤드 (Playhead)
-    float PlayheadX = CanvasPos.x + TimeToPixel(CurrentTime);
-
-    // 재생 헤드 라인
-    DrawList->AddLine(
-        ImVec2(PlayheadX, CanvasPos.y),
-        ImVec2(PlayheadX, CanvasPos.y + CanvasSize.y),
-        IM_COL32(255, 100, 100, 255), 3.0f);
-
-    // 재생 헤드 상단 삼각형
-    ImVec2 triangle[3] = {
-        ImVec2(PlayheadX, CanvasPos.y),
-        ImVec2(PlayheadX - 6, CanvasPos.y + 10),
-        ImVec2(PlayheadX + 6, CanvasPos.y + 10)
-    };
-    DrawList->AddTriangleFilled(triangle[0], triangle[1], triangle[2],
-        IM_COL32(255, 100, 100, 255));
-
-    // 타임라인 클릭/드래그 감지
-    ImGui::SetCursorScreenPos(CanvasPos);
-    ImGui::InvisibleButton("TimelineButton", CanvasSize);
-
-    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
-    {
-        bIsDraggingPlayhead = true;
-        ImVec2 MousePos = ImGui::GetMousePos();
-        float ClickX = MousePos.x - CanvasPos.x;
-        CurrentTime = PixelToTime(ClickX);
-        CurrentFrame = TimeToFrame(CurrentTime);
-        bIsPlaying = false;
-        ApplyAnimationPose(); // 드래그 중 포즈 실시간 업데이트
-    }
-    else if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
-    {
-        ImVec2 MousePos = ImGui::GetMousePos();
-        float ClickX = MousePos.x - CanvasPos.x;
-        CurrentTime = PixelToTime(ClickX);
-        CurrentFrame = TimeToFrame(CurrentTime);
-        bIsPlaying = false;
-        ApplyAnimationPose(); // 클릭 시 포즈 즉시 업데이트
-    }
-    else
-    {
-        bIsDraggingPlayhead = false;
-    }
-
-    // 커서 이동
-    ImGui::SetCursorScreenPos(ImVec2(CanvasPos.x, CanvasPos.y + CanvasSize.y + 5));
-    ImGui::Spacing();
 }
+
+
 

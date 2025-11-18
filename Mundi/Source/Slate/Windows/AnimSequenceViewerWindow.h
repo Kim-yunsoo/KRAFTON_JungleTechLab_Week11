@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "SWindow.h"
+#include "Name.h"
 #include "AnimSequence.h"
 #include "AnimSequenceBase.h"
 
@@ -104,8 +105,9 @@ private:
 	int32 SelectedAnimIndex = -1;
 	UAnimSequenceBase* CurrentSequence; // 현재 보고 있는 애니메이션 시퀀스
 	
-	// 재생 상태
-	float CurrentTime = 0.0f;
+    // 재생 상태
+    float CurrentTime = 0.0f;
+    float PrevTimeForNotify = 0.0f; // viewer-side notify range start
 	float PlayLength = 5.0f; // 임시 기본값
 	float PlayRate = 1.0f;
 	bool bIsPlaying = false;
@@ -122,9 +124,24 @@ private:
 	bool bInitialPlacementDone = false;
 	bool bIsOpen = true;
 
-	// 프리뷰 뷰포트 영역 (OnRenderViewport에서 사용)
-	FRect PreviewRect;
+    // 프리뷰 뷰포트 영역 (OnRenderViewport에서 사용)
+    FRect PreviewRect;
 
+    // Notify UI state
+    char NotifyNameBuffer[64] = {0};
+    float PendingNotifyTime = 0.0f;
+    int32 PendingNotifyTrack = -1;
+
+    // Notify chip data for per-track UI placement
+    struct FNotifyChip
+    {
+        float Time = 0.0f;
+        float Duration = 0.0f;
+        FString Name; // store as string for UI
+        int32 TrackIndex = 0; // 0-based UI row index
+    };
+    TArray<FNotifyChip> NotifyChips;
+    int32 SelectedNotifyIndex = -1;
 
 };
 
