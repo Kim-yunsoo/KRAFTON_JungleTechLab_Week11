@@ -19,7 +19,7 @@ public:
 	}
 	void StartStateMachine(const FString& StateName, const float InBlendTime = 0.0f);
 	void StartStateMachine(UAnimState* StartState, const float InBlendTime = 0.0f);
-	UAnimState* AddState(const FString& InName, UAnimSequence* Sequence);
+	UAnimState* AddSequenceInState(const FString& InName, UAnimSequence* Sequence, float InBlendValue = 0.0f);
 	void RemoveState(const FString& InName);
 
 	UAnimTransition* AddTransition(const FString& StartStateName, const FString& EndStateName);
@@ -29,6 +29,7 @@ public:
 	void Tick(float DeltaSeconds);
 	void SetCurrentState(UAnimState* InAnimState, UAnimTransition* InTransition);
 	UAnimState* GetState(const FString& StateName);
+
 
 private:
 	bool HasState(const FString& InName);

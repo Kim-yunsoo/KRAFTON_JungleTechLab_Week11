@@ -43,11 +43,11 @@ void UAnimInstance::ChangeState(UAnimState* AnimState, float InTransitionTime)
 	Play();
 }
 
-UAnimState* UAnimInstance::AddState(const FString& InName, UAnimSequence* Sequence)
+UAnimState* UAnimInstance::AddSequenceInState(const FString& InName, UAnimSequence* Sequence, const float InBlendValue)
 {
-	return AnimStateMachine.AddState(InName, Sequence);;
+	return AnimStateMachine.AddSequenceInState(InName, Sequence, InBlendValue);
 }
-UAnimState* UAnimInstance::AddState(const FString& InName, const FString& AnimPath)
+UAnimState* UAnimInstance::AddSequenceInState(const FString& InName, const FString& AnimPath, const float InBlendValue)
 {
 	UAnimSequence* Sequence = RESOURCE.Get<UAnimSequence>(AnimPath);
 	if (Sequence == nullptr)
@@ -55,8 +55,18 @@ UAnimState* UAnimInstance::AddState(const FString& InName, const FString& AnimPa
 		UE_LOG("Anim None %s", AnimPath);
 		return nullptr;
 	}
-	return AnimStateMachine.AddState(InName, Sequence);
+	return AnimStateMachine.AddSequenceInState(InName, Sequence, InBlendValue);
 }
+
+void UAnimInstance::SetBlendValueInState(const FString& InName, const float InBlendValue)
+{
+	UAnimState* State = AnimStateMachine.GetState(InName);
+	if (State)
+	{
+		State->SetBlnedValue(InBlendValue);
+	}
+}
+
 UAnimTransition* UAnimInstance::AddTransition(const FString& StartStateName, const FString& EndStateName)
 {
 	return AnimStateMachine.AddTransition(StartStateName, EndStateName);
@@ -68,36 +78,56 @@ void UAnimInstance::SetStartState(const FString& StartStateName)
 
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 {
-    if (!OwnerComponent) { return; }
-
-    if (!CurrentState || !CurrentState->AnimSequence) { return; }
-
-    UAnimSequence* CurrentSequence = CurrentState->AnimSequence;
-    TArray<FAnimNotifyEvent> TriggeredNotifies;
-    CurrentSequence->GetAnimNotifiesInRange(PrevTime, CurrentTime, TriggeredNotifies);
-
-    // Build sequence key once (use file path only for consistency)
-    FString SequenceKey;
-    if (CurrentSequence)
+    if (!OwnerComponent)
     {
-        SequenceKey = CurrentSequence->GetFilePath();
+        UE_LOG("[AnimNotify] TriggerAnimNotifies: OwnerComponent is null!");
+        return;
     }
 
-    for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
+    if (!CurrentState)
     {
-        // Component-level delegate; actor or systems can forward to dispatcher/blueprints/etc.
-		OwnerComponent->OnAnimNotify.Broadcast(Notify, SequenceKey);
-
-        FNotifyDispatcher::Get().Dispatch(SequenceKey, Notify);
+        UE_LOG("[AnimNotify] TriggerAnimNotifies: CurrentState is null!");
+        return;
     }
+	TArray<UAnimSequence*> ActiveSequence = CurrentState->GetCurrentActiveSequence();
+
+    if (ActiveSequence.Num() == 0)
+    {
+        UE_LOG("[AnimNotify] TriggerAnimNotifies: CurrentState->AnimSequence is null!");
+        return;
+    }
+
+
+	for (UAnimSequence* Sequence : ActiveSequence)
+	{
+		TArray<FAnimNotifyEvent> TriggeredNotifies;
+		Sequence->GetAnimNotifiesInRange(PrevTime, CurrentTime, TriggeredNotifies);
+
+		// Build sequence key once (use file path only for consistency)
+		FString SequenceKey;
+		if (Sequence)
+		{
+			SequenceKey = Sequence->GetFilePath();
+		}
+
+		for (const FAnimNotifyEvent& Notify : TriggeredNotifies)
+		{
+			// Component-level delegate; actor or systems can forward to dispatcher/blueprints/etc.
+			OwnerComponent->OnAnimNotify.Broadcast(Notify, SequenceKey);
+
+			FNotifyDispatcher::Get().Dispatch(SequenceKey, Notify);
+		}
+	}
+   
 }
 
+//반복없는 애니메이션 끝나면 조건없는 트랜지션을 타고 이동 가능하도록 제작 필요 (애니메이션이 끝날때 라는 조건인거임)
 void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	float TransitionBlendFactor = Clamp((TransitionTime - CurTransitionTime) / TransitionTime);
 	CurTransitionTime -= abs(CurrentTime - PrevTime);
-	UAnimSequence* AnimSequence = CurrentState->AnimSequence;
-	float SequenceTime = AnimSequence->GetSequenceLength();
+
+	float SequenceTime = CurrentState->GetTotalSequenceTime();
 	if (bLoop)
 	{	
 		CurrentTime = ClampTimeLooped(CurrentTime, CurrentTime - PrevTime, SequenceTime);
@@ -112,7 +142,7 @@ void UAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 
 	FPoseContext PoseContext(this);
-	PoseContext.SetPose(AnimSequence, CurrentTime);
+	CurrentState->GetStatePose(this, PoseContext, CurrentTime);
 
 	if (TransitionBlendFactor < 1)
 	{

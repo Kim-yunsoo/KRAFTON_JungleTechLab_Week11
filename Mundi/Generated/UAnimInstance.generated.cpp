@@ -44,21 +44,7 @@ extern "C" void LuaBind_Anchor_UAnimInstance() {}
 
 LUA_BIND_BEGIN(UAnimInstance)
 {
-    AddMethodR<UAnimState*, UAnimInstance, const FString&, const FString&>(
-        T, "AddState", &UAnimInstance::AddState);
-    AddMethodR<UAnimTransition*, UAnimInstance, const FString&, const FString&>(
-        T, "AddTransition", &UAnimInstance::AddTransition);
-    AddAlias<UAnimInstance, const FString&>(
-        T, "SetStartState", &UAnimInstance::SetStartState);
-    AddAlias<UAnimInstance, const bool>(
-        T, "SetLoop", &UAnimInstance::SetLoop);
-    AddAlias<UAnimInstance, const float>(
-        T, "SetSpeed", &UAnimInstance::SetSpeed);
-    AddAlias<UAnimInstance>(
-        T, "Play", &UAnimInstance::Play);
-    AddAlias<UAnimInstance>(
-        T, "Pause", &UAnimInstance::Pause);
-    AddAlias<UAnimInstance>(
-        T, "Replay", &UAnimInstance::Replay);
+    // No functions to bind
 }
 LUA_BIND_END()
+
