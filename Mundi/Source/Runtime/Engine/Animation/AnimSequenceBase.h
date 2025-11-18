@@ -10,8 +10,10 @@ struct FAnimNotifyEvent
 
     float GetEndTime() const { return TriggerTime + Duration; }
     bool IsWithin(float StartTime, float EndTime) const
-    { 
-        return TriggerTime >= StartTime && TriggerTime <= EndTime;
+    {
+        // Unreal-style: notify triggers only once when crossing its time point
+        // Use > instead of >= to prevent duplicate triggers across frames
+        return TriggerTime > StartTime && TriggerTime <= EndTime;
     }
 };
 
