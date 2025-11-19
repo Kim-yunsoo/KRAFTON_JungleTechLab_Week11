@@ -14,10 +14,7 @@ public:
 
 	static void PreLoad();
 
-	USkeletalMesh* LoadFbxMesh(const FString& FilePath);
-
 	FSkeletalMeshData* LoadFbxMeshAsset(const FString& FilePath);
-	UAnimSequence* LoadFbxAnimSequence(const FString& FilePath);
 
 	// 한 번의 FBX 파싱으로 메시와 애니메이션을 동시에 로드
 	void LoadFbxAsset(const FString& FilePath);

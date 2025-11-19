@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #pragma warning(push)
 #pragma warning(disable: 4244) // Disable double to float conversion warning for FBX SDK
 #include "ObjectFactory.h"
@@ -39,9 +39,10 @@ namespace
 	{
 		FbxNode* Node = nullptr;
 		int32 ParentIndex = -1;
+		FbxAMatrix ParentTransform; // 부모(Armature 등)의 누적 변환
 	};
 
-	void GatherBoneNodesRecursive(FbxNode* Node, int32 ParentIndex, TArray<FBoneNodeRecord>& OutBones)
+	void GatherBoneNodesRecursive(FbxNode* Node, int32 ParentIndex, const FbxAMatrix& AccumulatedTransform, TArray<FBoneNodeRecord>& OutBones)
 	{
 		if (!Node)
 		{
@@ -50,28 +51,61 @@ namespace
 
 		FbxNodeAttribute* Attribute = Node->GetNodeAttribute();
 		int32 CurrentIndex = ParentIndex;
+		FbxAMatrix CurrentAccumulatedTransform = AccumulatedTransform;
 
-		// eSkeleton, eNull, eMarker 타입을 모두 본으로 인식
-		// Mixamo 애니메이션은 eMarker 타입으로 저장됨
+		// eSkeleton 타입을 본으로 인식
+		// 블렌더도 eSkeleton 타입 사용 (LimbNode는 TypeName일뿐 실제 enum은 eSkeleton)
+		// Armature(eNull) 같은 컨테이너 노드는 스킵하되, 변환 정보는 누적
 		if (Attribute)
 		{
 			FbxNodeAttribute::EType AttrType = Attribute->GetAttributeType();
-			if (AttrType == FbxNodeAttribute::eSkeleton ||
-				AttrType == FbxNodeAttribute::eNull ||
-				AttrType == FbxNodeAttribute::eMarker)
+
+			// eNull 타입 노드 (Armature 등)의 변환을 누적
+			if (AttrType == FbxNodeAttribute::eNull)
 			{
+				FbxAMatrix LocalTransform = Node->EvaluateLocalTransform();
+				CurrentAccumulatedTransform = AccumulatedTransform * LocalTransform;
+
+				// 자식 노드들에게 누적된 변환 전파
+				const int32 ChildCount = Node->GetChildCount();
+				for (int32 ChildIdx = 0; ChildIdx < ChildCount; ++ChildIdx)
+				{
+					GatherBoneNodesRecursive(Node->GetChild(ChildIdx), ParentIndex, CurrentAccumulatedTransform, OutBones);
+				}
+				return;
+			}
+
+			if (AttrType == FbxNodeAttribute::eSkeleton)
+			{
+				// 블렌더가 자동 생성한 "_end" suffix 본 스킵 (애니메이션 데이터가 없는 종단 본)
+				FString NodeName = FString(Node->GetName());
+				if (NodeName.find("_end") != FString::npos)
+				{
+					// _end 본은 스킵하되, 자식 노드는 현재 ParentIndex로 순회
+					const int32 ChildCount = Node->GetChildCount();
+					for (int32 ChildIdx = 0; ChildIdx < ChildCount; ++ChildIdx)
+					{
+						GatherBoneNodesRecursive(Node->GetChild(ChildIdx), ParentIndex, CurrentAccumulatedTransform, OutBones);
+					}
+					return;
+				}
+
 				FBoneNodeRecord Record;
 				Record.Node = Node;
 				Record.ParentIndex = ParentIndex;
+				Record.ParentTransform = CurrentAccumulatedTransform; // Armature 등의 변환 저장
 				CurrentIndex = OutBones.Num();
 				OutBones.Add(Record);
 			}
 		}
 
+		// eSkeleton 본의 자식들은 Identity 변환 전파 (Armature 변환은 루트 본에만 적용)
+		FbxAMatrix ChildTransform;
+		ChildTransform.SetIdentity();
 		const int32 ChildCount = Node->GetChildCount();
 		for (int32 ChildIdx = 0; ChildIdx < ChildCount; ++ChildIdx)
 		{
-			GatherBoneNodesRecursive(Node->GetChild(ChildIdx), CurrentIndex, OutBones);
+			GatherBoneNodesRecursive(Node->GetChild(ChildIdx), CurrentIndex, ChildTransform, OutBones);
 		}
 	}
 
@@ -98,7 +132,7 @@ namespace
 		return Rate;
 	}
 
-	void BuildAnimationTrackForNode(FbxNode* BoneNode, const FbxTimeSpan& TimeSpan, double FrameRateHz, FBoneAnimationTrack& OutTrack)
+	void BuildAnimationTrackForNode(FbxNode* BoneNode, const FbxTimeSpan& TimeSpan, double FrameRateHz, const FbxAMatrix& ParentTransform, FBoneAnimationTrack& OutTrack)
 	{
 		if (!BoneNode)
 		{
@@ -139,9 +173,13 @@ namespace
 			SampleTime.SetSecondDouble(SampleTimeSeconds);
 
 			FbxAMatrix LocalMatrix = BoneNode->EvaluateLocalTransform(SampleTime);
-			FbxVector4 Translation = LocalMatrix.GetT();
-			FbxVector4 Scale = LocalMatrix.GetS();
-			FbxQuaternion Rotation = LocalMatrix.GetQ();
+
+			// ParentTransform (Armature 등)이 있으면 적용
+			FbxAMatrix FinalMatrix = ParentTransform * LocalMatrix;
+
+			FbxVector4 Translation = FinalMatrix.GetT();
+			FbxVector4 Scale = FinalMatrix.GetS();
+			FbxQuaternion Rotation = FinalMatrix.GetQ();
 
 			OutTrack.InternalTrack.PosKeys.Add(FVector(static_cast<float>(Translation[0]), static_cast<float>(Translation[1]), static_cast<float>(Translation[2])));
 			OutTrack.InternalTrack.RotKeys.Add(FQuat(static_cast<float>(Rotation[0]), static_cast<float>(Rotation[1]), static_cast<float>(Rotation[2]), static_cast<float>(Rotation[3])));
@@ -351,177 +389,6 @@ UFbxLoader& UFbxLoader::GetInstance()
 		FbxLoader = ObjectFactory::NewObject<UFbxLoader>();
 	}
 	return *FbxLoader;
-}
-
-USkeletalMesh* UFbxLoader::LoadFbxMesh(const FString& FilePath)
-{
-	// 0) 경로
-	FString NormalizedPathStr = NormalizePath(FilePath);
-
-	// 1) 이미 로드된 UStaticMesh가 있는지 전체 검색 (정규화된 경로로 비교)
-	for (TObjectIterator<USkeletalMesh> It; It; ++It)
-	{
-		USkeletalMesh* SkeletalMesh = *It;
-
-		if (SkeletalMesh->GetFilePath() == NormalizedPathStr)
-		{
-			return SkeletalMesh;
-		}
-	}
-
-	// 2) 없으면 새로 로드 (정규화된 경로 사용)
-	USkeletalMesh* SkeletalMesh = UResourceManager::GetInstance().Load<USkeletalMesh>(NormalizedPathStr);
-
-	UE_LOG("USkeletalMesh(filename: \'%s\') is successfully crated!", NormalizedPathStr.c_str());
-	return SkeletalMesh;
-}
-
-	UAnimSequence* UFbxLoader::LoadFbxAnimSequence(const FString& FilePath)
-	{
-	FString NormalizedPathStr = NormalizePath(FilePath);
-	if (NormalizedPathStr.empty())
-	{
-		return nullptr;
-	}
-
-	if (UAnimSequence* Existing = UResourceManager::GetInstance().Get<UAnimSequence>(NormalizedPathStr))
-	{
-		return Existing;
-	}
-
-	FbxImporter* Importer = FbxImporter::Create(SdkManager, "");
-	if (!Importer->Initialize(NormalizedPathStr.c_str(), -1, SdkManager->GetIOSettings()))
-	{
-		UE_LOG("UFbxLoader::LoadFbxAnimSequence: Failed to initialize importer for '%s' (%s)", NormalizedPathStr.c_str(), Importer->GetStatus().GetErrorString());
-		Importer->Destroy();
-		return nullptr;
-	}
-
-	FbxScene* Scene = FbxScene::Create(SdkManager, "AnimScene");
-	if (!Importer->Import(Scene))
-	{
-		UE_LOG("UFbxLoader::LoadFbxAnimSequence: Failed to import scene from '%s'", NormalizedPathStr.c_str());
-		Importer->Destroy();
-		Scene->Destroy();
-		return nullptr;
-	}
-	Importer->Destroy();
-
-	FbxAxisSystem UnrealImportAxis(FbxAxisSystem::eZAxis, FbxAxisSystem::eParityEven, FbxAxisSystem::eLeftHanded);
-	FbxAxisSystem SourceSetup = Scene->GetGlobalSettings().GetAxisSystem();
-	FbxSystemUnit::m.ConvertScene(Scene);
-	if (SourceSetup != UnrealImportAxis)
-	{
-		UnrealImportAxis.DeepConvertScene(Scene);
-	}
-	FbxGeometryConverter GeometryConverter(SdkManager);
-	GeometryConverter.Triangulate(Scene, true);
-
-	if (Scene->GetSrcObjectCount<FbxAnimStack>() == 0)
-	{
-		Scene->Destroy();
-		return nullptr;
-	}
-
-	FbxAnimStack* AnimStack = Scene->GetSrcObject<FbxAnimStack>(0);
-	Scene->SetCurrentAnimationStack(AnimStack);
-	if (!AnimStack->GetMember<FbxAnimLayer>(0))
-	{
-		Scene->Destroy();
-		return nullptr;
-	}
-
-	FbxTimeSpan TimeSpan = AnimStack->GetLocalTimeSpan();
-	if (TimeSpan.GetStop().GetSecondDouble() <= TimeSpan.GetStart().GetSecondDouble())
-	{
-		Scene->GetGlobalSettings().GetTimelineDefaultTimeSpan(TimeSpan);
-	}
-
-	if (TimeSpan.GetStop().GetSecondDouble() <= TimeSpan.GetStart().GetSecondDouble())
-	{
-		Scene->Destroy();
-		return nullptr;
-	}
-
-	double FrameRateHz = FbxTime::GetFrameRate(Scene->GetGlobalSettings().GetTimeMode());
-	if (FrameRateHz <= 0.0)
-	{
-		FrameRateHz = 30.0;
-	}
-
-	TArray<FBoneNodeRecord> BoneInfos;
-	GatherBoneNodesRecursive(Scene->GetRootNode(), -1, BoneInfos);
-	if (BoneInfos.IsEmpty())
-	{
-		Scene->Destroy();
-		return nullptr;
-	}
-
-		TArray<FBoneAnimationTrack> Tracks;
-		Tracks.Reserve(BoneInfos.Num());
-	for (int32 BoneIdx = 0; BoneIdx < BoneInfos.Num(); ++BoneIdx)
-	{
-		const FBoneNodeRecord& BoneRecord = BoneInfos[BoneIdx];
-		if (!BoneRecord.Node)
-		{
-			continue;
-		}
-
-		FBoneAnimationTrack Track;
-		Track.BoneIndex = BoneIdx;
-		Track.BoneName = FName(FString(BoneRecord.Node->GetName()));
-		BuildAnimationTrackForNode(BoneRecord.Node, TimeSpan, FrameRateHz, Track);
-
-		if (Track.InternalTrack.HasAnyKeys())
-		{
-			Tracks.Add(std::move(Track));
-		}
-	}
-
-	if (Tracks.IsEmpty())
-	{
-		Scene->Destroy();
-		return nullptr;
-	}
-
-		auto DataModel = std::make_unique<UAnimDataModel>();
-		DataModel->SetFrameRate(BuildFrameRateFromDouble(FrameRateHz));
-		DataModel->SetBoneTracks(std::move(Tracks));
-
-        // Collect property/blendshape curves from FBX
-        FbxAnimLayer* Layer = AnimStack->GetMember<FbxAnimLayer>(0);
-        if (Layer)
-        {
-            TArray<FCurveTrack> Curves;
-            CollectCurveTracksForScene(Scene, Layer, Curves);
-            if (!Curves.IsEmpty())
-            {
-                DataModel->SetCurveTracks(std::move(Curves));
-                UE_LOG("FBX: Collected %d curve tracks from scene", Curves.size());
-            }
-        }
-
-	UAnimSequence* AnimSequence = NewObject<UAnimSequence>();
-	AnimSequence->SetDataModel(std::move(DataModel));
-	AnimSequence->SetFilePath(NormalizedPathStr);
-	try
-	{
-		std::filesystem::path FsPath(UTF8ToWide(NormalizedPathStr));
-		AnimSequence->SetLastModifiedTime(std::filesystem::last_write_time(FsPath));
-	}
-	catch (...)
-	{
-		AnimSequence->SetLastModifiedTime(std::filesystem::file_time_type::clock::now());
-	}
-
-	if (!UResourceManager::GetInstance().Add<UAnimSequence>(NormalizedPathStr, AnimSequence))
-	{
-		Scene->Destroy();
-		return UResourceManager::GetInstance().Get<UAnimSequence>(NormalizedPathStr);
-	}
-
-	Scene->Destroy();
-	return AnimSequence;
 }
 
 // 한 번의 FBX 파싱으로 메시와 애니메이션을 동시에 로드
@@ -847,7 +714,9 @@ void UFbxLoader::LoadFbxAsset(const FString& FilePath)
 		}
 
 		TArray<FBoneNodeRecord> BoneInfos;
-		GatherBoneNodesRecursive(Scene->GetRootNode(), -1, BoneInfos);
+		FbxAMatrix IdentityMatrix;
+		IdentityMatrix.SetIdentity();
+		GatherBoneNodesRecursive(Scene->GetRootNode(), -1, IdentityMatrix, BoneInfos);
 		if (BoneInfos.IsEmpty())
 		{
 			Scene->Destroy();
@@ -864,7 +733,7 @@ void UFbxLoader::LoadFbxAsset(const FString& FilePath)
 			FBoneAnimationTrack Track;
 			Track.BoneIndex = BoneIdx;
 			Track.BoneName = FName(FString(BoneRecord.Node->GetName()));
-			BuildAnimationTrackForNode(BoneRecord.Node, TimeSpan, FrameRateHz, Track);
+			BuildAnimationTrackForNode(BoneRecord.Node, TimeSpan, FrameRateHz, BoneRecord.ParentTransform, Track);
 
 			if (Track.InternalTrack.HasAnyKeys())
 			{
@@ -1088,7 +957,7 @@ FSkeletalMeshData* UFbxLoader::LoadFbxMeshAsset(const FString& FilePath)
 	FbxAxisSystem SourceSetup = Scene->GetGlobalSettings().GetAxisSystem();
 
 	FbxSystemUnit::m.ConvertScene(Scene);
-	
+
 	if (SourceSetup != UnrealImportAxis)
 	{
 		UE_LOG("Fbx 축 변환 완료!\n");
@@ -1145,6 +1014,8 @@ FSkeletalMeshData* UFbxLoader::LoadFbxMeshAsset(const FString& FilePath)
 		
 		// 여러 루트 본이 있으면 가상 루트 생성
 		EnsureSingleRootBone(*MeshData);
+
+		UE_LOG("[LoadMesh] Total bones loaded: %d", MeshData->Skeleton.Bones.Num());
 	}
 
 	// 머티리얼이 있는 경우 플래그 설정
@@ -1316,30 +1187,45 @@ void UFbxLoader::LoadMeshFromNode(FbxNode* InNode,
 // Skeleton은 계층구조까지 표현해야하므로 깊이 우선 탐색, ParentNodeIndex 명시.
 void UFbxLoader::LoadSkeletonFromNode(FbxNode* InNode, FSkeletalMeshData& MeshData, int32 ParentNodeIndex, TMap<FbxNode*, int32>& BoneToIndex)
 {
+	if (!InNode) { return; }
+
 	int32 BoneIndex = ParentNodeIndex;
 	for (int Index = 0; Index < InNode->GetNodeAttributeCount(); Index++)
 	{
-		
-		FbxNodeAttribute* Attribute = InNode->GetNodeAttributeByIndex(Index);
-		if (!Attribute)
-		{
-			continue;
-		}
 
-		if (Attribute->GetAttributeType() == FbxNodeAttribute::eSkeleton)
+		FbxNodeAttribute* Attribute = InNode->GetNodeAttributeByIndex(Index);
+		if (!Attribute) { continue; }
+
+		FbxNodeAttribute::EType AttrType = Attribute->GetAttributeType();
+
+		// eSkeleton 타입을 본으로 인식
+		// 블렌더도 eSkeleton 타입 사용 (LimbNode는 TypeName일뿐 실제 enum은 eSkeleton)
+		if (AttrType == FbxNodeAttribute::eSkeleton)
 		{
+			// 블렌더가 자동 생성한 "_end" suffix 본 스킵 (애니메이션 데이터가 없는 종단 본)
+			FString NodeName = FString(InNode->GetName());
+			if (NodeName.find("_end") != FString::npos)
+			{
+				// _end 본은 스킵하되, 자식 노드는 현재 ParentNodeIndex로 순회
+				for (int ChildIndex = 0; ChildIndex < InNode->GetChildCount(); ChildIndex++)
+				{
+					LoadSkeletonFromNode(InNode->GetChild(ChildIndex), MeshData, ParentNodeIndex, BoneToIndex);
+				}
+				return;
+			}
+
 			FBone BoneInfo{};
 
-			BoneInfo.Name = FString(InNode->GetName());
-			
+			BoneInfo.Name = NodeName;
+
 			BoneInfo.ParentIndex = ParentNodeIndex;
 
 			// 뼈 리스트에 추가
 			MeshData.Skeleton.Bones.Add(BoneInfo);
-			
+
 			// 뼈 인덱스 우리가 정해줌(방금 추가한 마지막 원소)
 			BoneIndex = MeshData.Skeleton.Bones.Num() - 1;
-			
+
 			// 뼈 이름으로 인덱스 서치 가능하게 함.
 			MeshData.Skeleton.BoneNameToIndex.Add(BoneInfo.Name, BoneIndex);
 
@@ -1351,7 +1237,7 @@ void UFbxLoader::LoadSkeletonFromNode(FbxNode* InNode, FSkeletalMeshData& MeshDa
 	}
 	for (int Index = 0; Index < InNode->GetChildCount(); Index++)
 	{
-		// 깊이 우선 탐색 부모 인덱스 설정(InNOde가 eSkeleton이 아니면 기존 부모 인덱스가 넘어감(BoneIndex = ParentNodeIndex)
+		// 깊이 우선 탐색 부모 인덱스 설정(본 타입이 아니면 기존 부모 인덱스가 넘어감)
 		LoadSkeletonFromNode(InNode->GetChild(Index), MeshData, BoneIndex, BoneToIndex);
 	}
 }
