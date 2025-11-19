@@ -544,14 +544,13 @@ void USkinnedMeshComponent::CreateGPUSkinningResources()
 void USkinnedMeshComponent::ReleaseGPUSkinningResources()
 {
    // GPU 작업이 완료될 때까지 대기 (중요: Release 전에 GPU가 리소스 사용 완료해야 함)
-   ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
-   if (Context)
-   {
-      // 모든 GPU 명령 완료 대기
-      Context->Flush();
-      Context->ClearState();
-   }
-
+   //ID3D11DeviceContext* Context = GEngine.GetRHIDevice()->GetDeviceContext();
+   //if (Context)
+   //{
+   //   // 모든 GPU 명령 완료 대기
+   //   Context->Flush();
+   //   Context->ClearState();
+   //}
    // GPU Query 리소스 해제
    ReleaseGPUQueryResources();
 
