@@ -1138,6 +1138,12 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 	{
 		if (bCanDelete && CurrentSequence)
 		{
+			// 삭제할 트랙의 실제 번호 (NotifyTrackIndices 배열의 값)
+			int32 TrackNumberToDelete = NotifyTrackIndices[SelectedTrackIndex];
+
+			UE_LOG("[AnimSequenceViewer] Deleting track index %d (track number %d)",
+				SelectedTrackIndex, TrackNumberToDelete);
+
 			// 1. 해당 트랙에 있는 모든 노티파이 삭제
 			const TArray<FAnimNotifyEvent>& Notifies = CurrentSequence->GetNotifies();
 			const TArray<int32>& DisplayTracks = CurrentSequence->GetNotifyDisplayTrackIndices();
@@ -1146,7 +1152,8 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 			TArray<FName> NotifiesToRemove;
 			for (size_t i = 0; i < Notifies.size() && i < DisplayTracks.size(); ++i)
 			{
-				if (DisplayTracks[i] == SelectedTrackIndex)
+				// DisplayTracks[i]는 트랙 번호 (NotifyTrackIndices의 값)
+				if (DisplayTracks[i] == TrackNumberToDelete)
 				{
 					NotifiesToRemove.Add(Notifies[i].NotifyName);
 				}
@@ -1156,11 +1163,14 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 			for (const FName& NotifyName : NotifiesToRemove)
 			{
 				CurrentSequence->RemoveNotifiesByName(NotifyName);
+				UE_LOG("[AnimSequenceViewer] Removed notify '%s' from track %d",
+					NotifyName.ToString().c_str(), TrackNumberToDelete);
 			}
 
 			// UI 칩도 삭제
 			for (int32 i = static_cast<int32>(NotifyChips.Num()) - 1; i >= 0; --i)
 			{
+				// NotifyChips[i].TrackIndex는 UI 배열 인덱스
 				if (NotifyChips[i].TrackIndex == SelectedTrackIndex)
 				{
 					NotifyChips.RemoveAt(i);
@@ -1173,6 +1183,7 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 
 			// 3. 시퀀스에 트랙 정보 저장
 			CurrentSequence->SetNotifyTrackIndices(NotifyTrackIndices);
+			// NextNotifyTrackNumber는 유지 (빈 번호 재사용을 위해)
 
 			// Track delete - save to binary file
 			FString OriginalPath = CurrentSequence->GetFilePath();
@@ -1193,8 +1204,40 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 	{
 		if (ImGui::MenuItem("Add Notify Track"))
 		{
-			NotifyTrackIndices.Add(NextNotifyTrackNumber);
-			NextNotifyTrackNumber++;
+			// 1부터 시작해서 NotifyTrackIndices에 없는 가장 작은 번호 찾기
+			int32 NewTrackNumber = -1;
+
+			// NextNotifyTrackNumber - 1까지 순회 (NextNotifyTrackNumber는 아직 사용 안 된 번호)
+			for (int32 i = 1; i < NextNotifyTrackNumber; ++i)
+			{
+				bool bExists = false;
+				for (int32 ExistingTrack : NotifyTrackIndices)
+				{
+					if (ExistingTrack == i)
+					{
+						bExists = true;
+						break;
+					}
+				}
+
+				if (!bExists)
+				{
+					NewTrackNumber = i;
+					break;
+				}
+			}
+
+			// 빈 번호가 없으면 NextNotifyTrackNumber 사용하고 증가
+			if (NewTrackNumber == -1)
+			{
+				NewTrackNumber = NextNotifyTrackNumber;
+				NextNotifyTrackNumber++;
+			}
+
+			NotifyTrackIndices.Add(NewTrackNumber);
+
+			UE_LOG("[AnimSequenceViewer] Added track %d (NotifyTrackIndices count: %d, NextNotifyTrackNumber: %d)",
+				NewTrackNumber, NotifyTrackIndices.Num(), NextNotifyTrackNumber);
 
 			// 시퀀스에 트랙 정보 저장
 			if (CurrentSequence)
@@ -1292,6 +1335,8 @@ void SAnimSequenceViewerWindow::RenderNotifyTrackColumn(float ColumnWidth, float
 		if (ImGui::Selectable(Label, bSelected, 0, ImVec2(0, RowHeight)))
 		{
 			SelectedTrackIndex = i;
+			UE_LOG("[AnimSequenceViewer] Selected track index %d (track number %d)",
+				SelectedTrackIndex, TrackNumber);
 		}
 
 		// 호버 감지
