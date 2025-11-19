@@ -20,12 +20,6 @@ ASkeletalMeshActor::~ASkeletalMeshActor() = default;
 void ASkeletalMeshActor::BeginPlay()
 {
     Super::BeginPlay();
-
-    if (USkeletalMeshComponent* Comp = GetSkeletalMeshComponent())
-    {
-        // Enter Move state so Standard Walk plays and triggers TEST at 0.3s
-        Comp->bMove = true;
-    }
 }
 
 void ASkeletalMeshActor::Tick(float DeltaTime)

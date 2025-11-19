@@ -84,8 +84,8 @@ public:
     UFUNCTION(LuaBind, DisplayName = "SetStartState")
     void SetStartState(const FString& StartStateName);
 
-    UFUNCTION(LuaBind, DisplayName = "SetSpeed")
-    void SetSpeed(const float InSpeed);
+    UFUNCTION(LuaBind, DisplayName = "SetStateSpeed")
+    void SetStateSpeed(const FString& StateName, const float InSpeed);
 
     UFUNCTION(LuaBind, DisplayName = "Play")
     void Play();
@@ -112,16 +112,6 @@ public:
 
     // AnimNotify routing
     void HandleAnimNotify(const FAnimNotifyEvent& Notify);
-
-public:
-    UPROPERTY(EditAnywhere, Category = "SkeletalComponent", Range = "0.0, 1.0")
-    float TestBlend = 0;
-
-    UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
-    bool bMove = false;
-
-    UPROPERTY(EditAnywhere, Category = "SkeletalComponent")
-    float TestSpeed = 1;
 
 protected:
     /**

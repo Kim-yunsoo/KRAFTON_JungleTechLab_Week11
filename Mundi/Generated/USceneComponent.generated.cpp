@@ -37,8 +37,8 @@ BEGIN_PROPERTIES(USceneComponent)
     MARK_AS_COMPONENT("씬 컴포넌트", "트랜스폼을 가진 기본 컴포넌트입니다")
     ADD_PROPERTY(bool, bIsVisible, "렌더링", true)
     ADD_PROPERTY(FVector, RelativeLocation, "Transform", true)
-    ADD_PROPERTY(FVector, RelativeScale, "Transform", true)
     ADD_PROPERTY(FVector, RelativeRotationEuler, "Transform", true)
+    ADD_PROPERTY(FVector, RelativeScale, "Transform", true)
 END_PROPERTIES()
 
 // ===== Lua Binding =====

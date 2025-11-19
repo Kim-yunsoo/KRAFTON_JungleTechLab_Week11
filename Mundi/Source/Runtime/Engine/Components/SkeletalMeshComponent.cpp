@@ -31,7 +31,6 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime)
     Super::TickComponent(DeltaTime);
     if (AnimInstance)
     {
-        AnimInstance->SetSpeed(TestSpeed);
         AnimInstance->Tick(DeltaTime);
     }
 }
@@ -299,11 +298,11 @@ void USkeletalMeshComponent::SetStartState(const FString& StartStateName)
     }
 }
 
-void USkeletalMeshComponent::SetSpeed(const float InSpeed)
-{ 
+void USkeletalMeshComponent::SetStateSpeed(const FString& StateName, const float InSpeed)
+{
     if (AnimInstance)
     {
-        AnimInstance->SetSpeed(InSpeed);
+        AnimInstance->SetStateSpeed(StateName, InSpeed);
     }
 }
 

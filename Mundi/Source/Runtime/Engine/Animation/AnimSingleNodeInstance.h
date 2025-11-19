@@ -11,9 +11,14 @@ public:
 	virtual ~UAnimSingleNodeInstance() = default;
 	void Tick(float DeltaSeconds) override;
 	void SetAnimSequence(UAnimSequence* InAnimSequence, const bool InLoop = false);
+	void SetSpeed(const float InSpeed)
+	{
+		Speed = InSpeed;
+	}
 protected:
 	void NativeUpdateAnimation(float DeltaSeconds) override;
 	UAnimSequence* AnimSequence = nullptr;
 private:
 	bool bLoop = false;
+	float Speed = 0.0f;
 };
