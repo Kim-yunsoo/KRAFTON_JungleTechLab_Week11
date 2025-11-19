@@ -102,6 +102,8 @@ public:
     UFUNCTION(LuaBind, DisplayName = "SetStateExitTime")
     void SetStateExitTime(const FString& InName, const float InExitTime);
 
+    UFUNCTION(LuaBind, DisplayName = "GetCurStateName")
+    FString GetCurStateName();
     //------------------------
 
     void DuplicateSubObjects() override;

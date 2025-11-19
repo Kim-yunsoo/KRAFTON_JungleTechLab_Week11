@@ -66,5 +66,7 @@ LUA_BIND_BEGIN(USkeletalMeshComponent)
         T, "SetStateLoop", &USkeletalMeshComponent::SetStateLoop);
     AddAlias<USkeletalMeshComponent, const FString&, const float>(
         T, "SetStateExitTime", &USkeletalMeshComponent::SetStateExitTime);
+    AddMethodR<FString, USkeletalMeshComponent>(
+        T, "GetCurStateName", &USkeletalMeshComponent::GetCurStateName);
 }
 LUA_BIND_END()

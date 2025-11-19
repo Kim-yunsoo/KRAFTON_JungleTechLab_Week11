@@ -4,6 +4,8 @@ local AnimInstance
 
 local bWalk = true
 local bJump = false
+local bPunch = false
+
 
 local Speed = 0.75
 
@@ -19,23 +21,39 @@ local PitchSensitivity = 0.0025
 
 local MovementDelta = 10
 
+WalkSpeed = 0.4
+RunSpeed = 0.75
 
 function BeginPlay()
 print("Begin")
 SkeletalComp = GetComponent(Obj, "USkeletalMeshComponent")
+--State Anim 추가
 SkeletalComp:AddSequenceInState("Idle", "Data/Animations/Breathing Idle.fbx", 0)
-SkeletalComp:AddSequenceInState("Move", "Data/Animations/Standard Walk.fbx", 0)
-SkeletalComp:AddSequenceInState("Move", "Data/Animations/Standard Run.fbx", 1)
+SkeletalComp:AddSequenceInState("Move", "Data/Animations/Standard Walk.fbx", WalkSpeed)
+SkeletalComp:AddSequenceInState("Move", "Data/Animations/Standard Run.fbx", RunSpeed)
 SkeletalComp:AddSequenceInState("Jump", "Data/Animations/Jumping.fbx", 0)
-SkeletalComp:SetStateSpeed("Idle", 0.85)
-SkeletalComp:SetStateSpeed("Move", 0.85)
+SkeletalComp:AddSequenceInState("Punch", "Data/Animations/Punching.fbx", 0)
+
+--State 설정
+SkeletalComp:SetStateSpeed("Move", 1.7)
+SkeletalComp:SetStateSpeed("Jump", 1.4)
 SkeletalComp:SetStateLoop("Jump", false)    
-SkeletalComp:SetStateExitTime("Jump", 0.55)    
+SkeletalComp:SetStateExitTime("Jump", 0.55)   
+SkeletalComp:SetStateSpeed("Punch", 2.5)
+SkeletalComp:SetStateLoop("Punch", false)    
+
+--Transition
 SkeletalComp:AddTransition("Idle", "Move", 0.2, function() return bWalk end)
 SkeletalComp:AddTransition("Move", "Idle", 0.2, function() return bWalk==false end)
 SkeletalComp:AddTransition("Idle", "Jump", 0.2, function() return bJump end)
 SkeletalComp:AddTransition("Move", "Jump", 0.2, function() return bJump end)
 SkeletalComp:AddTransition("Jump", "Idle", 0.1, nil)
+
+SkeletalComp:AddTransition("Idle", "Punch", 0.25, function() return bPunch end)
+SkeletalComp:AddTransition("Move", "Punch", 0.25, function() return bPunch end)
+SkeletalComp:AddTransition("Punch", "Idle", 0.1, nil)
+
+--시작 State 설정
 SkeletalComp:SetStartState("Idle")
 
 -- 카메라 초기화
@@ -44,60 +62,64 @@ if Camera then
     Camera:SetCameraForward(ForwardVector)
 end
 ForwardVector = NormalizeCopy(ForwardVector)
-
-
-
-
 end
 
-function EndPlay()
-    
+function EndPlay()  
 end
 
-
-local JumpDelay = 0.5
-local CurJumpDelay = 0
 function Tick(dt)
-    if InputManager:IsKeyDown('W') then
+    CurStateName = SkeletalComp:GetCurStateName()
+    if bPunch == true and CurStateName ~= "Punch" then
+    bPunch = false
+    end
+    if bJump == true and CurStateName ~= "Jump" then
+    bJump = false
+    end
+
+    --속도조절
+    if InputManager:IsKeyDown('Q') then
+    Speed = Speed - dt
+    end
+    if InputManager:IsKeyDown('E') then
+    Speed = Speed + dt
+    end
+
+    --이동
+    if InputManager:IsKeyDown('W') and bPunch == false then
     bWalk = true
-    MoveForward(MovementDelta * dt) 
+    MoveForward(MovementDelta * dt * Speed) 
     else
     bWalk = false
     end
 
-    if InputManager:IsKeyDown('A') then
-    Speed = Speed - dt
-    MoveRight(-MovementDelta * dt) 
-    end
+    --if InputManager:IsKeyDown('A') then
+    --MoveRight(-MovementDelta * dt) 
+    --end
 
-    if InputManager:IsKeyDown('D') then
-    Speed = Speed + dt
-    MoveRight(MovementDelta * dt)
-    end
+    --if InputManager:IsKeyDown('D') then
+    --MoveRight(MovementDelta * dt)
+    --end
 
-    if InputManager:IsKeyDown('E') and bJump == false then
-    print("Jump")
+    --점프
+    if InputManager:IsKeyDown('F') and bJump == false then
     bJump = true
-    CurJumpDelay = JumpDelay
+    end
+    
+
+    --펀치
+    if InputManager:IsKeyDown("R") and bPunch == false then
+    bPunch = true
+    print("Punch")
     end
 
-    if bJump == true then
-    CurJumpDelay  = CurJumpDelay - dt
-    print("JumpDelay")
-    end
 
-    if CurJumpDelay < 0 then
-    bJump = false
-    print("JumpEnd")
-
-    end
 
 
     SkeletalComp:SetBlendValueInState("Move", Speed)
-    if Speed < 0 then
-    Speed = 0
-elseif Speed > 1 then
-    Speed = 1
+    if Speed < WalkSpeed then
+    Speed = WalkSpeed
+elseif Speed > RunSpeed then
+    Speed = RunSpeed
 end
 
     RotateCamera() -- 마우스로 카메라 회전

@@ -345,3 +345,11 @@ void USkeletalMeshComponent::SetStateExitTime(const FString& InName, const float
     }
 }
 
+FString USkeletalMeshComponent::GetCurStateName()
+{
+    if (AnimInstance)
+    {
+        return AnimInstance->GetCurrentStateName();
+    }
+    return "None";
+}
