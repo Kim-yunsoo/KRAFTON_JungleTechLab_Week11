@@ -17,6 +17,11 @@ ViewerState* SkeletalViewerBootstrap::CreateViewerState(const char* Name, UWorld
     State->World = NewObject<UWorld>();
     State->World->SetWorldType(EWorldType::PreviewMinimal);  // Set as preview world for memory optimization
     State->World->Initialize();
+
+    // World를 GEngine의 WorldContexts에 등록 (스키닝 모드 전환 등에서 접근 가능하도록)
+    FWorldContext PreviewWorldContext(State->World, EWorldType::PreviewMinimal);
+    GEngine.AddWorldContext(PreviewWorldContext);
+
     State->World->GetRenderSettings().DisableShowFlag(EEngineShowFlags::SF_EditorIcon);
 
     State->World->GetGizmoActor()->SetSpace(EGizmoSpace::Local);
@@ -52,6 +57,21 @@ void SkeletalViewerBootstrap::DestroyViewerState(ViewerState*& State)
     if (!State) return;
     if (State->Viewport) { delete State->Viewport; State->Viewport = nullptr; }
     if (State->Client) { delete State->Client; State->Client = nullptr; }
+
+    // WorldContexts에서 제거 (World 삭제 전에 수행)
+    if (State->World)
+    {
+        TArray<FWorldContext>& WorldContexts = const_cast<TArray<FWorldContext>&>(GEngine.GetWorldContexts());
+        for (int i = WorldContexts.Num() - 1; i >= 0; --i)
+        {
+            if (WorldContexts[i].World == State->World)
+            {
+                WorldContexts.RemoveAt(i);
+                break;
+            }
+        }
+    }
+
     if (State->World) { ObjectFactory::DeleteObject(State->World); State->World = nullptr; }
     delete State; State = nullptr;
 }

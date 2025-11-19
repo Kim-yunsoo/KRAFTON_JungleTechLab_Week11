@@ -18,6 +18,10 @@ ViewerState* AnimSequenceViewerBootstrap::CreateViewerState(const char* Name, UW
     State->World->SetWorldType(EWorldType::PreviewMinimal);  // 메모리 최적화를 위한 프리뷰 월드
     State->World->Initialize();
 
+    // World를 GEngine의 WorldContexts에 등록 (스키닝 모드 전환 등에서 접근 가능하도록)
+    FWorldContext PreviewWorldContext(State->World, EWorldType::PreviewMinimal);
+    GEngine.AddWorldContext(PreviewWorldContext);
+
     // 애니메이션 프리뷰용 쇼플래그 설정 (에디터 아이콘 비활성화)
     State->World->GetRenderSettings().DisableShowFlag(EEngineShowFlags::SF_EditorIcon);
 
@@ -66,6 +70,20 @@ void AnimSequenceViewerBootstrap::DestroyViewerState(ViewerState*& State)
     // Viewport와 Client 정리
     if (State->Viewport) { delete State->Viewport; State->Viewport = nullptr; }
     if (State->Client) { delete State->Client; State->Client = nullptr; }
+
+    // WorldContexts에서 제거 (World 삭제 전에 수행)
+    if (State->World)
+    {
+        TArray<FWorldContext>& WorldContexts = const_cast<TArray<FWorldContext>&>(GEngine.GetWorldContexts());
+        for (int i = WorldContexts.Num() - 1; i >= 0; --i)
+        {
+            if (WorldContexts[i].World == State->World)
+            {
+                WorldContexts.RemoveAt(i);
+                break;
+            }
+        }
+    }
 
     // World 정리 (내부적으로 모든 액터를 DestroyActor()로 정리함)
     if (State->World) { ObjectFactory::DeleteObject(State->World); State->World = nullptr; }
