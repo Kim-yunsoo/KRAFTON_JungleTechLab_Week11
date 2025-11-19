@@ -8,6 +8,7 @@ local bPunch = false
 local bPunch2 = false
 local Punch2Delay = 0.3
 local CurPunch2Delay = 0
+local bDance = false
 
 
 local Speed = 0.75
@@ -39,6 +40,7 @@ SkeletalComp:AddSequenceInState("Move", "Data/Animations/Standard Run.fbx", RunS
 SkeletalComp:AddSequenceInState("Jump", "Data/Animations/Jumping.fbx", 0)
 SkeletalComp:AddSequenceInState("Punch", "Data/Animations/Punching.fbx", 0)
 SkeletalComp:AddSequenceInState("Punch2", "Data/Animations/Punching2.fbx", 0)
+SkeletalComp:AddSequenceInState("Dance", "Data/Animations/Gangnam Style_blend_ascii.fbx", 0)
 
 --State 설정
 SkeletalComp:SetStateSpeed("Move", 1.7)
@@ -61,6 +63,10 @@ SkeletalComp:AddTransition("Move", "Punch", 0.25, function() return bPunch end)
 SkeletalComp:AddTransition("Punch", "Idle", 0.1, nil)
 SkeletalComp:AddTransition("Punch", "Punch2", 0.2, function() return bPunch2 end)
 SkeletalComp:AddTransition("Punch2", "Idle", 0.1, nil)
+SkeletalComp:AddTransition("Idle", "Dance", 0.2, function() return bDance end)
+SkeletalComp:AddTransition("Move", "Dance", 0.2, function() return bDance end)
+SkeletalComp:AddTransition("Dance", "Move", 0.2, function() return bDance == false end)
+
 
 --시작 State 설정
 SkeletalComp:SetStartState("Idle")
@@ -100,6 +106,7 @@ function Tick(dt)
 
     --이동
     if InputManager:IsKeyDown('W') and bPunch == false and bPunch2 == false then
+    bDance = false
     bWalk = true
     MoveForward(MovementDelta * dt * Speed) 
     else
@@ -115,23 +122,25 @@ function Tick(dt)
     --end
 
     --점프
-    if InputManager:IsKeyPressed('F') and bJump == false then
+    if InputManager:IsKeyPressed('F') and bJump == false and bDance == false then
     bJump = true
     StateCheckDelay = 0.1
     end
     
-
     --펀치
-    if InputManager:IsKeyPressed("R") and bPunch == false and bPunch2 == false then
+    if InputManager:IsKeyPressed("R") and bPunch == false and bPunch2 == false and bDance == false then
     bPunch = true
     CurPunch2Delay = Punch2Delay
     StateCheckDelay = 0.1
-
     end
-
-    if InputManager:IsKeyPressed("R") and bPunch == true and bPunch2 == false and CurPunch2Delay < 0 then
+    if InputManager:IsKeyPressed("R") and bPunch == true and bPunch2 == false and CurPunch2Delay < 0 and bDance == false then
     bPunch2 = true
     StateCheckDelay = 0.1
+    end
+
+    if InputManager:IsKeyPressed("T") and bPunch == false and bPunch2 == false and bDance == false then
+    print("Dance")
+    bDance = true
     end
 
     StateCheckDelay = StateCheckDelay - dt
