@@ -10,7 +10,7 @@
 // #define LIGHTING_MODEL_PHONG 1
 
 // --- GPU 스키닝 ---
-// #define GPU_SKINNING 1  // C++에서 매크로로 전달됨
+ //#define GPU_SKINNING 1  // C++에서 매크로로 전달됨
 
 // --- Material 구조체 (OBJ 머티리얼 정보) ---
 // 주의: SPECULAR_COLOR 매크로에서 사용하므로 include 전에 정의 필요
