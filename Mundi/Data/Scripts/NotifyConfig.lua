@@ -41,10 +41,10 @@ NotifyConfig = {
     },
 
     -- Example: add another sequence with same notify names, different behavior
-    ["Data/Animations/Run.fbx"] = {
+    ["Data/Animations/Standard Run.fbx"] = {
         RunSound = function(event)
             -- Run animation plays louder footsteps
-            PlaySound("Data/Audio/FootSound.wav", 1.3)
+            PlayFootstep()
         end,
     },
 }

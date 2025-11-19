@@ -15,6 +15,8 @@
 #include "Source/Runtime/Engine/GameFramework/CameraActor.h"
 #include "SelectionManager.h"
 #include "Source/Runtime/Engine/Components/LineComponent.h"
+#include "PathUtils.h"
+
 SAnimSequenceViewerWindow::SAnimSequenceViewerWindow()
 {
 	// ResourceManager에서 모든 애니메이션 파일 경로 가져오기
@@ -1171,6 +1173,13 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 
 			// 3. 시퀀스에 트랙 정보 저장
 			CurrentSequence->SetNotifyTrackIndices(NotifyTrackIndices);
+
+			// Track delete - save to binary file
+			FString OriginalPath = CurrentSequence->GetFilePath();
+			FString CachePath = ConvertDataPathToCachePath(OriginalPath);
+			FString BinPath = CachePath + ".anim.bin";
+			CurrentSequence->SaveBinary(BinPath);
+			UE_LOG("[AnimSequenceViewer] Saved track changes to %s", BinPath.c_str());
 		}
 	}
 
@@ -1192,6 +1201,13 @@ void SAnimSequenceViewerWindow::RenderCombinedNotifyTimeline()
 			{
 				CurrentSequence->SetNotifyTrackIndices(NotifyTrackIndices);
 				CurrentSequence->SetNextNotifyTrackNumber(NextNotifyTrackNumber);
+
+				// Track 추가 후 바이너리 파일에 저장
+				FString OriginalPath = CurrentSequence->GetFilePath();
+				FString CachePath = ConvertDataPathToCachePath(OriginalPath);
+				FString BinPath = CachePath + ".anim.bin";
+				CurrentSequence->SaveBinary(BinPath);
+				UE_LOG("[AnimSequenceViewer] Saved track changes to %s", BinPath.c_str());
 			}
 		}
 		ImGui::EndPopup();
@@ -1594,6 +1610,13 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
                     CurrentSequence->RemoveNotifiesByName(ChipToDelete.Name);
                     UE_LOG("[AnimSequenceViewer] Deleted notify '%s' from sequence '%s'",
                         ChipToDelete.Name.ToString().c_str(), CurrentSequence->GetFilePath().c_str());
+
+                    // Notify 삭제 후 바이너리 파일에 저장
+                    FString OriginalPath = CurrentSequence->GetFilePath();
+                    FString CachePath = ConvertDataPathToCachePath(OriginalPath);
+                    FString BinPath = CachePath + ".anim.bin";
+                    CurrentSequence->SaveBinary(BinPath);
+                    UE_LOG("[AnimSequenceViewer] Saved notify changes to %s", BinPath.c_str());
                 }
 
                 // Remove from NotifyChips (UI)
@@ -1709,6 +1732,13 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
             // DEBUG: Log notify addition
             UE_LOG("[AnimSequenceViewer] Added notify '%s' to sequence '%s' at time %.3f on track %d",
                 NotifyNameBuffer, CurrentSequence->GetFilePath().c_str(), Ev.TriggerTime, TrackIdx);
+
+            // Notify 추가 후 바이너리 파일에 저장
+            FString OriginalPath = CurrentSequence->GetFilePath();
+            FString CachePath = ConvertDataPathToCachePath(OriginalPath);
+            FString BinPath = CachePath + ".anim.bin";
+            CurrentSequence->SaveBinary(BinPath);
+            UE_LOG("[AnimSequenceViewer] Saved notify changes to %s", BinPath.c_str());
 
             FNotifyChip Chip;
             Chip.Time = Ev.TriggerTime;

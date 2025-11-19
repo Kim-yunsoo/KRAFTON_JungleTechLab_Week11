@@ -57,6 +57,9 @@ public:
     // 공통 메타데이터 직렬화
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
+    // Binary 저장 (파생 클래스에서 재정의)
+    virtual void SaveBinary(const FString& InFilePath) const {}
+
 protected:
     // 내부 헬퍼 함수를 통해서 Notify 배열의 시간대별 정렬을 보장
     void SortNotifies()

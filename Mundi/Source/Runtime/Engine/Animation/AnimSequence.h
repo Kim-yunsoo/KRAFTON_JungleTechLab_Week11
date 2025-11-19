@@ -21,7 +21,7 @@ public:
 
     // 바이너리 캐시 직렬화 (Mesh처럼 .bin 파일 사용)
     void LoadBinary(const FString& InFilePath);
-    void SaveBinary(const FString& InFilePath) const;
+    void SaveBinary(const FString& InFilePath) const override;
 
     // DataModel은 실제 본 키 데이터를 가진 컨테이너이며 UAnimSequence가 소유한다.
     UAnimDataModel* GetDataModel() { return DataModel.get(); }

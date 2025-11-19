@@ -94,12 +94,48 @@ void UAnimSequence::LoadBinary(const FString& InFilePath)
         }
         NewModel->SetCurveTracks(std::move(Curves));
 
+        // 4. Notify 데이터 로드 (AnimSequenceBase)
+        Reader << NextNotifyTrackNumber;
+
+        uint32 NotifyTrackCount = 0;
+        Reader << NotifyTrackCount;
+        NotifyTrackIndices.clear();
+        NotifyTrackIndices.reserve(NotifyTrackCount);
+        for (uint32 i = 0; i < NotifyTrackCount; ++i)
+        {
+            int32 TrackIndex = 0;
+            Reader << TrackIndex;
+            NotifyTrackIndices.push_back(TrackIndex);
+        }
+
+        uint32 NotifyCount = 0;
+        Reader << NotifyCount;
+        Notifies.clear();
+        NotifyDisplayTrackIndices.clear();
+        Notifies.reserve(NotifyCount);
+        NotifyDisplayTrackIndices.reserve(NotifyCount);
+
+        for (uint32 i = 0; i < NotifyCount; ++i)
+        {
+            FAnimNotifyEvent Notify;
+            Reader.Serialize(&Notify.TriggerTime, sizeof(float));
+            Reader.Serialize(&Notify.Duration, sizeof(float));
+            Reader << Notify.NotifyName;
+
+            int32 DisplayTrack = -1;
+            Reader << DisplayTrack;
+
+            Notifies.push_back(Notify);
+            NotifyDisplayTrackIndices.push_back(DisplayTrack);
+        }
+
         Reader.Close();
 
         DataModel = std::move(NewModel);
         SyncDerivedMetadata();
 
-        UE_LOG("UAnimSequence::LoadBinary: Loaded from %s", NormalizedPath.c_str());
+        UE_LOG("UAnimSequence::LoadBinary: Loaded from %s (with %d notifies)",
+               NormalizedPath.c_str(), static_cast<int>(Notifies.size()));
     }
     catch (const std::exception& e)
     {
@@ -149,6 +185,34 @@ void UAnimSequence::SaveBinary(const FString& InFilePath) const
         for (const auto& Curve : Curves)
         {
             Writer << const_cast<FCurveTrack&>(Curve);
+        }
+
+        // 4. Notify 데이터 저장 (AnimSequenceBase로부터)
+        int32 NextTrackNum = NextNotifyTrackNumber;
+        Writer << NextTrackNum;
+
+        uint32 NotifyTrackCount = static_cast<uint32>(NotifyTrackIndices.size());
+        Writer << NotifyTrackCount;
+        for (int32 TrackIndex : NotifyTrackIndices)
+        {
+            int32 TempIndex = TrackIndex;
+            Writer << TempIndex;
+        }
+
+        uint32 NotifyCount = static_cast<uint32>(Notifies.size());
+        Writer << NotifyCount;
+        for (size_t i = 0; i < Notifies.size(); ++i)
+        {
+            const FAnimNotifyEvent& Notify = Notifies[i];
+            Writer.Serialize(const_cast<float*>(&Notify.TriggerTime), sizeof(float));
+            Writer.Serialize(const_cast<float*>(&Notify.Duration), sizeof(float));
+
+            FName NotifyName = Notify.NotifyName;
+            Writer << NotifyName;
+
+            // DisplayTrack 인덱스 저장
+            int32 DisplayTrack = (i < NotifyDisplayTrackIndices.size()) ? NotifyDisplayTrackIndices[i] : -1;
+            Writer << DisplayTrack;
         }
 
         Writer.Close();
