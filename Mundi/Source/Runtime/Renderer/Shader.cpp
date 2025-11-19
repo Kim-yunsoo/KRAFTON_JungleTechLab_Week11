@@ -329,6 +329,18 @@ void UShader::CreateInputLayout(ID3D11Device* Device, const FString& InShaderPat
 	{
 		InputLayoutKey = "Shaders/Materials/UberLit.hlsl_GPU_SKINNING";
 	}
+	// DepthOnly_VS.hlsl도 GPU 스키닝 여부에 따라 InputLayout 분리
+	else if (InShaderPath == "Shaders/Shadows/DepthOnly_VS.hlsl")
+	{
+		if (bHasGPUSkinning)
+		{
+			InputLayoutKey = "Shaders/Materials/UberLit.hlsl_GPU_SKINNING";
+		}
+		else
+		{
+			InputLayoutKey = "Shaders/Materials/UberLit.hlsl";
+		}
+	}
 
 	TArray<D3D11_INPUT_ELEMENT_DESC> descArray = UResourceManager::GetInstance().GetProperInputLayout(InputLayoutKey);
 	const D3D11_INPUT_ELEMENT_DESC* layout = descArray.data();

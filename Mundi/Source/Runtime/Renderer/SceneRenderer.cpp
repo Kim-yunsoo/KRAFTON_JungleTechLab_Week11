@@ -454,8 +454,21 @@ void FSceneRenderer::RenderShadowDepthPass(FShadowRenderRequest& ShadowRequest, 
 	UShader* DepthVS = UResourceManager::GetInstance().Load<UShader>("Shaders/Shadows/DepthOnly_VS.hlsl");
 	if (!DepthVS || !DepthVS->GetVertexShader()) return;
 
-	FShaderVariant* ShaderVariant = DepthVS->GetOrCompileShaderVariant();
-	if (!ShaderVariant) return;
+	// CPU 스키닝용 셰이더 (매크로 없음)
+	FShaderVariant* ShaderVariantCPU = DepthVS->GetOrCompileShaderVariant();
+	if (!ShaderVariantCPU)
+	{
+		return;
+	}
+
+	// GPU 스키닝용 셰이더 (GPU_SKINNING 매크로)
+	TArray<FShaderMacro> GPUSkinningMacros;
+	FShaderMacro GPUSkinningMacro;
+	GPUSkinningMacro.Name = "GPU_SKINNING";
+	GPUSkinningMacro.Definition = "1";
+	GPUSkinningMacros.Add(GPUSkinningMacro);
+	FShaderVariant* ShaderVariantGPU = DepthVS->GetOrCompileShaderVariant(GPUSkinningMacros);
+	if (!ShaderVariantGPU) return;
 
 	// vsm용 픽셀 셰이더
 	UShader* DepthPs = UResourceManager::GetInstance().Load<UShader>("Shaders/Shadows/DepthOnly_PS.hlsl");
@@ -464,9 +477,8 @@ void FSceneRenderer::RenderShadowDepthPass(FShadowRenderRequest& ShadowRequest, 
 	FShaderVariant* ShaderVarianVSM = DepthPs->GetOrCompileShaderVariant();
 	if (!ShaderVarianVSM) return;
 
-	// 2. 파이프라인 설정
-	RHIDevice->GetDeviceContext()->IASetInputLayout(ShaderVariant->InputLayout);
-	RHIDevice->GetDeviceContext()->VSSetShader(ShaderVariant->VertexShader, nullptr, 0);
+	// 2. 파이프라인 초기 설정 (첫 배치 이전에 설정됨)
+	// InputLayout과 VertexShader는 배치 루프에서 동적으로 전환
 	
     EShadowAATechnique ShadowAAType = World->GetRenderSettings().GetShadowAATechnique();
 	switch (ShadowAAType)
@@ -493,10 +505,23 @@ void FSceneRenderer::RenderShadowDepthPass(FShadowRenderRequest& ShadowRequest, 
 	ID3D11Buffer* CurrentIndexBuffer = nullptr;
 	UINT CurrentVertexStride = 0;
 	D3D11_PRIMITIVE_TOPOLOGY CurrentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
+	bool bFirstBatch = true;
+	bool bCurrentGPUSkinning = false;
 
 	for (const FMeshBatchElement& Batch : InShadowBatches)
 	{
-		// 셰이더/픽셀 상태 변경 불필요
+		// GPU/CPU 스키닝 모드 확인
+		bool bBatchGPUSkinning = (Batch.BoneMatrixConstantBuffer != nullptr);
+
+		// 셰이더 상태 변경 (GPU/CPU 스키닝 전환 시 또는 첫 배치)
+		if (bFirstBatch || bBatchGPUSkinning != bCurrentGPUSkinning)
+		{
+			FShaderVariant* ShaderToUse = bBatchGPUSkinning ? ShaderVariantGPU : ShaderVariantCPU;
+			RHIDevice->GetDeviceContext()->IASetInputLayout(ShaderToUse->InputLayout);
+			RHIDevice->GetDeviceContext()->VSSetShader(ShaderToUse->VertexShader, nullptr, 0);
+			bCurrentGPUSkinning = bBatchGPUSkinning;
+			bFirstBatch = false;
+		}
 
 		// IA 상태 변경
 		if (Batch.VertexBuffer != CurrentVertexBuffer ||
@@ -518,6 +543,12 @@ void FSceneRenderer::RenderShadowDepthPass(FShadowRenderRequest& ShadowRequest, 
 
 		// 오브젝트별 World 행렬 설정 (VS에서 필요)
 		RHIDevice->SetAndUpdateConstantBuffer(ModelBufferType(Batch.WorldMatrix, Batch.WorldMatrix.InverseAffine().Transpose()));
+
+		// GPU 스키닝: 본 매트릭스 상수 버퍼 설정
+		if (bBatchGPUSkinning && Batch.BoneMatrixConstantBuffer)
+		{
+			RHIDevice->GetDeviceContext()->VSSetConstantBuffers(6, 1, &Batch.BoneMatrixConstantBuffer);
+		}
 
 		// 드로우 콜
 		RHIDevice->GetDeviceContext()->DrawIndexed(Batch.IndexCount, Batch.StartIndex, Batch.BaseVertexIndex);
