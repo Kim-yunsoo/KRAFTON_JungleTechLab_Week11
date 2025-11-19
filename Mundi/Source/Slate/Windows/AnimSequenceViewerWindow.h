@@ -131,6 +131,7 @@ private:
 
     // Notify UI state
     char NotifyNameBuffer[64] = {0};
+    char EditNotifyNameBuffer[64] = {0};  // 노티파이 이름 수정용 버퍼
     float PendingNotifyTime = 0.0f;
     int32 PendingNotifyTrack = -1;
 
