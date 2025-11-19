@@ -82,7 +82,16 @@ end
 function EndPlay()  
 end
 
+function SetCursorVisible(Show)
+    InputManager:SetCursorVisible(Show)
+    CurVisibilty = Show
+end
+
+
 function Tick(dt)
+    if InputManager:IsKeyPressed("C") then
+        SetCursorVisible(not CurVisibilty)
+        end
 _G.PlayerPosition = Obj.Location
     if  StateCheckDelay <= 0 then
     CurStateName = SkeletalComp:GetCurStateName()
