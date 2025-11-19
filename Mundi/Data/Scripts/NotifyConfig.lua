@@ -11,6 +11,14 @@ function PlayFootstep()
     PlaySound("Data/Audio/FootSound.wav", 1.0)
 end
 
+function PlayAutumnFootstepR()
+    PlaySound("Data/Audio/AutumnFoot_R.wav", 1.0)
+end
+
+function PlayAutumnFootstepL()
+    PlaySound("Data/Audio/AutumnFoot_L.wav", 1.0)
+end
+
 -- function PlayJump()
 --     PlaySound("Data/Audio/Shot.wav", 1.2)
 -- end
@@ -35,9 +43,14 @@ NotifyConfig = {
             PlayFootstep()
         end,
 
-        Footstep = function(event)
-            PlayFootstep()
+        AutumnFootstepR = function(event)
+            PlayAutumnFootstepR()
         end,
+        
+        AutumnFootstepL = function(event)
+            PlayAutumnFootstepL()
+        end,
+        
     },
 
     -- Example: add another sequence with same notify names, different behavior
@@ -45,6 +58,7 @@ NotifyConfig = {
         RunSound = function(event)
             -- Run animation plays louder footsteps
             PlayFootstep()
+
         end,
     },
 }
