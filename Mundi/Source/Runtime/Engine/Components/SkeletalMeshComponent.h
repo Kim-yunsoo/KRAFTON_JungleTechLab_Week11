@@ -94,7 +94,7 @@ public:
     void Pause();
 
     UFUNCTION(LuaBind, DisplayName = "Replay")
-    void Replay();
+    void Replay(const float StartTime);
 
     UFUNCTION(LuaBind, DisplayName = "SetStateLoop")
     void SetStateLoop(const FString& InName, const bool InLoop);

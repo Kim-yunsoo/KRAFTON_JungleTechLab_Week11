@@ -322,11 +322,11 @@ void USkeletalMeshComponent::Pause()
     }
 }
 
-void USkeletalMeshComponent::Replay()
+void USkeletalMeshComponent::Replay(const float StartTime)
 {
     if (AnimInstance)
     {
-        AnimInstance->Replay();
+        AnimInstance->Replay(StartTime);
     }
 }
 void USkeletalMeshComponent::SetStateLoop(const FString& InName, const bool InLoop)
