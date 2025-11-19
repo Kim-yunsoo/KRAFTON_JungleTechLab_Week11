@@ -67,7 +67,7 @@ public:
 		{
 			return "None";
 		}
-		return CurrentState->Name;
+		return RegistChangeState->Name;
 	}
 	UAnimStateMachine& GetStateMachine()
 	{
