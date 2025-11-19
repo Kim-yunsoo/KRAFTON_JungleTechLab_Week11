@@ -26,6 +26,29 @@ end
 function PlayCoin()
     PlaySound("Data/Audio/Coin.wav", 1.0)
 end
+
+
+function Attack()
+ if _G.Monsters == nil then return end
+    for i = 1, #_G.Monsters do
+        Monster = Monsters[i]
+        local dx = Monster.Location.X - _G.PlayerPosition.X
+        local dy = Monster.Location.Y - _G.PlayerPosition.Y
+        local dz = Monster.Location.Z - _G.PlayerPosition.Z
+        local distSq = dx*dx + dy*dy + dz*dz
+
+        local PlayerToMonster = Vector(dx, dy, dz)
+        PlayerToMonster:Normalize()
+        local PlayerForward = _G.PlayerPosition - _G.CameraPosition
+        PlayerForward.Z = 0
+        PlayerForward:Normalize()
+        local InDirection = (PlayerToMonster.X * PlayerForward.X + PlayerToMonster.Y * PlayerForward.Y + PlayerToMonster.Z * PlayerForward.Z) > 0.6
+        if distSq <= 1 * 1 and InDirection then
+        _G.MonsterHits[i] = true
+        end
+    end
+end
+
 -- function PlayJump()
 --     PlaySound("Data/Audio/Shot.wav", 1.2)
 -- end
@@ -87,12 +110,20 @@ NotifyConfig = {
         TEST = function(event)
             PlayPunch()
         end,
+         Attack = function(event)
+            -- Run animation plays louder footsteps
+            Attack()
+        end,
     },
      ["Data/Animations/Punching2.fbx"] = {
         Punch = function(event)
             -- Run animation plays louder footsteps
             PlayPunch()
-        end
+        end,
+         Attack = function(event)
+            -- Run animation plays louder footsteps
+            Attack()
+        end,
     },
 }
 

@@ -83,6 +83,7 @@ function EndPlay()
 end
 
 function Tick(dt)
+_G.PlayerPosition = Obj.Location
     if  StateCheckDelay <= 0 then
     CurStateName = SkeletalComp:GetCurStateName()
     if bPunch == true and CurStateName ~= "Punch" then
@@ -139,7 +140,6 @@ function Tick(dt)
     end
 
     if InputManager:IsKeyPressed("T") and bPunch == false and bPunch2 == false and bDance == false then
-    print("Dance")
     bDance = true
     end
 
@@ -195,11 +195,11 @@ function RotateCamera()
     local Candidate = RotateAroundAxis(ForwardVector, RightVector, Pitch)
 
     -- 수직 각도 제한
-    if (Candidate.Z > 0.4) then
-        Candidate.Z = 0.4
+    if (Candidate.Z > 0.2) then
+        Candidate.Z = 0.2
     end
-    if (Candidate.Z < -0.75) then
-        Candidate.Z = -0.75
+    if (Candidate.Z < -0.45) then
+        Candidate.Z = -0.45
     end
 
     ForwardVector = NormalizeCopy(Candidate)
@@ -220,7 +220,6 @@ function MoveRight(Delta)
     Obj.Location = Obj.Location + Vector(RightVector.X, RightVector.Y, 0) * Delta
 end
 
-
 -- 카메라 위치/방향 갱신
 function UpdateCamera()
     -- 1. 카메라를 캐릭터 뒤쪽에 배치
@@ -228,7 +227,7 @@ function UpdateCamera()
     if Camera then
         CameraLocation = Obj.Location + (ForwardVector * -BackDistance) + (UpVector * UpDistance)
         Camera:SetLocation(CameraLocation)
-
+        _G.CameraPosition = CameraLocation
         -- 2. 카메라가 캐릭터를 바라보도록 설정
         local Eye = CameraLocation
         local At = Obj.Location

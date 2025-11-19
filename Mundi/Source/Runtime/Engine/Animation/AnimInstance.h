@@ -56,10 +56,10 @@ public:
 		bPlay = false;
 	}
 	//UFUNCTION(LuaBind, DisplayName = "Replay")
-	void Replay()
+	void Replay(const float StartTime)
 	{
 		bPlay = true;
-		CurrentTime = 0;
+		CurrentTime = StartTime;
 	}
 	FString GetCurrentStateName()
 	{
