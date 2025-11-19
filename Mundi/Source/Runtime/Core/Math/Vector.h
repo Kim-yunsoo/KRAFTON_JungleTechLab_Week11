@@ -1537,7 +1537,6 @@ inline float ClampTimeLooped(float CurrentTime, const float AdditiveTime, const 
 	{
 		return 0;
 	}
-	CurrentTime += AdditiveTime;
 	float ClampTime = Clamp(CurrentTime, 0.0f, SequenceTime);
 	//범위 벗어났을 경우
 	if (ClampTime != CurrentTime)

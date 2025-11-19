@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Pawn.h"
+#include "Vector.h"
 #include "ACharacter.generated.h"
 
 class UMovementComponent;
@@ -13,6 +14,9 @@ public:
 	GENERATED_REFLECTION_BODY()
 
 	ACharacter();
+
+	// Character Tick drives facing alignment
+	virtual void Tick(float DeltaTime) override;
 
 	// 입력 설정 오버라이드
 	virtual void SetupPlayerInputComponent() override;
@@ -34,8 +38,21 @@ public:
 protected:
 	virtual ~ACharacter() override = default;
 
+	// Orient the mesh using the override direction or the last movement input
+	void UpdateFacingFromMovement(float DeltaTime);
+
+	// 외부에서 원하는 바라보는 방향을 직접 지정할 수 있도록 지원
+	void SetDesiredFacingDirection(const FVector& WorldDirection);
+
 	// 이동 속성
 	float BaseTurnRate = 45.0f;		// 초당 도 단위
+
+	// 입력 축을 저장하여 이동 방향을 계산합니다.
+	FVector2D PendingMovementInput = FVector2D(0.0f, 0.0f);
+	FVector DesiredFacingOverride = FVector::Zero();
+
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float FacingInterpSpeed = 10.0f;
 
 	// 캐릭터 컴포넌트들
 	USkeletalMeshComponent* Mesh = nullptr;

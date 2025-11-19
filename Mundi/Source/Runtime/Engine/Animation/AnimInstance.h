@@ -61,6 +61,14 @@ public:
 		bPlay = true;
 		CurrentTime = 0;
 	}
+	FString GetCurrentStateName()
+	{
+		if (CurrentState == nullptr)
+		{
+			return "None";
+		}
+		return CurrentState->Name;
+	}
 	UAnimStateMachine& GetStateMachine()
 	{
 		return AnimStateMachine;

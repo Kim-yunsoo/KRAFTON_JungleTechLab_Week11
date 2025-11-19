@@ -42,24 +42,24 @@ void AJamesCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// Shift 키 입력 처리
 	UInputManager& Input = UInputManager::GetInstance();
 	if (Input.IsKeyReleased(VK_SHIFT))
 	{
 		StopRunning();
 	}
 
-	// 키 입력이 없으면 속도를 0으로 설정
+	// 월드 축 기준으로 입력이 없으면 해당 축 속도를 제거 (Y=전/후, X=좌/우)
 	if (!Input.IsKeyDown(VK_UP) && !Input.IsKeyDown(VK_DOWN))
-	{
-		CurrentVelocity.X = 0.0f;
-	}
-	if (!Input.IsKeyDown(VK_LEFT) && !Input.IsKeyDown(VK_RIGHT))
 	{
 		CurrentVelocity.Y = 0.0f;
 	}
+	if (!Input.IsKeyDown(VK_LEFT) && !Input.IsKeyDown(VK_RIGHT))
+	{
+		CurrentVelocity.X = 0.0f;
+	}
 
-	// 이동 처리 - StateMachine이 자동으로 애니메이션 전환함
+	SetDesiredFacingDirection(CurrentVelocity);
+
 	float Speed = CurrentVelocity.Size();
 	if (Speed > 0.01f)
 	{
@@ -70,16 +70,18 @@ void AJamesCharacter::Tick(float DeltaTime)
 
 void AJamesCharacter::MoveForward(float Value)
 {
-	FVector Forward = GetActorForward();
+	Super::MoveForward(Value);
+
 	float Speed = bIsRunning ? RunSpeed : WalkSpeed;
-	CurrentVelocity.X = Forward.X * Value * Speed;
+	CurrentVelocity.Y = Value * Speed;
 }
 
 void AJamesCharacter::MoveRight(float Value)
 {
-	FVector Right = GetActorRight();
+	Super::MoveRight(Value);
+
 	float Speed = bIsRunning ? RunSpeed : WalkSpeed;
-	CurrentVelocity.Y = Right.Y * Value * Speed;
+	CurrentVelocity.X = Value * Speed;
 }
 
 void AJamesCharacter::SetupAnimationStateMachine()

@@ -5,6 +5,7 @@
 #include "SkeletalMeshComponent.h"
 #include "CapsuleComponent.h"
 #include <windows.h>
+#include <cmath>
 
 ACharacter::ACharacter()
 {
@@ -21,6 +22,12 @@ ACharacter::ACharacter()
 	Mesh->SetupAttachment(CapsuleComponent);
 }
 
+void ACharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	UpdateFacingFromMovement(DeltaTime);
+}
+
 void ACharacter::SetupPlayerInputComponent()
 {
 	Super::SetupPlayerInputComponent();
@@ -34,6 +41,8 @@ void ACharacter::SetupPlayerInputComponent()
 
 void ACharacter::MoveForward(float Value)
 {
+	PendingMovementInput.Y = Value;
+
 	if (Value != 0.0f && MovementComponent)
 	{
 		// TODO: Transform의 Forward 방향으로 이동 입력 추가
@@ -47,6 +56,8 @@ void ACharacter::MoveForward(float Value)
 
 void ACharacter::MoveRight(float Value)
 {
+	PendingMovementInput.X = Value;
+
 	if (Value != 0.0f && MovementComponent)
 	{
 		// TODO: Transform의 Right 방향으로 이동 입력 추가
@@ -94,4 +105,64 @@ void ACharacter::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 			}
 		}
 	}
+}
+
+void ACharacter::UpdateFacingFromMovement(float DeltaTime)
+{
+	FVector DesiredDirection = DesiredFacingOverride;
+	if (DesiredDirection.SizeSquared() > KINDA_SMALL_NUMBER)
+	{
+		DesiredFacingOverride = FVector::Zero();
+	}
+
+	if (DesiredDirection.SizeSquared() < KINDA_SMALL_NUMBER)
+	{
+		if (MovementComponent)
+		{
+			const FVector CurrentVelocity = MovementComponent->GetVelocity();
+			if (CurrentVelocity.SizeSquared() > KINDA_SMALL_NUMBER)
+			{
+				DesiredDirection = CurrentVelocity;
+			}
+		}
+
+		if (DesiredDirection.SizeSquared() < KINDA_SMALL_NUMBER)
+		{
+			DesiredDirection = FVector(PendingMovementInput.X, PendingMovementInput.Y, 0.0f);
+		}
+	}
+
+	DesiredDirection.Z = 0.0f;
+	if (DesiredDirection.SizeSquared() < KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	DesiredDirection.Normalize();
+	const float DesiredYaw = RadiansToDegrees(std::atan2(DesiredDirection.Y, DesiredDirection.X));
+	const FQuat TargetRotation = FQuat::MakeFromEulerZYX(FVector(0.0f, 0.0f, DesiredYaw));
+	const FQuat CurrentRotation = GetActorRotation();
+	const float CurrentYaw = CurrentRotation.ToEulerZYXDeg().Z;
+	const float DeltaYaw = NormalizeAngleDeg(DesiredYaw - CurrentYaw);
+
+	// 일정 각도 이하로 접근하면 바로 스냅시켜 잔여 각도가 남지 않도록 처리
+	if (FMath::Abs(DeltaYaw) <= 1.0f)
+	{
+		SetActorRotation(TargetRotation);
+		return;
+	}
+	if (FacingInterpSpeed <= 0.0f)
+	{
+		SetActorRotation(TargetRotation);
+		return;
+	}
+	const float Alpha = FMath::Clamp(DeltaTime * FacingInterpSpeed, 0.0f, 1.0f);
+	const FQuat NewRotation = FQuat::Slerp(CurrentRotation, TargetRotation, Alpha);
+
+	SetActorRotation(NewRotation);
+}
+
+void ACharacter::SetDesiredFacingDirection(const FVector& WorldDirection)
+{
+	DesiredFacingOverride = FVector(WorldDirection.X, WorldDirection.Y, 0.0f);
 }

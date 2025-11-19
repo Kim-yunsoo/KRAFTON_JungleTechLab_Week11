@@ -35,8 +35,8 @@ const bool ACharacter::bPropertiesRegistered = []() {
 
 BEGIN_PROPERTIES(ACharacter)
     MARK_AS_SPAWNABLE("캐릭터", "제어가 가능한 인간형 액터입니다.")
+    ADD_PROPERTY(float, FacingInterpSpeed, "Movement", true)
 END_PROPERTIES()
-
 
 // ===== Lua Binding =====
 
