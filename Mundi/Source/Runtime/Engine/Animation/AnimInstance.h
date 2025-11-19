@@ -40,10 +40,7 @@ public:
 	}
 
 	//UFUNCTION(LuaBind, DisplayName = "SetSpeed")
-	void SetSpeed(const float InSpeed)
-	{
-		Speed = InSpeed;
-	}
+	void SetStateSpeed(const FString& InName, const float InSpeed);
 	void SetTime(const float InTime)
 	{
 		CurrentTime = InTime;
@@ -74,7 +71,6 @@ protected:
 	virtual void NativeUpdateAnimation(float DeltaSeconds);
 	float CurrentTime = 0;
 	float PrevTime = 0;
-	float Speed = 1;
 	bool bPlay = false;
 
 	USkeletalMeshComponent* OwnerComponent = nullptr;

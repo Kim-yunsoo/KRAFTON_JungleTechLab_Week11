@@ -144,13 +144,15 @@ protected:
 
     FQuat   RelativeRotation;
 
-    UPROPERTY(EditAnywhere, Category="Transform")
-    FVector RelativeScale{ 1,1,1 };
 
     // UI 편집용 Euler Angle (Degrees)
     // RelativeRotation과 항상 동기화됨
     UPROPERTY(EditAnywhere, Category="Transform")
     FVector RelativeRotationEuler{ 0,0,0 };
+
+
+    UPROPERTY(EditAnywhere, Category = "Transform")
+    FVector RelativeScale{ 1,1,1 };
 
     mutable FMatrix CachedWorldMatrix = FMatrix::Identity();
     mutable bool bIsTransformDirty = true;

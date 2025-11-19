@@ -21,11 +21,11 @@ void UAnimInstance::Tick(float DeltaSeconds)
 	{
 		ChangeState();
 	}
-	if (OwnerComponent && bPlay && Speed != 0 && CurrentState)
+	if (OwnerComponent && bPlay && CurrentState->Speed != 0 && CurrentState)
 	{
 		AnimStateMachine.Tick(DeltaSeconds);
 		PrevTime = CurrentTime;
-		CurrentTime += DeltaSeconds * Speed;
+		CurrentTime += DeltaSeconds * CurrentState->Speed;
 		NativeUpdateAnimation(DeltaSeconds);
 		TriggerAnimNotifies(DeltaSeconds);	
 	}
@@ -38,7 +38,6 @@ void UAnimInstance::ChangeState()
 	CachedPose.Pose = GetOwner()->GetPose();
 	CurrentTime = 0;
 	PrevTime = 0;
-	SetSpeed(CurrentState->Speed);
 	Play();
 }
 
@@ -103,7 +102,14 @@ void UAnimInstance::SetStateExitTime(const FString& InName, const float InExitTi
 		State->SetExitTime(InExitTime);
 	}
 }
-
+void UAnimInstance::SetStateSpeed(const FString& InName, const float InSpeed)
+{
+	UAnimState* State = AnimStateMachine.GetState(InName);
+	if (State)
+	{
+		State->SetSpeed(InSpeed);
+	}
+}
 
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 {

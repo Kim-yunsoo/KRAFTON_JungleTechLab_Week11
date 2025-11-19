@@ -12,10 +12,11 @@ function BeginPlay()
 print("Begin")
 SkeletalComp = GetComponent(Obj, "USkeletalMeshComponent")
 SkeletalComp:AddSequenceInState("Idle", "Data/Animations/Breathing Idle.fbx", 0)
-SkeletalComp:AddSequenceInState("Move", "Data/Animations/Standard Walk.fbx", 0.5)
+SkeletalComp:AddSequenceInState("Move", "Data/Animations/Standard Walk.fbx", 0)
 SkeletalComp:AddSequenceInState("Move", "Data/Animations/Standard Run.fbx", 1)
-SkeletalComp:AddSequenceInState("Move", "Data/Animations/Walk Backward.fbx", -1)
 SkeletalComp:AddSequenceInState("Jump", "Data/Animations/Jumping.fbx", 0)
+SkeletalComp:SetStateSpeed("Idle", 0.85)
+SkeletalComp:SetStateSpeed("Move", 0.85)
 SkeletalComp:SetStateLoop("Jump", false)    
 SkeletalComp:SetStateExitTime("Jump", 0.55)    
 SkeletalComp:AddTransition("Idle", "Move", 0.2, function() return bWalk end)
@@ -67,5 +68,10 @@ function Tick(dt)
 
 
     SkeletalComp:SetBlendValueInState("Move", Speed)
+    if Speed < 0 then
+    Speed = 0
+elseif Speed > 1 then
+    Speed = 1
+end
 
 end
