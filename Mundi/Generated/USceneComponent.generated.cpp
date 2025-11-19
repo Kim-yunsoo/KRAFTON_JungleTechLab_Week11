@@ -47,7 +47,7 @@ extern "C" void LuaBind_Anchor_USceneComponent() {}
 
 LUA_BIND_BEGIN(USceneComponent)
 {
-    // No functions to bind
+    AddAlias<USceneComponent, FVector>(
+        T, "SetForward", &USceneComponent::SetForward);
 }
 LUA_BIND_END()
-

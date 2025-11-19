@@ -47,4 +47,8 @@ SkeletalComp:Replay(0.3)
 else
 bAttacked = true
 end
+local SceneComponent = GetComponent(Obj,"USceneComponent")
+ToPlayer = _G.PlayerPosition - Obj.Location
+ToPlayer:Normalize()
+SceneComponent:SetForward(ToPlayer)
 end

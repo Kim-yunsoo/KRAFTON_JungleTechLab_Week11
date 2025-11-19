@@ -43,7 +43,7 @@ function Attack()
         PlayerForward.Z = 0
         PlayerForward:Normalize()
         local InDirection = (PlayerToMonster.X * PlayerForward.X + PlayerToMonster.Y * PlayerForward.Y + PlayerToMonster.Z * PlayerForward.Z) > 0.6
-        if distSq <= 1 * 1 and InDirection then
+        if distSq <= 1.3 and InDirection then
         _G.MonsterHits[i] = true
         end
     end
