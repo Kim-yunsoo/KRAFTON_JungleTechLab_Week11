@@ -19,6 +19,13 @@ function PlayAutumnFootstepL()
     PlaySound("Data/Audio/AutumnFoot_L.wav", 1.0)
 end
 
+function PlayPunch()
+    PlaySound("Data/Audio/Punch.wav", 1.0)
+end
+
+function PlayCoin()
+    PlaySound("Data/Audio/Coin.wav", 1.0)
+end
 -- function PlayJump()
 --     PlaySound("Data/Audio/Shot.wav", 1.2)
 -- end
@@ -34,7 +41,7 @@ end
 
 NotifyConfig = {
     ["Data/Animations/Standard Walk.fbx"] = {
-        TEST = function(event)
+        TEST1 = function(event)
             -- Now uses Lua-defined function
             PlayFootstep()
         end,
@@ -43,12 +50,19 @@ NotifyConfig = {
             PlayFootstep()
         end,
 
-        AutumnFootstepR = function(event)
+        TEST = function(event)
             PlayAutumnFootstepR()
         end,
         
-        AutumnFootstepL = function(event)
+        TEST3 = function(event)
             PlayAutumnFootstepL()
+        end,
+
+        TEST4 = function(event)
+            PlayPunch()
+        end,
+        TEST5 = function(event)
+            PlayCoin()
         end,
         
     },
@@ -59,6 +73,19 @@ NotifyConfig = {
             -- Run animation plays louder footsteps
             PlayFootstep()
 
+        end,
+    },
+
+    ["Data/Animations/Punching.fbx"] = {
+        Punch = function(event)
+            -- Run animation plays louder footsteps
+            PlayPunch()
+        end,
+        TEST4 = function(event)
+            PlayPunch()
+        end,
+        TEST = function(event)
+            PlayPunch()
         end,
     },
 }
