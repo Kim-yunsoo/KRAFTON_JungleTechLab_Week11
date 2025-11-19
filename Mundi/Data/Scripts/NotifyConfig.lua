@@ -50,7 +50,7 @@ NotifyConfig = {
             PlayFootstep()
         end,
 
-        TEST2 = function(event)
+        TEST = function(event)
             PlayAutumnFootstepR()
         end,
         
@@ -61,7 +61,6 @@ NotifyConfig = {
         TEST4 = function(event)
             PlayPunch()
         end,
-        
         TEST5 = function(event)
             PlayCoin()
         end,
@@ -74,6 +73,19 @@ NotifyConfig = {
             -- Run animation plays louder footsteps
             PlayFootstep()
 
+        end,
+    },
+
+    ["Data/Animations/Punching.fbx"] = {
+        Punch = function(event)
+            -- Run animation plays louder footsteps
+            PlayPunch()
+        end,
+        TEST4 = function(event)
+            PlayPunch()
+        end,
+        TEST = function(event)
+            PlayPunch()
         end,
     },
 }
