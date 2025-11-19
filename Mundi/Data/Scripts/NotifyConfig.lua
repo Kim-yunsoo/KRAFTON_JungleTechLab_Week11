@@ -88,5 +88,11 @@ NotifyConfig = {
             PlayPunch()
         end,
     },
+     ["Data/Animations/Punching2.fbx"] = {
+        Punch = function(event)
+            -- Run animation plays louder footsteps
+            PlayPunch()
+        end
+    },
 }
 
