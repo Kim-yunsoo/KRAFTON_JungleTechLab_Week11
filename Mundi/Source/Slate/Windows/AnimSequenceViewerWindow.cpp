@@ -1609,12 +1609,18 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
             SelectedNotifyIndex = i;
             bAnyNotifyChipClicked = true; // Mark that a notify was clicked
         }
-        // Right-click: open delete context menu
+        // Right-click: open edit/delete context menu
         else if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
         {
             SelectedNotifyIndex = i; // Select on right-click
             bAnyNotifyChipClicked = true; // Prevent timeline right-click from triggering
-            ImGui::OpenPopup("DeleteNotifyPopup");
+
+            // 현재 노티파이 이름을 EditNotifyNameBuffer에 복사
+            strncpy_s(EditNotifyNameBuffer, sizeof(EditNotifyNameBuffer),
+                      Chip.Name.ToString().c_str(), sizeof(EditNotifyNameBuffer) - 1);
+            EditNotifyNameBuffer[sizeof(EditNotifyNameBuffer) - 1] = '\0';
+
+            ImGui::OpenPopup("EditNotifyPopup");
         }
 
         // Update hover state for next frame
@@ -1635,26 +1641,80 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
     HoveredNotifyIndex = NewHoveredNotifyIndex;
 
     // ============================================================
-    // Delete Notify Popup (appears when right-clicking a notify)
+    // Edit/Delete Notify Popup (appears when right-clicking a notify)
     // ============================================================
-    if (ImGui::BeginPopup("DeleteNotifyPopup"))
+    if (ImGui::BeginPopup("EditNotifyPopup"))
     {
         if (SelectedNotifyIndex >= 0 && SelectedNotifyIndex < NotifyChips.Num())
         {
-            const FNotifyChip& ChipToDelete = NotifyChips[SelectedNotifyIndex];
-            ImGui::Text("Delete Notify?");
+            FNotifyChip& ChipToEdit = NotifyChips[SelectedNotifyIndex];
+            ImGui::Text("Edit Notify");
             ImGui::Separator();
-            ImGui::Text("Name: %s", ChipToDelete.Name.ToString().c_str());
-            ImGui::Text("Time: %.3f s", ChipToDelete.Time);
+            ImGui::Spacing();
 
+            // 노티파이 이름 수정
+            ImGui::Text("Name:");
+            ImGui::SetNextItemWidth(250.0f);
+            ImGui::InputText("##EditNotifyName", EditNotifyNameBuffer, sizeof(EditNotifyNameBuffer));
+
+            ImGui::Spacing();
+            ImGui::Text("Time: %.3f s", ChipToEdit.Time);
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // Rename 버튼
+            if (ImGui::Button("Rename", ImVec2(100, 0)) && EditNotifyNameBuffer[0] != '\0')
+            {
+                FName OldName = ChipToEdit.Name;
+                FName NewName = FName(EditNotifyNameBuffer);
+
+                // 이름이 실제로 변경된 경우만 처리
+                if (OldName != NewName)
+                {
+                    // CurrentSequence에서 노티파이 이름 변경
+                    if (CurrentSequence)
+                    {
+                        TArray<FAnimNotifyEvent>& Notifies = const_cast<TArray<FAnimNotifyEvent>&>(CurrentSequence->GetNotifies());
+
+                        // 해당 노티파이 찾아서 이름 변경
+                        for (FAnimNotifyEvent& Ev : Notifies)
+                        {
+                            if (Ev.NotifyName == OldName)
+                            {
+                                Ev.NotifyName = NewName;
+                                UE_LOG("[AnimSequenceViewer] Renamed notify '%s' to '%s'",
+                                    OldName.ToString().c_str(), NewName.ToString().c_str());
+                                break;
+                            }
+                        }
+
+                        // 바이너리 파일에 저장
+                        FString OriginalPath = CurrentSequence->GetFilePath();
+                        FString CachePath = ConvertDataPathToCachePath(OriginalPath);
+                        FString BinPath = CachePath + ".anim.bin";
+                        CurrentSequence->SaveBinary(BinPath);
+                        UE_LOG("[AnimSequenceViewer] Saved notify changes to %s", BinPath.c_str());
+                    }
+
+                    // UI Chip도 업데이트
+                    ChipToEdit.Name = NewName;
+                }
+
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::SameLine();
+
+            // Delete 버튼
             if (ImGui::Button("Delete", ImVec2(100, 0)))
             {
                 // Remove from CurrentSequence (actual data)
                 if (CurrentSequence)
                 {
-                    CurrentSequence->RemoveNotifiesByName(ChipToDelete.Name);
+                    CurrentSequence->RemoveNotifiesByName(ChipToEdit.Name);
                     UE_LOG("[AnimSequenceViewer] Deleted notify '%s' from sequence '%s'",
-                        ChipToDelete.Name.ToString().c_str(), CurrentSequence->GetFilePath().c_str());
+                        ChipToEdit.Name.ToString().c_str(), CurrentSequence->GetFilePath().c_str());
 
                     // Notify 삭제 후 바이너리 파일에 저장
                     FString OriginalPath = CurrentSequence->GetFilePath();
@@ -1672,7 +1732,10 @@ void SAnimSequenceViewerWindow::RenderTimelineColumn(float ColumnWidth, float Ro
 
                 ImGui::CloseCurrentPopup();
             }
+
             ImGui::SameLine();
+
+            // Cancel 버튼
             if (ImGui::Button("Cancel", ImVec2(100, 0)))
             {
                 ImGui::CloseCurrentPopup();
