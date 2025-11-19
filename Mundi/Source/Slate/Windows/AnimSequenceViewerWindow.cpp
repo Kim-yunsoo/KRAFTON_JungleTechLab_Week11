@@ -105,8 +105,8 @@ void SAnimSequenceViewerWindow::SetSkeletalMeshPath(const char* MeshPath)
 			if (Mesh)
 			{
 				PreviewActor->SetSkeletalMesh(MeshPath);
-				PreviewState->CurrentMesh = Mesh;  // CurrentMesh 설정 (본 피킹을 위해 필요!)
-				PreviewState->LoadedMeshPath = MeshPath;  // Track for resource unloading
+				PreviewState->CurrentMesh = Mesh;
+				PreviewState->LoadedMeshPath = MeshPath;
 				UE_LOG("[AnimSequenceViewer] Skeletal mesh set from outliner: %s", MeshPath);
 
 				// 본 표시가 켜져 있으면 본 라인 구성
@@ -206,7 +206,6 @@ void SAnimSequenceViewerWindow::LoadAnimSquence(UAnimSequence* Sequence)
 			USkeletalMeshComponent* SkeletalMeshComp = PreviewActor->GetSkeletalMeshComponent();
 			if (SkeletalMeshComp)
 			{
-				// 메시를 보이게만 하고 애니메이션은 재생하지 않음 (사용자가 Play 버튼 눌러야 함)
 				SkeletalMeshComp->SetVisibility(true);
 				UE_LOG("[AnimSequenceViewer] Animation loaded. Press Play to start.");
 

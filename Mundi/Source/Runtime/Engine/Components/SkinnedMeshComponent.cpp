@@ -320,15 +320,21 @@ void USkinnedMeshComponent::SetSkeletalMesh(const FString& PathFileName)
       VertexBuffer->Release();
       VertexBuffer = nullptr;
    }
-    
+
    if (SkeletalMesh && SkeletalMesh->GetSkeletalMeshData())
    {
       SkeletalMesh->CreateVertexBuffer(&VertexBuffer);
 
+      // GPU 스키닝 모드면 GPU 리소스도 생성
+      if (bUseGPUSkinning)
+      {
+         CreateGPUSkinningResources();
+      }
+
       const TArray<FMatrix> IdentityMatrices(SkeletalMesh->GetBoneCount(), FMatrix::Identity());
       UpdateSkinningMatrices(IdentityMatrices, IdentityMatrices);
       PerformSkinning();
-      
+
       const TArray<FGroupInfo>& GroupInfos = SkeletalMesh->GetMeshGroupInfo();
        MaterialSlots.resize(GroupInfos.size());
        for (int i = 0; i < GroupInfos.size(); ++i)

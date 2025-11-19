@@ -129,7 +129,7 @@ private:
     /**
      * @brief GPU 스키닝 사용 여부
      */
-    bool bUseGPUSkinning = false;
+    bool bUseGPUSkinning = true;
 
     /**
      * @brief GPU 스키닝용 정점 버퍼 (본 인덱스/가중치 포함, FSkinnedVertex 형식)
