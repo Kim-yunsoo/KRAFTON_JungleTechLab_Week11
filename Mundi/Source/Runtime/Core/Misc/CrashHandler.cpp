@@ -25,16 +25,6 @@ void FCrashHandler::Initialize()
     bool expected = false;
     if (!g_Initialized.compare_exchange_strong(expected, true))
         return;
-    // Saved/Crashes 폴더를 미리 생성해 둔다 (프로젝트 루트 기준)
-    wchar_t exePath[MAX_PATH] = {};
-    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-    std::filesystem::path exeDir = std::filesystem::path(exePath).parent_path();
-    std::filesystem::path projectRoot = exeDir.parent_path().parent_path();
-    if (projectRoot.empty())
-        projectRoot = exeDir;
-    std::filesystem::path dumpDir = projectRoot / L"Saved" / L"Crashes";
-    std::error_code ec;
-    std::filesystem::create_directories(dumpDir, ec);
 
     // Reduce OS UI that could block dump creation under debugger-less runs
     SetErrorMode(SEM_NOGPFAULTERRORBOX | SEM_FAILCRITICALERRORS);
@@ -54,14 +44,10 @@ void FCrashHandler::WriteMiniDump(EXCEPTION_POINTERS* ExceptionInfo)
     if (!g_WritingDump.compare_exchange_strong(expected, true))
         return;
 
-    // 프로젝트 루트 기준 Saved/Crashes 경로에 덤프 생성 (실패 시 여러 경로로 폴백)
+    // exe가 있는 폴더에 덤프 생성 (간단하고 항상 성공)
     wchar_t exePath[MAX_PATH] = {};
     GetModuleFileNameW(nullptr, exePath, MAX_PATH);
     std::filesystem::path exeDir = std::filesystem::path(exePath).parent_path();
-    // exeDir: .../Binaries/<Config>
-    std::filesystem::path projectRoot = exeDir.parent_path().parent_path();
-    if (projectRoot.empty())
-        projectRoot = exeDir; // 안전 장치
 
     auto now = std::chrono::system_clock::now();
     std::time_t tt = std::chrono::system_clock::to_time_t(now);
@@ -75,10 +61,9 @@ void FCrashHandler::WriteMiniDump(EXCEPTION_POINTERS* ExceptionInfo)
     std::wstringstream wss;
     wss << L"Crash_" << GetCurrentProcessId() << L"_"
         << std::put_time(&tms, L"%Y%m%d_%H%M%S") << L".dmp";
-    std::filesystem::path dumpDir = projectRoot / L"Saved" / L"Crashes";
-    std::error_code ec;
-    std::filesystem::create_directories(dumpDir, ec); // best-effort
-    std::filesystem::path dumpPath = dumpDir / wss.str();
+
+    // 덤프를 exe와 같은 폴더에 생성
+    std::filesystem::path dumpPath = exeDir / wss.str();
 
     HANDLE hFile = CreateFileW(
         dumpPath.c_str(),
@@ -91,45 +76,12 @@ void FCrashHandler::WriteMiniDump(EXCEPTION_POINTERS* ExceptionInfo)
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        // 1st fallback: write next to the executable directory
-        std::filesystem::path altPath = exeDir / wss.str();
-        hFile = CreateFileW(
-            altPath.c_str(), GENERIC_WRITE, FILE_SHARE_WRITE, NULL,
-            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-        if (hFile == INVALID_HANDLE_VALUE)
-        {
-            // 2nd fallback: %TEMP%
-            wchar_t tempDir[MAX_PATH] = {};
-            GetTempPathW(MAX_PATH, tempDir);
-            std::filesystem::path tempPath = std::filesystem::path(tempDir) / wss.str();
-            hFile = CreateFileW(
-                tempPath.c_str(), GENERIC_WRITE, FILE_SHARE_WRITE, NULL,
-                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
-            if (hFile == INVALID_HANDLE_VALUE)
-            {
-                DWORD le = GetLastError();
-                wchar_t buf[256];
-                swprintf_s(buf, L"[CrashHandler] CreateFileW failed (LE=%lu)\n", le);
-                OutputDebugStringW(buf);
-                g_WritingDump.store(false);
-                return;
-            }
-            else
-            {
-                std::wstringstream msg;
-                msg << L"[CrashHandler] Fallback dump to %TEMP%: " << tempPath.c_str() << L"\n";
-                OutputDebugStringW(msg.str().c_str());
-                // continue with hFile
-            }
-        }
-        else
-        {
-            std::wstringstream msg;
-            msg << L"[CrashHandler] Fallback dump next to exe: " << altPath.c_str() << L"\n";
-            OutputDebugStringW(msg.str().c_str());
-            // continue with hFile
-        }
+        DWORD le = GetLastError();
+        wchar_t buf[256];
+        swprintf_s(buf, L"[CrashHandler] CreateFileW failed at %s (LE=%lu)\n", dumpPath.c_str(), le);
+        OutputDebugStringW(buf);
+        g_WritingDump.store(false);
+        return;
     }
 
     MINIDUMP_EXCEPTION_INFORMATION dumpInfo{};
